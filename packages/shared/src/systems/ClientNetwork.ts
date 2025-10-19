@@ -961,6 +961,22 @@ export class ClientNetwork extends SystemBase {
   requestEnterWorld() {
     this.send('enterWorld', {})
   }
+
+  // Inventory actions
+  dropItem(itemId: string, slot?: number, quantity?: number) {
+    this.send('dropItem', { itemId, slot, quantity })
+  }
+
+  onEntityRemoved = (id: string) => {
+    // Remove from interpolation tracking
+    this.interpolationStates.delete(id)
+    // Clean up pending modifications tracking
+    this.pendingModifications.delete(id)
+    this.pendingModificationTimestamps.delete(id)
+    this.pendingModificationLimitReached.delete(id)
+    // Remove from entities system
+    this.world.entities.remove(id)
+  }
   
   /**
    * Update interpolation in lateUpdate (after entity updates)
