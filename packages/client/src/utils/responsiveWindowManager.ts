@@ -87,16 +87,17 @@ export class ResponsiveWindowManager {
       if (config?.fullscreen?.tablet) {
         return { x: 20, y: 60 }
       }
-      // Right side positioning
+      // Right side positioning - clamp to ensure visible
+      const tabletX = Math.max(20, window.innerWidth - 420)
       return {
-        x: window.innerWidth - 420,
+        x: tabletX,
         y: 80
       }
     }
 
     // Desktop: grid-based layout matching screenshot
     if (config?.position?.desktop) {
-      return config.position.desktop
+      return this.clampToViewport(config.position.desktop)
     }
 
     // Grid layout based on window type (matching screenshot layout)
@@ -111,19 +112,51 @@ export class ResponsiveWindowManager {
       settings: { x: viewportWidth * 0.82, y: 75 },         // ~82% from left, top
 
       // Bottom row (left to right) - bottom aligned
-      // Account is taller, so it needs to start higher to align bottoms with Skills
-      account: { x: viewportWidth * 0.11, y: viewportHeight * 0.38 },   // ~11% from left, starts higher
+      // Account: centered on screen for better visibility
+      account: { x: viewportWidth * 0.35, y: viewportHeight * 0.15 },   // Centered horizontally, moved higher (15% from top)
       skills: { x: viewportWidth * 0.28, y: viewportHeight * 0.64 },    // ~28% from left, lower
 
       // Prefs is same as settings
       prefs: { x: viewportWidth * 0.82, y: 75 },
     }
 
-    // Return position for this window or default top-right
-    return desktopPositions[windowId] || {
+    // Get position and clamp to viewport
+    const position = desktopPositions[windowId] || {
       x: viewportWidth * 0.7,
       y: 100
     }
+
+    return this.clampToViewport(position)
+  }
+
+  /**
+   * Clamp window position to ensure it stays within viewport boundaries
+   */
+  private clampToViewport(position: { x: number; y: number }): { x: number; y: number } {
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const dimensions = this.getWindowDimensions()
+    const safeMargin = 16 // Minimum distance from viewport edges
+
+    // Parse window width (handles both number and string with 'px')
+    const windowWidth = typeof dimensions.width === 'string'
+      ? parseInt(dimensions.width)
+      : dimensions.width
+
+    // Estimate window height (title bar + content, conservative estimate)
+    const estimatedWindowHeight = 400
+
+    // Clamp x coordinate
+    const minX = safeMargin
+    const maxX = Math.max(minX, viewportWidth - windowWidth - safeMargin)
+    const clampedX = Math.max(minX, Math.min(position.x, maxX))
+
+    // Clamp y coordinate (ensure window stays visible)
+    const minY = safeMargin
+    const maxY = Math.max(minY, viewportHeight - 100) // Keep at least title bar visible
+    const clampedY = Math.max(minY, Math.min(position.y, maxY))
+
+    return { x: clampedX, y: clampedY }
   }
 
   shouldBeFullscreen(): boolean {

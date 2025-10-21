@@ -72,6 +72,8 @@ export interface DraggableWindowProps {
   className?: string
   style?: CSSProperties
   enabled?: boolean
+  zIndex?: number
+  onFocus?: () => void
 }
 
 // Curve component interfaces

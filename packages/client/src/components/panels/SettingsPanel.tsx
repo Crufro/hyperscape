@@ -1,3 +1,8 @@
+/**
+ * Settings Panel
+ * Modern tab-based settings interface with General and Advanced sections
+ */
+
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { isTouch } from '@hyperscape/shared'
 import type { ClientWorld } from '../../types'
@@ -14,6 +19,8 @@ interface SettingsPanelProps {
   world: ClientWorld
 }
 
+type TabType = 'general' | 'advanced'
+
 const shadowOptions = [
   { label: 'None', value: 'none' },
   { label: 'Low', value: 'low' },
@@ -21,35 +28,6 @@ const shadowOptions = [
   { label: 'High', value: 'high' },
 ]
 
-function Group({ label }: { label?: string }) {
-  return (
-    <>
-      <div className="h-px my-2.5" style={{ backgroundColor: 'rgba(242, 208, 138, 0.2)' }} />
-      {label && (
-        <div className="font-medium leading-none py-3 pl-4 -mt-2.5" style={{ color: '#f2d08a' }}>
-          {label}
-        </div>
-      )}
-    </>
-  )
-}
-
-function Prefs({ world, hidden: _hidden }: { world: ClientWorld; hidden: boolean }) {
-  const player = world.entities?.player
-  const [name, setName] = useState(() => player?.name || '')
-  const prefs = world.prefs
-  const [dpr, setDPR] = useState(prefs?.dpr || 1)
-  const [shadows, setShadows] = useState(prefs?.shadows || 'med')
-  const [postprocessing, setPostprocessing] = useState(prefs?.postprocessing ?? true)
-  const [bloom, setBloom] = useState(prefs?.bloom ?? true)
-  const [music, setMusic] = useState(prefs?.music || 0.5)
-  const [sfx, setSFX] = useState(prefs?.sfx || 0.5)
-  const [voice, setVoice] = useState(prefs?.voice || 1)
-  const [ui, setUI] = useState(prefs?.ui || 1)
-  const nullRef = useRef<HTMLElement | null>(null)
-  const [canFullscreen, isFullscreen, toggleFullscreen] = useFullscreen(nullRef as React.RefObject<HTMLElement>)
-  const [_stats, _setStats] = useState(prefs?.stats || false)
-  
   const changeName = (name: string) => {
     if (!name) return setName(player!.name || '')
     player!.name = name
@@ -65,9 +43,6 @@ function Prefs({ world, hidden: _hidden }: { world: ClientWorld; hidden: boolean
   }, [music])
 
   const dprOptions = useMemo(() => {
-    const graphics = world.graphics
-    const _width = graphics?.width
-    const _height = graphics?.height
     const dpr = window.devicePixelRatio
     const options: Array<{label: string; value: number}> = []
     const add = (label: string, dpr: number) => {
@@ -94,238 +69,443 @@ function Prefs({ world, hidden: _hidden }: { world: ClientWorld; hidden: boolean
       if (changes.sfx) setSFX(changes.sfx.value as number)
       if (changes.voice) setVoice(changes.voice.value as number)
       if (changes.ui) setUI(changes.ui.value as number)
-      if (changes.stats) _setStats(changes.stats.value as boolean)
+      if (changes.stats) setStats(changes.stats.value as boolean)
     }
     prefs?.on?.('change', onPrefsChange)
     return () => {
       prefs?.off?.('change', onPrefsChange)
     }
-  }, [prefs])
-  
-  return (
-    <div className='prefs noscrollbar w-full h-full overflow-y-auto'>
-      <FieldText label='Character Name' hint='Change your character name in the game' value={name} onChange={changeName} />
-      
-      <Group label='Interface & Display' />
-      <FieldRange
-        label='UI Scale'
-        hint='Change the scale of the user interface'
-        min={0.5}
-        max={1.5}
-        step={0.1}
-        value={ui}
-        onChange={ui => prefs?.setUI?.(ui)}
-      />
-      <FieldToggle
-        label='Fullscreen'
-        hint='Toggle fullscreen. Not supported in some browsers'
-        value={isFullscreen as boolean}
-        onChange={value => { if (canFullscreen) toggleFullscreen(value) }}
-        trueLabel='Enabled'
-        falseLabel='Disabled'
-      />
-      <FieldToggle
-        label='Performance Stats'
-        hint='Show or hide performance statistics'
-        value={prefs?.stats || false}
-        onChange={stats => prefs?.setStats?.(stats)}
-        trueLabel='Visible'
-        falseLabel='Hidden'
-      />
-      {!isTouch && (
-        <FieldBtn
-          label='Hide Interface'
-          note='Z'
-          hint='Hide the user interface. Press Z to re-enable.'
-          onClick={() => world.ui?.toggleVisible?.()}
-        />
-      )}
-      
-      <Group label='Visual Quality' />
-      
-      {/* Renderer info display */}
-      <div className="mb-2 px-3 py-2 border rounded" style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderColor: 'rgba(242, 208, 138, 0.3)' }}>
-        <div className="text-xs mb-1" style={{ color: 'rgba(242, 208, 138, 0.7)' }}>Rendering Backend</div>
-        <div className="text-sm flex items-center gap-2">
-          <span style={{ color: world.graphics?.isWebGPU ? '#22c55e' : '#60a5fa' }}>
-            {world.graphics?.isWebGPU ? '⚡ WebGPU' : '🔷 WebGL 2'}
-          </span>
-          <span className="text-xs" style={{ color: 'rgba(242, 208, 138, 0.5)' }}>
-            {world.graphics?.isWebGPU ? '(Modern, High Performance)' : '(Universal Compatibility)'}
-          </span>
-        </div>
-      </div>
-      
-      <FieldSwitch
-        label='Resolution'
-        hint='Change your display resolution for better performance or quality'
-        options={dprOptions}
-        value={dpr}
-        onChange={dpr => prefs?.setDPR?.(dpr as number)}
-      />
-      <FieldSwitch
-        label='Shadow Quality'
-        hint='Change the quality of shadows cast by objects and characters'
-        options={shadowOptions}
-        value={shadows}
-        onChange={shadows => prefs?.setShadows?.(shadows as string)}
-      />
-      <FieldToggle
-        label='Post-Processing'
-        hint='Enable advanced visual effects like bloom and ambient occlusion. Improves visual quality but may reduce performance.'
-        trueLabel='Enabled'
-        falseLabel='Disabled'
-        value={postprocessing}
-        onChange={postprocessing => {
-          prefs?.setPostprocessing?.(postprocessing)
-        }}
-      />
-      {postprocessing && (
-        <FieldToggle
-          label='Bloom Effect'
-          hint='Enable glowing effects on bright and magical objects.'
-          trueLabel='Enabled'
-          falseLabel='Disabled'
-          value={bloom}
-          onChange={bloom => {
-            prefs?.setBloom?.(bloom)
-          }}
-        />
-      )}
-      
-      <Group label='Audio & Sound' />
-      <FieldRange
-        label='Music Volume'
-        hint='Adjust background music and ambient sounds'
-        min={0}
-        max={2}
-        step={0.05}
-        value={music}
-        onChange={music => prefs?.setMusic?.(music)}
-      />
-      <FieldRange
-        label='Effects Volume'
-        hint='Adjust combat, magic, and interaction sound effects'
-        min={0}
-        max={2}
-        step={0.05}
-        value={sfx}
-        onChange={sfx => prefs?.setSFX?.(sfx)}
-      />
-      <FieldRange
-        label='Voice Chat'
-        hint='Adjust volume for player voice communication'
-        min={0}
-        max={2}
-        step={0.05}
-        value={voice}
-        onChange={voice => prefs?.setVoice?.(voice)}
-      />
-    </div>
-  )
-}
-
-export function SettingsPanel({ world }: SettingsPanelProps) {
-  const [advanced, setAdvanced] = useState(false)
-  const prefs = world.prefs
-  const [uiScale, setUiScale] = useState(prefs?.ui || 1)
-  const [statsOn, setStatsOn] = useState(prefs?.stats || false)
-  const nullRef = useRef<HTMLElement | null>(null)
-  const [canFullscreen, isFullscreen, toggleFullscreen] = useFullscreen(nullRef as React.RefObject<HTMLElement>)
-
-  const advancedModal = advanced ? (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] pointer-events-auto"
-      onClick={() => setAdvanced(false)}
-    >
       <div
-        className="w-[520px] max-w-[90vw] max-h-[80vh] bg-[rgba(11,10,21,0.98)] border rounded-xl overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
-        style={{ borderColor: 'rgba(242, 208, 138, 0.4)' }}
-        onClick={(e) => e.stopPropagation()}
+        className="border rounded-lg transition-all duration-200"
+        style={{
+          background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.98) 0%, rgba(30, 25, 40, 0.95) 100%)',
+          borderColor: 'rgba(242, 208, 138, 0.5)',
+          borderWidth: '2px',
+          padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(242, 208, 138, 0.1)',
+        }}
       >
-        <div className="flex items-center justify-between py-2.5 px-3 border-b" style={{ borderBottomColor: 'rgba(242, 208, 138, 0.3)' }}>
-          <div className="font-semibold" style={{ color: '#f2d08a' }}>Advanced Settings</div>
-          <button onClick={() => setAdvanced(false)} className="border-none text-white rounded-md py-1 px-2 cursor-pointer" style={{ backgroundColor: '#8b4513' }}>Close</button>
-        </div>
-        <div className='noscrollbar overflow-y-auto max-h-[calc(80vh-48px)] py-2 px-3'>
-          <Prefs world={world} hidden={false} />
-        </div>
-      </div>
-    </div>
-  ) : null
-
-  return (
-    <div className="w-full h-full overflow-y-auto relative">
-      <div className="font-semibold mb-2.5" style={{ color: '#f2d08a' }}>Quick Settings</div>
-      <div className="flex flex-col gap-2.5">
-        <div>
-          <div className="mb-1" style={{ color: 'rgba(242, 208, 138, 0.9)' }}>UI Scale</div>
-          <input
-            type='range'
-            min={0.6}
-            max={1.6}
-            step={0.05}
-            value={uiScale}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value)
-              setUiScale(v)
-              prefs?.setUI?.(v)
-            }}
-            className="w-full"
-          />
-        </div>
-        <div className="flex justify-between items-center">
-          <div style={{ color: 'rgba(242, 208, 138, 0.9)' }}>Fullscreen</div>
-          <button
-            onClick={() => { if (canFullscreen) toggleFullscreen(!(isFullscreen as boolean)) }}
-            className="border text-white rounded-md py-1 px-2 cursor-pointer"
             style={{
-              backgroundColor: 'rgba(242, 208, 138, 0.15)',
-              borderColor: 'rgba(242, 208, 138, 0.5)',
               color: '#f2d08a',
+              fontSize: 'clamp(0.813rem, 1.6vw, 0.938rem)',
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
             }}
           >
-            {(isFullscreen as boolean) ? 'Disable' : 'Enable'}
-          </button>
+            SETTINGS
+          </div>
         </div>
-        <div className="flex justify-between items-center">
-          <div style={{ color: 'rgba(242, 208, 138, 0.9)' }}>Performance Stats</div>
-          <button
-            onClick={() => {
-              const next = !statsOn
-              setStatsOn(next)
-              prefs?.setStats?.(next)
-            }}
-            className="border-none text-white rounded-md py-1 px-2 cursor-pointer"
-            style={{ backgroundColor: statsOn ? '#22c55e' : '#6b7280' }}
-          >
-            {statsOn ? 'Shown' : 'Hidden'}
-          </button>
-        </div>
-        <button
-          onClick={() => world.ui?.toggleVisible?.()}
-          className="border-none text-white rounded-md py-1.5 px-2.5 cursor-pointer"
-          style={{ backgroundColor: '#8b4513', color: '#f2d08a' }}
-        >
-          Hide Interface (Z)
-        </button>
 
-        <div className="h-2" />
-        <button
-          onClick={() => setAdvanced(true)}
-          className="border text-white rounded-md py-2 px-2.5 cursor-pointer"
-          style={{
-            backgroundColor: 'rgba(242, 208, 138, 0.15)',
-            borderColor: 'rgba(242, 208, 138, 0.5)',
-            color: '#f2d08a',
-          }}
-        >
-          Open Advanced Settings
-        </button>
+        {/* Tab Navigation */}
+        <div className="flex gap-1">
+          {(['general', 'advanced'] as TabType[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="flex-1 py-1.5 px-2 rounded cursor-pointer transition-all duration-200 font-medium uppercase tracking-wide"
+              style={{
+                background: activeTab === tab
+                  ? 'linear-gradient(135deg, rgba(242, 208, 138, 0.2) 0%, rgba(242, 208, 138, 0.15) 100%)'
+                  : 'rgba(20, 20, 30, 0.5)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: activeTab === tab ? 'rgba(242, 208, 138, 0.5)' : 'rgba(242, 208, 138, 0.2)',
+                color: activeTab === tab ? '#f2d08a' : 'rgba(242, 208, 138, 0.5)',
+                fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                boxShadow: activeTab === tab ? '0 2px 4px rgba(0, 0, 0, 0.4)' : 'none',
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
-      {advancedModal}
+
+      {/* Tab Content */}
+      <div className="flex-1 overflow-y-auto noscrollbar">
+        <div className="flex flex-col" style={{ gap: 'clamp(0.4rem, 1vw, 0.5rem)' }}>
+
+          {/* GENERAL TAB */}
+          {activeTab === 'general' && (
+            <>
+              {/* Quick Settings */}
+              <div
+                className="border rounded-lg transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(25, 20, 35, 0.92) 100%)',
+                  borderColor: 'rgba(242, 208, 138, 0.35)',
+                  padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div
+                  className="text-xs uppercase tracking-wide mb-2 opacity-60"
+                  style={{
+                    color: '#f2d08a',
+                    fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                  }}
+                >
+                  Quick Actions
+                </div>
+                <div className="space-y-2">
+                  {/* Fullscreen Toggle */}
+                  <div className="flex items-center justify-between">
+                    <span style={{ color: 'rgba(242, 208, 138, 0.85)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                      Fullscreen Mode
+                    </span>
+                    <button
+                      onClick={() => { if (canFullscreen) toggleFullscreen(!(isFullscreen as boolean)) }}
+                      className="rounded px-3 py-1.5 cursor-pointer transition-all duration-150 font-medium"
+                      style={{
+                        background: (isFullscreen as boolean)
+                          ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.25) 0%, rgba(34, 197, 94, 0.15) 100%)'
+                          : 'rgba(107, 114, 128, 0.2)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: (isFullscreen as boolean) ? 'rgba(34, 197, 94, 0.4)' : 'rgba(107, 114, 128, 0.4)',
+                        color: (isFullscreen as boolean) ? '#22c55e' : '#9ca3af',
+                        fontSize: 'clamp(0.625rem, 1.2vw, 0.688rem)',
+                        minHeight: '32px',
+                      }}
+                    >
+                      {(isFullscreen as boolean) ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+
+                  {/* Performance Stats Toggle */}
+                  <div className="flex items-center justify-between">
+                    <span style={{ color: 'rgba(242, 208, 138, 0.85)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                      Performance Stats
+                    </span>
+                    <button
+                      onClick={() => {
+                        const next = !stats
+                        setStats(next)
+                        world.prefs!.setStats(next)
+                      }}
+                      className="rounded px-3 py-1.5 cursor-pointer transition-all duration-150 font-medium"
+                      style={{
+                        background: stats
+                          ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.25) 0%, rgba(34, 197, 94, 0.15) 100%)'
+                          : 'rgba(107, 114, 128, 0.2)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: stats ? 'rgba(34, 197, 94, 0.4)' : 'rgba(107, 114, 128, 0.4)',
+                        color: stats ? '#22c55e' : '#9ca3af',
+                        fontSize: 'clamp(0.625rem, 1.2vw, 0.688rem)',
+                        minHeight: '32px',
+                      }}
+                    >
+                      {stats ? 'Shown' : 'Hidden'}
+                    </button>
+                  </div>
+
+                  {/* Hide Interface Button */}
+                  {!isTouch && (
+                    <button
+                      onClick={() => world.ui?.toggleVisible()}
+                      className="w-full rounded px-3 py-2 cursor-pointer transition-all duration-150 font-medium"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(139, 69, 19, 0.35) 0%, rgba(139, 69, 19, 0.25) 100%)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: 'rgba(139, 69, 19, 0.5)',
+                        color: '#f2d08a',
+                        fontSize: 'clamp(0.625rem, 1.2vw, 0.688rem)',
+                        minHeight: '36px',
+                      }}
+                    >
+                      Hide Interface (Press Z)
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Interface Settings */}
+              <div
+                className="border rounded-lg transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(25, 20, 35, 0.92) 100%)',
+                  borderColor: 'rgba(242, 208, 138, 0.35)',
+                  padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div
+                  className="text-xs uppercase tracking-wide mb-2 opacity-60"
+                  style={{
+                    color: '#f2d08a',
+                    fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                  }}
+                >
+                  Interface
+                </div>
+                <div className="space-y-3">
+                  {/* UI Scale */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span style={{ color: 'rgba(242, 208, 138, 0.85)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        UI Scale
+                      </span>
+                      <span style={{ color: 'rgba(242, 208, 138, 0.6)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        {ui.toFixed(1)}x
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.6}
+                      max={1.6}
+                      step={0.05}
+                      value={ui}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value)
+                        setUI(v)
+                        world.prefs!.setUI(v)
+                      }}
+                      className="w-full"
+                      style={{
+                        accentColor: '#f2d08a',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Audio Settings */}
+              <div
+                className="border rounded-lg transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(25, 20, 35, 0.92) 100%)',
+                  borderColor: 'rgba(242, 208, 138, 0.35)',
+                  padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div
+                  className="text-xs uppercase tracking-wide mb-2 opacity-60"
+                  style={{
+                    color: '#f2d08a',
+                    fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                  }}
+                >
+                  Audio & Sound
+                </div>
+                <div className="space-y-3">
+                  {/* Music Volume */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span style={{ color: 'rgba(242, 208, 138, 0.85)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        Music Volume
+                      </span>
+                      <span style={{ color: 'rgba(242, 208, 138, 0.6)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        {Math.round(music * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      value={music}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value)
+                        setMusic(v)
+                        world.prefs?.setMusic(v)
+                      }}
+                      className="w-full"
+                      style={{
+                        accentColor: '#f2d08a',
+                      }}
+                    />
+                  </div>
+
+                  {/* Effects Volume */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span style={{ color: 'rgba(242, 208, 138, 0.85)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        Effects Volume
+                      </span>
+                      <span style={{ color: 'rgba(242, 208, 138, 0.6)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        {Math.round(sfx * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      value={sfx}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value)
+                        setSFX(v)
+                        world.prefs?.setSFX(v)
+                      }}
+                      className="w-full"
+                      style={{
+                        accentColor: '#f2d08a',
+                      }}
+                    />
+                  </div>
+
+                  {/* Voice Chat Volume */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span style={{ color: 'rgba(242, 208, 138, 0.85)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        Voice Chat Volume
+                      </span>
+                      <span style={{ color: 'rgba(242, 208, 138, 0.6)', fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)' }}>
+                        {Math.round(voice * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      value={voice}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value)
+                        setVoice(v)
+                        world.prefs?.setVoice(v)
+                      }}
+                      className="w-full"
+                      style={{
+                        accentColor: '#f2d08a',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ADVANCED TAB */}
+          {activeTab === 'advanced' && (
+            <>
+              {/* Character Settings */}
+              <div
+                className="border rounded-lg transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(25, 20, 35, 0.92) 100%)',
+                  borderColor: 'rgba(242, 208, 138, 0.35)',
+                  padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div
+                  className="text-xs uppercase tracking-wide mb-2 opacity-60"
+                  style={{
+                    color: '#f2d08a',
+                    fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                  }}
+                >
+                  Character
+                </div>
+                <FieldText
+                  label='Character Name'
+                  hint='Change your character name in the game'
+                  value={name}
+                  onChange={changeName}
+                />
+              </div>
+
+              {/* Rendering Backend Info */}
+              <div
+                className="border rounded-lg transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(25, 20, 35, 0.92) 100%)',
+                  borderColor: 'rgba(242, 208, 138, 0.35)',
+                  padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div
+                  className="text-xs uppercase tracking-wide mb-2 opacity-60"
+                  style={{
+                    color: '#f2d08a',
+                    fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                  }}
+                >
+                  Rendering Backend
+                </div>
+                <div className="flex items-center gap-2">
+                  <span style={{
+                    color: world.graphics?.isWebGPU ? '#22c55e' : '#60a5fa',
+                    fontSize: 'clamp(0.75rem, 1.3vw, 0.813rem)',
+                    fontWeight: '600'
+                  }}>
+                    {world.graphics?.isWebGPU ? '⚡ WebGPU' : '🔷 WebGL 2'}
+                  </span>
+                  <span style={{
+                    color: 'rgba(242, 208, 138, 0.5)',
+                    fontSize: 'clamp(0.625rem, 1.1vw, 0.688rem)'
+                  }}>
+                    {world.graphics?.isWebGPU ? '(Modern, High Performance)' : '(Universal Compatibility)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Visual Quality */}
+              <div
+                className="border rounded-lg transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20, 20, 30, 0.95) 0%, rgba(25, 20, 35, 0.92) 100%)',
+                  borderColor: 'rgba(242, 208, 138, 0.35)',
+                  padding: 'clamp(0.5rem, 1.2vw, 0.625rem)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div
+                  className="text-xs uppercase tracking-wide mb-2 opacity-60"
+                  style={{
+                    color: '#f2d08a',
+                    fontSize: 'clamp(0.563rem, 1vw, 0.625rem)',
+                  }}
+                >
+                  Visual Quality
+                </div>
+                <div className="space-y-3">
+                  <FieldSwitch
+                    label='Resolution'
+                    hint='Change your display resolution for better performance or quality'
+                    options={dprOptions}
+                    value={dpr}
+                    onChange={dpr => world.prefs?.setDPR(dpr as number)}
+                  />
+                  <FieldSwitch
+                    label='Shadow Quality'
+                    hint='Change the quality of shadows cast by objects and characters'
+                    options={shadowOptions}
+                    value={shadows}
+                    onChange={shadows => world.prefs?.setShadows(shadows as string)}
+                  />
+                  <FieldToggle
+                    label='Post-Processing'
+                    hint='Enable advanced visual effects like bloom and ambient occlusion'
+                    trueLabel='Enabled'
+                    falseLabel='Disabled'
+                    value={postprocessing}
+                    onChange={postprocessing => {
+                      world.prefs?.setPostprocessing(postprocessing)
+                    }}
+                  />
+                  {postprocessing && (
+                    <FieldToggle
+                      label='Bloom Effect'
+                      hint='Enable glowing effects on bright and magical objects'
+                      trueLabel='Enabled'
+                      falseLabel='Disabled'
+                      value={bloom}
+                      onChange={bloom => {
+                        world.prefs?.setBloom(bloom)
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
-
-

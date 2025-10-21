@@ -82,6 +82,48 @@ export * from './events';
 export * from './identifiers';
 export * from './networking';
 export * from './nodes';
+// Export UI types, excluding NametagHandle which is already exported from ./nodes
+export type {
+  ActionTestData,
+  BankWindowProps,
+  ContextMenuAction,
+  ContextMenuProps,
+  ContextMenuState,
+  CurvePaneProps,
+  CurvePreviewProps,
+  DraggableWindowProps,
+  EntityPip,
+  EntityWindowProps,
+  FieldBtnProps,
+  FieldCurveProps,
+  FieldFileProps,
+  FieldNumberProps,
+  FieldRangeProps,
+  FieldSwitchProps,
+  FieldTextareaProps,
+  FieldTextProps,
+  FieldToggleProps,
+  FieldVec3Props,
+  HierarchyNode,
+  HintContextType,
+  HintProviderProps,
+  InputBaseProps,
+  InputDropdownProps,
+  InputFileProps,
+  InputNumberProps,
+  InputRangeProps,
+  InputSwitchProps,
+  InputTextareaProps,
+  InputTextProps,
+  MenuContextType,
+  MinimapProps,
+  PaneInfo,
+  ParseResult,
+  PlayerWithEquipmentSupport,
+  StoreWindowProps,
+  SwitchOption,
+  WindowProps
+} from './ui';
 
 // Import AvatarFactory from nodes for use in LoadedAvatar type below
 import type { AvatarFactory as AvatarFactoryType } from './nodes';

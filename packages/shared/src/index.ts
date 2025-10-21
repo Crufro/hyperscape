@@ -328,6 +328,7 @@ export type {
   UISceneItem,
   UIYogaNode,
 } from './types/nodes';
+export type { DraggableWindowProps } from './types/ui';
 export type { NodeData, Position3D } from './types/index';
 // Re-export extras used by PlayerRemote and others
 export { LerpVector3 } from './extras/LerpVector3';

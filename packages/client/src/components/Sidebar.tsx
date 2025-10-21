@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
+import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
+
 import { EventType } from '@hyperscape/shared'
-import type { ClientWorld, PlayerEquipmentItems, PlayerStats, InventorySlotItem } from '../types'
+import type { ClientWorld, PlayerEquipmentItems, PlayerStats, InventorySlotItem, Item, EquipmentSlotName } from '../types'
 import { useChatContext } from './ChatContext'
 import { HintProvider } from './Hint'
 import { Minimap } from './Minimap'
@@ -36,20 +38,36 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
   const { collapsed: _chatCollapsed, active: _chatActive } = useChatContext()
 
   const [openWindows, setOpenWindows] = useState<Set<string>>(new Set())
-  
+  // Track z-index for window stacking (higher = on top)
+  const [windowZIndices, setWindowZIndices] = useState<Map<string, number>>(new Map())
+  const nextZIndexRef = React.useRef(1000)
+
   const toggleWindow = (windowId: string) => {
     setOpenWindows(prev => {
       const next = new Set(prev)
-      if (next.has(windowId)) next.delete(windowId)
-      else next.add(windowId)
+      if (next.has(windowId)) {
+        next.delete(windowId)
+      } else {
+        next.add(windowId)
+        // Bring newly opened window to front
+        bringToFront(windowId)
+      }
       return next
     })
   }
-  
+
   const closeWindow = (windowId: string) => {
     setOpenWindows(prev => {
       const next = new Set(prev)
       next.delete(windowId)
+      return next
+    })
+  }
+
+  const bringToFront = (windowId: string) => {
+    setWindowZIndices(prev => {
+      const next = new Map(prev)
+      next.set(windowId, nextZIndexRef.current++)
       return next
     })
   }
@@ -161,9 +179,53 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
       } as React.CSSProperties,
     }
   })
-  
+
+  // Handle drag-and-drop between inventory and equipment
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    // Check if dragging from inventory to equipment slot
+    if (activeId.startsWith('inventory-') && overId.startsWith('equipment-')) {
+      const inventoryIndex = parseInt(activeId.split('-')[1])
+      const equipmentSlot = overId.split('-')[1] as EquipmentSlotName
+
+      // Get the item being dragged
+      const item = inventory[inventoryIndex]
+      if (!item || !item.item) return
+
+      // Validate that item can be equipped in this slot
+      if (item.item.equipSlot === equipmentSlot) {
+        // Send equip command to server
+        world.network?.send?.('equipItem', {
+          itemId: item.itemId,
+          slot: equipmentSlot,
+          inventorySlot: inventoryIndex
+        })
+      }
+    }
+
+    // Check if dragging from equipment back to inventory
+    if (activeId.startsWith('equipment-') && overId.startsWith('inventory-')) {
+      const equipmentSlot = activeId.split('-')[1] as EquipmentSlotName
+
+      // Send unequip command to server
+      world.network?.send?.('unequipItem', {
+        slot: equipmentSlot
+      })
+    }
+  }
+
   return (
-    <HintProvider>
+    <DndContext
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <HintProvider>
       <div
         className='sidebar absolute text-base inset-0 pointer-events-none z-[1]'
       >
@@ -245,6 +307,8 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
             title="Account"
             windowId="account"
             onClose={() => closeWindow('account')}
+            zIndex={windowZIndices.get('account') ?? 1000}
+            onFocus={() => bringToFront('account')}
           >
             <AccountPanel world={world} />
           </GameWindow>
@@ -255,6 +319,8 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
             title="Combat"
             windowId="combat"
             onClose={() => closeWindow('combat')}
+            zIndex={windowZIndices.get('combat') ?? 1000}
+            onFocus={() => bringToFront('combat')}
           >
             <CombatPanel world={world} stats={playerStats} equipment={equipment} />
           </GameWindow>
@@ -265,6 +331,8 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
             title="Skills"
             windowId="skills"
             onClose={() => closeWindow('skills')}
+            zIndex={windowZIndices.get('skills') ?? 1000}
+            onFocus={() => bringToFront('skills')}
           >
             <SkillsPanel world={world} stats={playerStats} />
           </GameWindow>
@@ -276,6 +344,8 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
             windowId="inventory"
             onClose={() => closeWindow('inventory')}
             fitContent
+            zIndex={windowZIndices.get('inventory') ?? 1000}
+            onFocus={() => bringToFront('inventory')}
           >
             <InventoryPanel items={inventory} coins={coins} world={world} />
           </GameWindow>
@@ -286,6 +356,8 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
             title="Equipment"
             windowId="equipment"
             onClose={() => closeWindow('equipment')}
+            zIndex={windowZIndices.get('equipment') ?? 1000}
+            onFocus={() => bringToFront('equipment')}
           >
             <EquipmentPanel equipment={equipment} />
           </GameWindow>
@@ -296,11 +368,14 @@ export function Sidebar({ world, ui: _ui }: SidebarProps) {
             title="Settings"
             windowId="prefs"
             onClose={() => closeWindow('prefs')}
+            zIndex={windowZIndices.get('prefs') ?? 1000}
+            onFocus={() => bringToFront('prefs')}
           >
             <SettingsPanel world={world} />
           </GameWindow>
         )}
       </div>
-    </HintProvider>
+      </HintProvider>
+    </DndContext>
   )
 }

@@ -8,11 +8,13 @@ interface GameWindowProps {
   defaultX?: number
   defaultY?: number
   windowId?: string
+  zIndex?: number
+  onFocus?: () => void
   children: React.ReactNode
   fitContent?: boolean
 }
 
-export function GameWindow({ title, onClose, defaultX, defaultY, windowId = 'default', children, fitContent = false }: GameWindowProps) {
+export function GameWindow({ title, onClose, defaultX, defaultY, windowId = 'default', zIndex = 1000, onFocus, children, fitContent = false }: GameWindowProps) {
   const dragHandleRef = useRef<HTMLDivElement>(null)
   const [isMobile, setIsMobile] = useState(windowManager.isMobile())
   const [isTablet, setIsTablet] = useState(windowManager.isTablet())
@@ -51,19 +53,21 @@ export function GameWindow({ title, onClose, defaultX, defaultY, windowId = 'def
         {/* Mobile backdrop */}
         {showBackdrop && (
           <div
-            className="fixed inset-0 bg-black/50 pointer-events-auto z-[999] transition-opacity duration-300"
+            className="fixed inset-0 bg-black/50 pointer-events-auto transition-opacity duration-300"
             onClick={onClose}
-            style={{ opacity: showBackdrop ? 1 : 0 }}
+            style={{ opacity: showBackdrop ? 1 : 0, zIndex: zIndex - 1 }}
           />
         )}
 
         {/* Mobile bottom sheet */}
         <div
-          className="fixed bottom-0 left-0 right-0 bg-[rgba(11,10,21,0.98)] border-t rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] pointer-events-auto z-[1000] animate-slideUp"
+          className="fixed bottom-0 left-0 right-0 bg-[rgba(11,10,21,0.98)] border-t rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] pointer-events-auto animate-slideUp"
+          onClick={onFocus}
           style={{
             borderColor: 'rgba(242, 208, 138, 0.4)',
             maxHeight: '85vh',
             bottom: 'calc(var(--mobile-chat-offset, 0px) + env(safe-area-inset-bottom))',
+            zIndex
           }}
         >
           <style>{`
@@ -118,6 +122,8 @@ export function GameWindow({ title, onClose, defaultX, defaultY, windowId = 'def
   return (
     <DraggableWindow
       initialPosition={{ x: finalX, y: finalY }}
+      zIndex={zIndex}
+      onFocus={onFocus}
       dragHandle={
         <div
           ref={dragHandleRef}
@@ -139,7 +145,7 @@ export function GameWindow({ title, onClose, defaultX, defaultY, windowId = 'def
           </button>
         </div>
       }
-      className="bg-[rgba(11,10,21,0.96)] border rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto z-[1000]"
+      className="bg-[rgba(11,10,21,0.96)] border rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto"
       style={{
         borderColor: 'rgba(242, 208, 138, 0.4)',
         minWidth: fitContent ? undefined : minWidth,

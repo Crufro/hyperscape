@@ -17,7 +17,9 @@ export function DraggableWindow({
   onPositionChange,
   className = '',
   style = {},
-  enabled = true
+  enabled = true,
+  zIndex = 1000,
+  onFocus
 }: DraggableWindowProps) {
   const [position, setPosition] = useState(initialPosition)
   const [isDragging, setIsDragging] = useState(false)
@@ -141,13 +143,19 @@ export function DraggableWindow({
     }
   }
 
+  const handleClick = () => {
+    onFocus?.()
+  }
+
   return (
     <div
       ref={windowRef}
       className={`draggable-window absolute ${isDragging ? 'select-none cursor-grabbing' : 'select-auto cursor-auto'} ${className}`}
+      onClick={handleClick}
       style={{
         left: position.x,
         top: position.y,
+        zIndex,
         ...style
       }}
     >
