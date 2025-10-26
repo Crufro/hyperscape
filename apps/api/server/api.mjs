@@ -25,13 +25,13 @@ const app = express()
 
 // Basic CORS headers (simplified without cors package)
 app.use((req, res, next) => {
-  const origin = process.env.NODE_ENV === 'production' 
+  const origin = process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL || '*'
-    : req.headers.origin || 'http://localhost:3003'
-  
+    : req.headers.origin || 'http://localhost:3000'
+
   res.header('Access-Control-Allow-Origin', origin)
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
   res.header('Access-Control-Allow-Credentials', 'true')
   
   // Security headers (basic OWASP without helmet)
