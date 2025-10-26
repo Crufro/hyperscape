@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 
-import { cn, focusManager } from '../../styles'
+import { cn, focusManager } from '../../style/utils'
 
 export interface ModalProps {
   open: boolean

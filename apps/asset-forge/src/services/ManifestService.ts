@@ -16,8 +16,8 @@ import type {
   StoreManifest,
   AnyManifest
 } from '../types/manifests'
-import { createLogger } from '../utils/logger.ts'
-import { apiFetch } from '../utils/api.ts'
+import { createLogger } from '../utils/logger'
+import { apiFetch } from '../utils/api'
 
 const logger = createLogger('ManifestService')
 
@@ -36,7 +36,7 @@ export class ManifestService {
   private cache: Map<ManifestType, AnyManifest[]> = new Map()
   
   /**
-   * Fetch a specific manifest from CDN
+   * Fetch a specific manifest from Hyperscape API
    * Uses automatic request deduplication for concurrent calls
    */
   async fetchManifest<T extends AnyManifest>(type: ManifestType): Promise<T[]> {
@@ -46,13 +46,16 @@ export class ManifestService {
     }
 
     try {
-      const response = await apiFetch(`${MANIFESTS_BASE_URL}/${type}.json`)
+      const response = await apiFetch(`${MANIFESTS_BASE_URL}/${type}`)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch ${type} manifest: ${response.statusText}`)
       }
 
-      const data = await response.json()
+      const result = await response.json()
+
+      // New API format wraps data in { type, data, count, source }
+      const data = result.data || result
 
       // Handle both array and object formats
       const manifestData = Array.isArray(data) ? data : Object.values(data)

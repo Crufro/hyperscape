@@ -7,7 +7,7 @@ import React from 'react'
 
 import { EQUIPMENT_SLOTS } from '../../constants'
 import { FittingConfig } from '../../services/fitting/ArmorFittingService'
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 import { Card, CardHeader, CardTitle, CardContent, Button, Checkbox } from '../common'
 
 interface ArmorFittingControlsProps {

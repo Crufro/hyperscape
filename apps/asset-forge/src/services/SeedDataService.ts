@@ -5,8 +5,8 @@
  * Transforms server seed data into frontend types with proper IDs and timestamps.
  */
 
-import { API_ENDPOINTS } from '../config/api.ts'
-import { apiFetch } from '../utils/api.ts'
+import { API_ENDPOINTS } from '../config/api'
+import { apiFetch } from '../utils/api'
 import type { GeneratedQuest, GeneratedNPC, LoreEntry } from '../types/content-generation'
 
 interface SeedContentResponse {
@@ -74,7 +74,7 @@ function getInlineSeedData(): SeedContentResponse {
         tags: ['combat', 'defense', 'goblin'],
         metadata: {
           createdAt: now,
-          author: 'Asset Forge Team',
+          author: 'HyperForge Team',
           version: '1.0.0'
         }
       },
@@ -104,7 +104,7 @@ function getInlineSeedData(): SeedContentResponse {
         tags: ['gathering', 'peaceful', 'herbalism'],
         metadata: {
           createdAt: now,
-          author: 'Asset Forge Team',
+          author: 'HyperForge Team',
           version: '1.0.0'
         }
       }
@@ -150,7 +150,7 @@ function getInlineSeedData(): SeedContentResponse {
         services: ['quest'],
         metadata: {
           createdAt: now,
-          author: 'Asset Forge Team',
+          author: 'HyperForge Team',
           version: '1.0.0'
         }
       },
@@ -188,7 +188,7 @@ function getInlineSeedData(): SeedContentResponse {
         services: ['quest'],
         metadata: {
           createdAt: now,
-          author: 'Asset Forge Team',
+          author: 'HyperForge Team',
           version: '1.0.0'
         }
       }

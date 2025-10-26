@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 
-import { useGenerationStore } from '../store'
+import { useGenerationStore } from '../stores'
 
 import { PromptService, GameStylePrompt, AssetTypePrompt, AssetTypePromptsByCategory, PromptsResponse } from '@/services/api/PromptService'
 

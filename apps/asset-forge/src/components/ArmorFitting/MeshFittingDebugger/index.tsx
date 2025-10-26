@@ -10,8 +10,8 @@ import {
 import { useAssets } from '@/hooks/useAssets'
 import { ArmorFittingService } from '@/services/fitting/ArmorFittingService'
 import { MeshFittingService } from '@/services/fitting/MeshFittingService'
-import { useDebuggerStore } from '@/store/useDebuggerStore'
-import { cn } from '@/styles'
+import { useDebuggerStore } from '@/stores/useDebuggerStore'
+import { cn } from '@/stores'
 import { ExtendedMesh } from '@/types'
 import { Checkbox } from '../../common'
 

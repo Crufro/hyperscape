@@ -8,14 +8,19 @@ import React, { useEffect, useRef, useState } from 'react'
 
 import { QuestBuilder, NPCScriptGenerator, LoreGenerator, QuestTracker, NPCScriptBuilder, NPCCollaborationBuilder, CollaborationResultViewer, PlaytesterSwarmPanel } from '../components/GameContent'
 import { ManifestPreviewPanel } from '../components/GameContent/ManifestPreviewPanel'
-import { Button, Card } from '../components/common'
+import { Button, Card, ProjectSelector } from '../components/common'
 import { Badge } from '../components/common/Badge'
-import { useContentGenerationStore } from '../store/useContentGenerationStore'
-import { useMultiAgentStore } from '../store/useMultiAgentStore'
-import { usePreviewManifestsStore } from '../store/usePreviewManifestsStore'
+import { useContentGenerationStore } from '../stores/useContentGenerationStore'
+import { useGenerationStore } from '../stores/useGenerationStore'
+import { useMultiAgentStore } from '../stores/useMultiAgentStore'
+import { usePreviewManifestsStore } from '../stores/usePreviewManifestsStore'
 import { validateQuest } from '../utils/quest-validator'
 
 export const ContentGenerationPage: React.FC = () => {
+  // Project Context
+  const selectedProjectId = useGenerationStore(state => state.selectedProjectId)
+  const setSelectedProject = useGenerationStore(state => state.setSelectedProject)
+
   // Selective subscriptions for performance
   const activeTab = useContentGenerationStore(state => state.activeTab)
   const quests = useContentGenerationStore(state => state.quests)
@@ -73,7 +78,7 @@ export const ContentGenerationPage: React.FC = () => {
   }, [loadPlaytesterPersonas, loadSeedData, quests.length, npcs.length, loreEntries.length])
 
   const handleExportPack = () => {
-    const pack = createPack('My Content Pack', 'Generated with Asset Forge')
+    const pack = createPack('My Content Pack', 'Generated with HyperForge')
 
     const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -213,6 +218,17 @@ export const ContentGenerationPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Project Selector */}
+          <Card className="mb-4">
+            <div className="p-4">
+              <ProjectSelector
+                selectedProjectId={selectedProjectId}
+                onSelect={setSelectedProject}
+                showUnassigned={true}
+              />
+            </div>
+          </Card>
 
           {/* Tab Navigation */}
           <div className="flex gap-2 bg-bg-secondary border border-border-primary rounded-xl p-2">

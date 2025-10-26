@@ -5,12 +5,34 @@
  * plus app version display.
  */
 
+import { LogOut } from 'lucide-react'
+import { usePrivy } from '@privy-io/react-auth'
 import { navigationConfig, isNavLink } from '../../config/navigation-config'
 import { isRouteActive } from '../../config/navigation-config'
-import { useNavigationStore } from '../../store/useNavigationStore'
+import { useNavigationStore } from '../../stores/useNavigationStore'
+import { privyAuthManager } from '../../auth/PrivyAuthManager'
 
 export default function NavigationFooter() {
   const { collapsed, currentPath, navigateTo } = useNavigationStore()
+  const { logout } = usePrivy()
+
+  const handleLogout = async () => {
+    try {
+      // Clear local auth manager state first
+      privyAuthManager.clearAuth()
+
+      // Clear Privy session and disconnect wallet
+      await logout()
+
+      // Force reload to landing page (Privy will show login UI)
+      window.location.href = '/'
+    } catch (error) {
+      console.error('[NavigationFooter] Logout error:', error)
+      // Still attempt to clear local state and redirect
+      privyAuthManager.clearAuth()
+      window.location.href = '/'
+    }
+  }
 
   return (
     <div className="border-t border-border-primary shrink-0">
@@ -42,6 +64,21 @@ export default function NavigationFooter() {
             </button>
           )
         })}
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className={`
+            w-full flex items-center gap-3 px-3 py-2 rounded-md
+            text-sm font-medium transition-all duration-base
+            ${collapsed ? 'justify-center' : 'justify-start'}
+            text-text-secondary hover:text-red-400 hover:bg-red-500/10
+          `}
+          title={collapsed ? 'Logout' : 'Sign out of your account'}
+        >
+          <LogOut size={18} className="shrink-0" />
+          {!collapsed && <span>Logout</span>}
+        </button>
       </div>
 
       {/* Version */}

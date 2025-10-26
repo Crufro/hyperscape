@@ -1,0 +1,155 @@
+{
+  "system": "You are an expert NPC designer for a RuneScape-style MMORPG. Create memorable, well-rounded NPCs with distinct personalities, backgrounds, and roles in the game world.",
+  "npcTypes": {
+    "questGiver": {
+      "name": "Quest Giver",
+      "template": "Create a quest-giving NPC who is a {{occupation}} in {{location}}. They should have a compelling reason to need the player's help and a distinct personality.",
+      "personality_traits": ["helpful", "desperate", "mysterious", "authoritative", "friendly", "anxious"],
+      "examples": [
+        {
+          "name": "Village Elder",
+          "occupation": "Elder",
+          "personality": "wise and concerned",
+          "backstory": "Has protected the village for 40 years",
+          "dialogue_style": "Speaks in proverbs and gives thoughtful advice"
+        }
+      ]
+    },
+    "merchant": {
+      "name": "Merchant/Vendor",
+      "template": "Create a merchant NPC who sells {{item_type}} in {{location}}. Include their personality, sales pitch, and specialties.",
+      "personality_traits": ["greedy", "honest", "chatty", "secretive", "enthusiastic", "grumpy"],
+      "examples": [
+        {
+          "name": "Zaff's Staffs",
+          "occupation": "Staff Merchant",
+          "personality": "enthusiastic salesman",
+          "specialties": ["magical staffs", "runes"],
+          "catchphrase": "The finest staffs in all of Varrock!"
+        }
+      ]
+    },
+    "trainer": {
+      "name": "Skill Trainer",
+      "template": "Create a skill trainer NPC who teaches {{skill}} in {{location}}. They should be knowledgeable and have teaching dialogue.",
+      "personality_traits": ["patient", "strict", "encouraging", "perfectionist", "laid-back"],
+      "examples": [
+        {
+          "name": "Combat Instructor",
+          "skill": "Combat",
+          "personality": "strict but fair",
+          "teaching_style": "Emphasizes practice and discipline"
+        }
+      ]
+    },
+    "enemy": {
+      "name": "Enemy NPC",
+      "template": "Create an enemy NPC of type {{enemy_type}} with {{threat_level}} threat level. Include combat behavior and lore.",
+      "personality_traits": ["aggressive", "cunning", "mindless", "territorial", "vengeful"],
+      "examples": [
+        {
+          "name": "Goblin Raider",
+          "type": "goblin",
+          "threat_level": "low",
+          "behavior": "Attacks on sight, flees when health is low",
+          "lore": "Part of the goblin tribes that raid nearby villages"
+        }
+      ]
+    },
+    "companion": {
+      "name": "Companion NPC",
+      "template": "Create a companion NPC who can {{companion_role}}. They should have personality, combat abilities, and dialogue.",
+      "personality_traits": ["loyal", "sarcastic", "cheerful", "stoic", "curious"],
+      "examples": [
+        {
+          "name": "Squire",
+          "role": "Combat support",
+          "personality": "eager to prove themselves",
+          "abilities": ["basic attack", "heal", "taunt"]
+        }
+      ]
+    },
+    "lorekeeper": {
+      "name": "Lore Keeper",
+      "template": "Create an NPC who preserves knowledge about {{lore_topic}}. They should share stories and historical information.",
+      "personality_traits": ["scholarly", "cryptic", "enthusiastic", "forgetful", "secretive"],
+      "examples": [
+        {
+          "name": "Historian",
+          "expertise": "Ancient ruins",
+          "personality": "scholarly and excited about discoveries",
+          "knowledge": "Knows secrets of the old kingdoms"
+        }
+      ]
+    }
+  },
+  "personalityDimensions": {
+    "friendliness": ["hostile", "cold", "neutral", "friendly", "warm"],
+    "honesty": ["deceptive", "evasive", "neutral", "honest", "transparent"],
+    "courage": ["cowardly", "cautious", "brave", "reckless"],
+    "intelligence": ["simple", "average", "clever", "genius"],
+    "morality": ["evil", "selfish", "neutral", "good", "heroic"]
+  },
+  "dialogueStyles": {
+    "formal": "Uses proper grammar, respectful terms, traditional speech",
+    "casual": "Relaxed, conversational, uses contractions",
+    "archaic": "Old-fashioned language, thee/thou, flowery descriptions",
+    "blunt": "Direct, no-nonsense, gets to the point",
+    "cryptic": "Speaks in riddles, metaphors, mysterious hints",
+    "enthusiastic": "Excited, uses exclamation points, very expressive",
+    "monotone": "Flat delivery, minimal emotion, factual"
+  },
+  "relationshipTypes": {
+    "allied": "Friendly, helpful, willing to assist player",
+    "neutral": "Indifferent, transactional, professional",
+    "suspicious": "Distrustful, needs convincing, guarded",
+    "hostile": "Aggressive, antagonistic, potential enemy",
+    "romantic": "Flirtatious, interested in player personally",
+    "mentor": "Teaching, guiding, protective of player",
+    "rival": "Competitive, challenging, pushes player to improve"
+  },
+  "responseFormat": {
+    "required": true,
+    "schema": {
+      "id": "string (unique NPC identifier)",
+      "name": "string (NPC name)",
+      "title": "string (occupation/title, optional)",
+      "type": "string (NPC type)",
+      "location": "string (where NPC is found)",
+      "personality": {
+        "traits": ["array of personality traits"],
+        "friendliness": "number (1-5)",
+        "honesty": "number (1-5)",
+        "courage": "number (1-5)",
+        "intelligence": "number (1-5)"
+      },
+      "appearance": {
+        "race": "string",
+        "age": "string",
+        "description": "string"
+      },
+      "dialogue": {
+        "greeting": "string",
+        "idle": ["array of idle dialogue options"],
+        "farewell": "string"
+      },
+      "backstory": "string (brief background)",
+      "relationships": "object (relationships with other NPCs, optional)",
+      "voice": {
+        "style": "string (dialogue style)",
+        "pitch": "string (high|medium|low, optional)",
+        "accent": "string (optional)"
+      }
+    }
+  },
+  "guidelines": [
+    "Make each NPC feel unique and memorable",
+    "Tie NPC backstories to game lore",
+    "Give NPCs clear motivations and goals",
+    "Include multiple dialogue options for variety",
+    "Consider NPC relationships with other characters",
+    "Avoid stereotypes, add depth to characters",
+    "Make dialogue natural and character-appropriate",
+    "Include ambient/idle dialogue for immersion"
+  ]
+}

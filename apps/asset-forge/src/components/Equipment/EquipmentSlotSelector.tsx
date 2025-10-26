@@ -2,7 +2,7 @@ import { Target } from 'lucide-react'
 import React from 'react'
 
 import { EQUIPMENT_SLOTS } from '../../constants'
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 
 interface EquipmentSlotSelectorProps {
   equipmentSlot: string

@@ -13,8 +13,8 @@
  * Used by: VoiceGenerator, VoiceLibraryBrowser components
  */
 
-import { API_ENDPOINTS } from '../config/api.ts'
-import { apiFetch } from '../utils/api.ts'
+import { API_ENDPOINTS } from '../config/api'
+import { apiFetch } from '../utils/api'
 import type {
   ElevenLabsVoice,
   VoiceLibraryResponse,

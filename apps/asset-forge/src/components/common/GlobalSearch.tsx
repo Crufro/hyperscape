@@ -10,8 +10,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 
 import { NAVIGATION_VIEWS } from '../../constants/navigation'
 import { useNavigation } from '../../hooks/useNavigation'
-import { useContentGenerationStore } from '../../store/useContentGenerationStore'
-import { useManifestsStore } from '../../store/useManifestsStore'
+import { useContentGenerationStore } from '../../stores/useContentGenerationStore'
+import { useManifestsStore } from '../../stores/useManifestsStore'
 import type { ItemManifest, MobManifest, NPCManifest, ResourceManifest } from '../../types/manifests'
 import { globalSearch, type SearchResult } from '../../utils/fuzzy-search'
 

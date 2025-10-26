@@ -2,8 +2,7 @@ import { User, Search, ChevronRight, Box, Loader2, AlertCircle, Check } from 'lu
 import { useState } from 'react'
 
 import { useAssets } from '../../hooks/useAssets'
-import { useHandRiggingStore } from '../../store'
-import { cn } from '../../styles'
+import { useHandRiggingStore, cn } from '../../stores'
 import type { Asset } from '../../types'
 import { hasAnimations } from '../../types/AssetMetadata'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Input } from '../common'

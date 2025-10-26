@@ -3,7 +3,7 @@
  * Prevents duplicate concurrent requests by sharing promises
  */
 
-interface DeduplicationStats {
+export interface DeduplicationStats {
   totalRequests: number
   deduplicated: number
   hitRate: number

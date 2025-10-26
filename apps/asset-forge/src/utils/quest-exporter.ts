@@ -62,7 +62,7 @@ export function exportQuestPackJSON(quests: GeneratedQuest[], packName: string =
     metadata: {
       exportedAt: new Date().toISOString(),
       questCount: quests.length,
-      tool: 'Asset Forge Content Builder'
+      tool: 'HyperForge Content Builder'
     }
   }
   

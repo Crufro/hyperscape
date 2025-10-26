@@ -17,11 +17,13 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.37",
     "@ai-sdk/openai": "^2.0.53",
+    "ai": "^5.0.0",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

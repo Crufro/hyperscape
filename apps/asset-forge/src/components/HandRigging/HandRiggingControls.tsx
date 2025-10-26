@@ -1,10 +1,9 @@
-import { 
-  Settings, Wand2, Brain, Check, CheckCircle, 
+import {
+  Settings, Wand2, Brain, Check, CheckCircle,
   Sparkles, Loader2, RotateCw, X
 } from 'lucide-react'
 
-import { useHandRiggingStore } from '../../store'
-import { cn } from '../../styles'
+import { useHandRiggingStore, cn } from '../../stores'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge, Checkbox } from '../common'
 
 interface HandRiggingControlsProps {

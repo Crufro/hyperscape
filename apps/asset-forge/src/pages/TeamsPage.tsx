@@ -4,40 +4,19 @@
  */
 
 import { Users2, Plus, Crown, User, Mail, Shield } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge } from '@/components/common'
+import { useEffect, useState } from 'react'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge, Modal, ModalHeader, ModalBody, ModalFooter, Input, Textarea } from '@/components/common'
+import { useTeamsStore } from '../stores/useTeamsStore'
 
 export function TeamsPage() {
-  // Sample teams data structure (will be replaced with real data later)
-  const teams = [
-    {
-      id: 1,
-      name: 'Core Development',
-      description: 'Main asset development team',
-      memberCount: 8,
-      role: 'owner',
-      members: [
-        { id: 1, name: 'John Doe', email: 'john@example.com', role: 'owner' },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'admin' },
-        { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'member' },
-      ]
-    },
-    {
-      id: 2,
-      name: 'Art Department',
-      description: 'Character and environment artists',
-      memberCount: 12,
-      role: 'admin',
-      members: []
-    },
-    {
-      id: 3,
-      name: 'Quality Assurance',
-      description: 'Testing and validation team',
-      memberCount: 5,
-      role: 'member',
-      members: []
-    },
-  ]
+  const { teams, isLoading, fetchTeams, createTeam } = useTeamsStore()
+  const [isCreating, setIsCreating] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newTeam, setNewTeam] = useState({ name: '', description: '' })
+
+  useEffect(() => {
+    fetchTeams()
+  }, [fetchTeams])
 
   const getRoleBadge = (role: string) => {
     const variants: Record<string, 'default' | 'secondary'> = {
@@ -46,6 +25,23 @@ export function TeamsPage() {
       member: 'secondary'
     }
     return <Badge variant={variants[role] || 'secondary'}>{role}</Badge>
+  }
+
+  const handleCreateTeam = async () => {
+    if (!newTeam.name.trim()) return
+
+    setIsCreating(true)
+    try {
+      await createTeam({
+        name: newTeam.name,
+        description: newTeam.description,
+        role: 'owner'
+      })
+      setShowCreateModal(false)
+      setNewTeam({ name: '', description: '' })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -63,7 +59,12 @@ export function TeamsPage() {
                 <p className="text-text-secondary mt-1">Collaborate with your team members on asset projects</p>
               </div>
             </div>
-            <Button variant="primary" className="gap-2">
+            <Button
+              variant="primary"
+              className="gap-2"
+              onClick={() => setShowCreateModal(true)}
+              disabled={isLoading}
+            >
               <Plus className="w-4 h-4" />
               Create Team
             </Button>
@@ -73,8 +74,26 @@ export function TeamsPage() {
 
       {/* Main Content */}
       <div className="max-w-[1920px] mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {teams.map(team => (
+        {isLoading && teams.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-text-secondary">Loading teams...</p>
+          </div>
+        ) : teams.length === 0 ? (
+          <div className="text-center py-12">
+            <Users2 className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
+            <p className="text-text-secondary mb-4">No teams yet. Create your first team to get started!</p>
+            <Button
+              variant="primary"
+              className="gap-2"
+              onClick={() => setShowCreateModal(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Create Team
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {teams.map(team => (
             <Card key={team.id} className="bg-bg-secondary border-border-primary backdrop-blur-md">
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -130,9 +149,66 @@ export function TeamsPage() {
                 </Button>
               </CardFooter>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Create Team Modal */}
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} size="md">
+        <ModalHeader title="Create New Team" onClose={() => setShowCreateModal(false)} />
+        <ModalBody>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Team Name
+              </label>
+              <Input
+                type="text"
+                value={newTeam.name}
+                onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
+                placeholder="Enter team name"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newTeam.name.trim()) {
+                    handleCreateTeam()
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Description
+              </label>
+              <Textarea
+                value={newTeam.description}
+                onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
+                placeholder="Enter team description (optional)"
+                rows={4}
+              />
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowCreateModal(false)
+              setNewTeam({ name: '', description: '' })
+            }}
+            disabled={isCreating}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleCreateTeam}
+            disabled={isCreating || !newTeam.name.trim()}
+          >
+            {isCreating ? 'Creating...' : 'Create Team'}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

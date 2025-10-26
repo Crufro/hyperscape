@@ -1,7 +1,7 @@
 import { Palette, Edit2, Trash2, Plus, Loader2, Package2, Check, Sparkles } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 import { MaterialPreset } from '../../types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Textarea } from '../common'
 

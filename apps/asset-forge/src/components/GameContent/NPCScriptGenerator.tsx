@@ -7,9 +7,9 @@ import { Users, Sparkles } from 'lucide-react'
 import React, { useState } from 'react'
 
 import { API_ENDPOINTS } from '../../config/api'
-import { useContentGenerationStore } from '../../store/useContentGenerationStore'
-import { usePreviewManifestsStore } from '../../store/usePreviewManifestsStore'
-import { useRelationshipsStore } from '../../store/useRelationshipsStore'
+import { useContentGenerationStore } from '../../stores/useContentGenerationStore'
+import { usePreviewManifestsStore } from '../../stores/usePreviewManifestsStore'
+import { useRelationshipsStore } from '../../stores/useRelationshipsStore'
 import type { GeneratedNPC } from '../../types/content-generation'
 import type { NPCManifest } from '../../types/manifests'
 import { Badge } from '../common/Badge'
@@ -270,7 +270,7 @@ export const NPCScriptGenerator: React.FC<NPCScriptGeneratorProps> = ({
       services,
       metadata: {
         createdAt: new Date().toISOString(),
-        author: 'Asset Forge',
+        author: 'HyperForge',
         version: '1.0.0'
       }
     }

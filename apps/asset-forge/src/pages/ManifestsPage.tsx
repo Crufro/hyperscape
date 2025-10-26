@@ -8,7 +8,7 @@ import React, { useEffect, useCallback } from 'react'
 import { LoadingState } from '../components/Assets/LoadingState'
 import { ManifestSelector, ManifestTable, ManifestDetails } from '../components/Manifests'
 import { manifestService } from '../services/ManifestService'
-import { useManifestsStore } from '../store/useManifestsStore'
+import { useManifestsStore } from '../stores/useManifestsStore'
 import type { ManifestType } from '../types/manifests'
 
 export const ManifestsPage: React.FC = () => {

@@ -1,7 +1,7 @@
 import { Search, Filter, ChevronDown, ChevronUp, X, Database } from 'lucide-react'
 import React, { useState, useEffect, useMemo } from 'react'
 
-import { useAssetsStore } from '../../store'
+import { useAssetsStore } from '../../stores'
 import { useCacheStats } from '@/hooks/useCacheStats'
 
 interface MaterialPreset {

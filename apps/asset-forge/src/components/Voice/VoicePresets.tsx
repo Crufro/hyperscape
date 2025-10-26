@@ -13,7 +13,7 @@
 import { Wand2, Plus, Trash2, Check } from 'lucide-react'
 import React, { useState, useEffect, useMemo } from 'react'
 
-import { useVoicePresetsStore } from '../../store/useVoicePresetsStore'
+import { useVoicePresetsStore } from '../../stores/useVoicePresetsStore'
 import type { VoiceSettings } from '../../types/voice-generation'
 import { Badge } from '../common/Badge'
 import { Button } from '../common/Button'

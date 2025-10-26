@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react'
 
-import { useHandRiggingStore } from '../store'
-import type { ProcessingStage } from '../store'
+import { useHandRiggingStore } from '../stores'
+import type { ProcessingStage } from '../stores'
 
 import {
   HandAvatarSelector,
@@ -14,7 +14,9 @@ import {
   HelpSection,
   ExportModal
 } from '@/components/HandRigging'
+import { Card, ProjectSelector } from '@/components/common'
 import { ThreeViewerRef } from '@/components/shared/ThreeViewer'
+import { useGenerationStore } from '@/stores/useGenerationStore'
 import { HandRiggingService, HandRiggingResult } from '@/services/hand-rigging/HandRiggingService'
 import { SimpleHandRiggingService, SimpleHandRiggingResult } from '@/services/hand-rigging/SimpleHandRiggingService'
 import { apiFetch } from '@/utils/api'
@@ -24,6 +26,10 @@ export function HandRiggingPage() {
   const viewerRef = useRef<ThreeViewerRef>(null)
   const handRiggingService = useRef<HandRiggingService | null>(null)
   const simpleHandRiggingService = useRef<SimpleHandRiggingService | null>(null)
+
+  // Project Context
+  const selectedProjectId = useGenerationStore(state => state.selectedProjectId)
+  const setSelectedProject = useGenerationStore(state => state.setSelectedProject)
 
   // Get state and actions from store
   const {
@@ -254,6 +260,17 @@ export function HandRiggingPage() {
 
             {/* Upload Card with Controls */}
             <HandAvatarSelector />
+
+            {/* Project Selector */}
+            <Card>
+              <div className="p-4">
+                <ProjectSelector
+                  selectedProjectId={selectedProjectId}
+                  onSelect={setSelectedProject}
+                  showUnassigned={true}
+                />
+              </div>
+            </Card>
 
             {selectedAvatar && (
               <HandRiggingControls onStartProcessing={handleStartProcessing} />

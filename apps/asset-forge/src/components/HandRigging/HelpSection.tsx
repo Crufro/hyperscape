@@ -1,7 +1,7 @@
 import { Info, Zap, Sparkles, CheckCircle, ArrowRight } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { Card, CardContent } from '../common'
 
 interface HelpSectionProps {

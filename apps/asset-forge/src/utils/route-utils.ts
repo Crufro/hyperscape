@@ -145,7 +145,7 @@ export function buildBreadcrumbs(path: string): BreadcrumbItem[] {
  */
 export function getPageTitle(path: string): string {
   const metadata = ROUTE_METADATA[path as RoutePath]
-  return metadata?.title || 'Asset Forge'
+  return metadata?.title || 'HyperForge'
 }
 
 /**

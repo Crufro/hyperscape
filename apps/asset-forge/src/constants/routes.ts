@@ -1,5 +1,5 @@
 /**
- * Route constants for Asset Forge navigation
+ * Route constants for HyperForge navigation
  * Centralized route definitions for type-safety and consistency
  */
 
@@ -61,6 +61,11 @@ export const LEGACY_VIEW_TO_ROUTE: Record<string, RoutePath> = {
   'armorFitting': ROUTES.ARMOR_FITTING,
   'gameData': ROUTES.GAME_DATA,
   'contentBuilder': ROUTES.CONTENT,
+  'content-quests': ROUTES.CONTENT_QUESTS,
+  'content-npcs': ROUTES.CONTENT_NPCS,
+  'content-lore': ROUTES.CONTENT_LORE,
+  'content-scripts': ROUTES.CONTENT_SCRIPTS,
+  'content-tracking': ROUTES.CONTENT_TRACKING,
 }
 
 /**

@@ -25,8 +25,8 @@
 import { CheckCircle, Circle, Target, Trophy, Play, RotateCcw } from 'lucide-react'
 import React, { useState, useEffect, useRef } from 'react'
 
-import { useContentGenerationStore } from '../../store/useContentGenerationStore'
-import { useQuestTrackingStore } from '../../store/useQuestTrackingStore'
+import { useContentGenerationStore } from '../../stores/useContentGenerationStore'
+import { useQuestTrackingStore } from '../../stores/useQuestTrackingStore'
 import { validateQuest } from '../../utils/quest-validator'
 import { Badge } from '../common/Badge'
 import { Button } from '../common/Button'

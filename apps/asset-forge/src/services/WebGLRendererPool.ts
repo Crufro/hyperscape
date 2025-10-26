@@ -1,5 +1,5 @@
 import { ACESFilmicToneMapping, Camera, SRGBColorSpace, Scene, WebGLRenderer } from 'three'
-import { createLogger } from '../utils/logger.ts'
+import { createLogger } from '../utils/logger'
 
 const logger = createLogger('WebGLRendererPool')
 

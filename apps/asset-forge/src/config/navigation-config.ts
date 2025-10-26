@@ -1,7 +1,7 @@
 /**
  * Navigation Configuration
  *
- * Single source of truth for all navigation in Asset Forge.
+ * Single source of truth for all navigation in HyperForge.
  * Defines routes, menu items, groups, permissions, and behaviors.
  *
  * @module navigation-config

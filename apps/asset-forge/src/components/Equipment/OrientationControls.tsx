@@ -1,7 +1,7 @@
 import { RotateCw, RefreshCw } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { RangeInput } from '../common'
 
 interface OrientationControlsProps {

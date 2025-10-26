@@ -9,7 +9,7 @@ import { CheckSquare, Square, Info } from 'lucide-react'
 import React, { useEffect, useState, useCallback } from 'react'
 
 import { API_ENDPOINTS } from '../../config/api'
-import { useMultiAgentStore } from '../../store/useMultiAgentStore'
+import { useMultiAgentStore } from '../../stores/useMultiAgentStore'
 import type { TesterArchetype, PlaytesterPersonasResponse } from '../../types/multi-agent'
 import { Badge } from '../common/Badge'
 import { Button } from '../common/Button'

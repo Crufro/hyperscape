@@ -15,7 +15,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange, onSe
     <nav className="bg-bg-secondary border-b border-border-primary px-6 shadow-theme-sm relative z-[100]">
       <div className="flex items-center justify-between h-[60px]">
         <div className="flex items-center">
-          <h1 className="text-xl font-semibold text-gradient">3D Asset Forge</h1>
+          <h1 className="text-xl font-semibold text-gradient">HyperForge</h1>
         </div>
         
         <div className="flex items-center gap-2">

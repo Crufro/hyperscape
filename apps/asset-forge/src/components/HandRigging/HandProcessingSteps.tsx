@@ -1,7 +1,6 @@
 import { CheckCircle, AlertCircle, Search, Camera, Wand2, Activity, Layers } from 'lucide-react'
 
-import { useHandRiggingStore } from '../../store'
-import { cn } from '../../styles'
+import { useHandRiggingStore, cn } from '../../stores'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 
 export function HandProcessingSteps() {

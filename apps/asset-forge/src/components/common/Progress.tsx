@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 
 // Linear Progress Component
 export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {

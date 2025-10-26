@@ -3,7 +3,21 @@
  * TypeScript definitions for game data manifests loaded from CDN
  */
 
-export type ManifestType = 'items' | 'mobs' | 'npcs' | 'resources' | 'world-areas' | 'biomes' | 'zones' | 'banks' | 'stores'
+export type ManifestType =
+  | 'items'
+  | 'npcs'  // Consolidated: mobs are now NPCs with isAggressive flag
+  | 'lore'
+  | 'quests'
+  | 'music'
+  | 'voice'
+  | 'sound_effects'
+  | 'static_images'
+  | 'resources'
+  | 'world-areas'
+  | 'biomes'
+  | 'zones'
+  | 'banks'
+  | 'stores'
 
 // Item Manifest
 export interface ItemManifest {
@@ -43,15 +57,19 @@ export interface ItemManifest {
   }
 }
 
-// Mob Manifest
-export interface MobManifest {
+// NPC Manifest (Consolidated: includes both friendly NPCs and aggressive mobs)
+export interface NPCManifest {
   id: string
   name: string
   description: string
-  difficultyLevel: 1 | 2 | 3
-  mobType: string
   type: string
-  stats: {
+  npcType?: string // Alias for type (backward compatibility)
+  modelPath: string
+
+  // Combat properties (for aggressive NPCs/mobs)
+  health?: number
+  isAggressive: boolean
+  stats?: {
     level: number
     attack: number
     strength: number
@@ -60,37 +78,50 @@ export interface MobManifest {
     ranged: number
     magic: number
   }
-  behavior: {
-    aggressive: boolean
-    aggroRange: number
-    wanderRadius: number
-    respawnTime: number
+
+  // Skills (combat abilities, special moves)
+  skills?: Array<{
+    id: string
+    name: string
+    type: string
+    cooldown?: number
+    damage?: number
+  }>
+
+  // Behavior (for aggressive NPCs)
+  behavior?: {
+    aggroRange?: number
+    wanderRadius?: number
+    respawnTime?: number
   }
-  drops: Array<{
+
+  // Loot drops (for aggressive NPCs)
+  drops?: Array<{
     itemId: string
     quantity: number
     chance: number
     isGuaranteed: boolean
   }>
-  spawnBiomes: string[]
-  modelPath: string
-  respawnTime: number
-  xpReward: number
-  // Convenience properties for backward compatibility
+
+  // Spawn locations
+  spawnBiomes?: string[]
+  respawnTime?: number
+  xpReward?: number
+
+  // Services (for friendly NPCs)
+  services?: string[]
+
+  // Difficulty (for aggressive NPCs)
+  difficultyLevel?: 1 | 2 | 3
+
+  // Backward compatibility
+  mobType?: string // Deprecated: use type instead
   level?: number // Alias for stats.level
   combatLevel?: number // Alias for stats.level
 }
 
-// NPC Manifest
-export interface NPCManifest {
-  id: string
-  name: string
-  description: string
-  type: string
-  npcType?: string // Alias for type (backward compatibility)
-  modelPath: string
-  services: string[]
-}
+// @deprecated Use NPCManifest with isAggressive: true instead
+export type MobManifest = NPCManifest
 
 // Resource Manifest
 export interface ResourceManifest {
@@ -196,17 +227,217 @@ export interface StoreManifest {
   }>
 }
 
+// Lore Manifest
+export interface LoreManifest {
+  id: string
+  title: string
+  content: string
+  summary?: string
+  category: 'history' | 'character' | 'location' | 'item' | 'event' | 'legend' | 'culture'
+  tags?: string[]
+  era?: string
+  region?: string
+  importance: 1 | 2 | 3 | 4 | 5 // 1 = minor detail, 5 = critical lore
+  relatedCharacters?: string[]
+  relatedLocations?: string[]
+  relatedEvents?: string[]
+}
+
+// Quest Manifest
+export interface QuestManifest {
+  id: string
+  name: string
+  description: string
+  objective: string
+  type: 'main' | 'side' | 'daily' | 'event' | 'tutorial'
+  difficulty: 'easy' | 'medium' | 'hard' | 'epic'
+  estimatedDuration: string // e.g., "30 minutes", "2 hours"
+  prerequisites?: string[] // Quest IDs
+  questChainId?: string
+  questOrder?: number
+  objectives: Array<{
+    id: string
+    description: string
+    type: 'kill' | 'collect' | 'talk' | 'explore' | 'craft'
+    target?: string
+    amount?: number
+    completed?: boolean
+  }>
+  rewards: {
+    xp?: number
+    gold?: number
+    items?: Array<{ itemId: string; quantity: number }>
+    unlocks?: string[]
+  }
+  dialogue?: Record<string, any>
+  requirements?: {
+    level?: number
+    skills?: Record<string, number>
+    items?: string[]
+  }
+}
+
+// Music Manifest
+export interface MusicManifest {
+  id: string
+  name: string
+  description?: string
+  type: 'combat' | 'ambient' | 'town' | 'dungeon' | 'boss' | 'menu' | 'event'
+  audioUrl: string
+  duration: number // in seconds
+  loop: boolean
+  volume?: number // 0-1
+  fadeDuration?: number // in seconds
+  triggers?: string[] // Events or locations that trigger this music
+  biomes?: string[]
+  zones?: string[]
+}
+
+// Voice Manifest
+export interface VoiceManifest {
+  id: string
+  npcId: string
+  name: string
+  voiceModel: string
+  voiceSettings: {
+    pitch?: number
+    speed?: number
+    emotion?: string
+    language?: string
+  }
+  audioSamples: Array<{
+    id: string
+    text: string
+    audioUrl: string
+    context: string // e.g., "greeting", "farewell", "quest_start"
+  }>
+}
+
+// Sound Effect Manifest
+export interface SoundEffectManifest {
+  id: string
+  name: string
+  description?: string
+  category: 'combat' | 'environment' | 'ui' | 'item' | 'spell' | 'ambient'
+  audioUrl: string
+  duration: number // in seconds
+  volume?: number // 0-1
+  variations?: string[] // URLs to sound variations
+}
+
+// Static Image Manifest
+export interface StaticImageManifest {
+  id: string
+  name: string
+  description?: string
+  type: 'sprite' | 'icon' | 'background' | 'portrait' | 'texture' | 'ui_element'
+  imageUrl: string
+  width: number
+  height: number
+  tags?: string[]
+  usage?: string[] // Where this image is used
+}
+
 // Union type for all manifests
-export type AnyManifest = 
-  | ItemManifest 
-  | MobManifest 
-  | NPCManifest 
-  | ResourceManifest 
-  | WorldAreaManifest 
-  | BiomeManifest 
-  | ZoneManifest 
-  | BankManifest 
+export type AnyManifest =
+  | ItemManifest
+  | MobManifest
+  | NPCManifest
+  | LoreManifest
+  | QuestManifest
+  | MusicManifest
+  | VoiceManifest
+  | SoundEffectManifest
+  | StaticImageManifest
+  | ResourceManifest
+  | WorldAreaManifest
+  | BiomeManifest
+  | ZoneManifest
+  | BankManifest
   | StoreManifest
+
+// Preview Manifest (user/team working manifest)
+export interface PreviewManifest {
+  id: string
+  userId?: string
+  teamId?: string
+  manifestType: ManifestType
+  content: AnyManifest[]
+  version: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// Manifest Submission
+export interface ManifestSubmission {
+  id: string
+  userId: string
+  teamId?: string
+  manifestType: ManifestType
+  itemId: string
+  itemData: AnyManifest
+
+  // Required assets
+  hasDetails: boolean
+  hasSprites: boolean
+  hasImages: boolean
+  has3dModel: boolean
+
+  // Asset URLs
+  spriteUrls?: string[]
+  imageUrls?: string[]
+  modelUrl?: string
+
+  // Workflow
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn'
+  submittedAt: string
+  reviewedAt?: string
+  reviewedBy?: string
+
+  // Admin feedback
+  adminNotes?: string
+  rejectionReason?: string
+
+  // Editing
+  editedItemData?: AnyManifest
+  wasEdited: boolean
+
+  // Versioning
+  submissionVersion: number
+  parentSubmissionId?: string
+
+  createdAt: string
+  updatedAt: string
+}
+
+// AI Context Preferences
+export interface AIContextPreferences {
+  id: string
+  userId: string
+  useOwnPreview: boolean
+  useCdnContent: boolean
+  useTeamPreview: boolean
+  useAllSubmissions: boolean
+  maxContextItems: number
+  preferRecent: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// Manifest Version
+export interface ManifestVersion {
+  id: string
+  entityType: 'preview_manifest' | 'submission' | 'cdn_manifest'
+  entityId: string
+  versionNumber: number
+  changeType: 'created' | 'updated' | 'deleted' | 'approved' | 'rejected'
+  dataSnapshot: any
+  changedBy?: string
+  changeSummary?: string
+  diffData?: any
+  createdAt: string
+}
 
 // Manifest metadata
 export interface ManifestInfo {

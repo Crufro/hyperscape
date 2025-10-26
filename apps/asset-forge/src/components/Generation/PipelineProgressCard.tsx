@@ -1,8 +1,8 @@
 import { CheckCircle, Loader2, XCircle, Sparkles, ChevronRight, Zap, FileText, Brain, Camera, Box, User, Layers, Grid3x3 } from 'lucide-react'
 import React, { useMemo } from 'react'
 
-import { PipelineStage } from '../../store'
-import { cn } from '../../styles'
+import { PipelineStage } from '../../stores'
+import { cn } from '../../stores'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Progress } from '../common'
 
 interface PipelineProgressCardProps {

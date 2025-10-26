@@ -1,10 +1,10 @@
-import { createLogger } from './logger.ts'
-import { requestDeduplicator } from './request-deduplication.ts'
+import { createLogger } from './logger'
+import { requestDeduplicator, type DeduplicationStats } from './request-deduplication'
 
-import { privyAuthManager } from '../auth/PrivyAuthManager.ts'
-import { API_URL } from '../config/api.ts'
-import { DEFAULT_API_TIMEOUT, BASE_RETRY_DELAY } from '../constants/timeouts.ts'
-import { MAX_RETRY_ATTEMPTS } from '../constants/limits.ts'
+import { privyAuthManager } from '../auth/PrivyAuthManager'
+import { API_URL } from '../config/api'
+import { DEFAULT_API_TIMEOUT, BASE_RETRY_DELAY } from '../constants/timeouts'
+import { MAX_RETRY_ATTEMPTS } from '../constants/limits'
 
 const logger = createLogger('API')
 
@@ -45,12 +45,18 @@ export async function apiFetch(input: string, init: RequestOptions = {}): Promis
         logger.debug(`${method} ${url}`)
       }
 
-      // Get authentication token and add to headers
+      // Get authentication token and user ID, add to headers
       const token = privyAuthManager.getToken()
+      const user = privyAuthManager.getUser()
       const headers = new Headers(rest.headers || {})
 
       if (token) {
         headers.set('Authorization', `Bearer ${token}`)
+      }
+
+      // Add user ID header for backend authentication
+      if (user?.id) {
+        headers.set('x-user-id', user.id)
       }
 
       // Make request
@@ -191,9 +197,12 @@ export async function apiFetchWithRetry(
  * console.log(`Deduplicated: ${stats.deduplicated}`)
  * ```
  */
-export function getDeduplicationStats() {
+export function getDeduplicationStats(): DeduplicationStats {
   return requestDeduplicator.getStats()
 }
+
+// Re-export the type for consumers
+export type { DeduplicationStats }
 
 /**
  * Reset deduplication statistics counters.

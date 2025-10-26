@@ -15,6 +15,16 @@ import { RetextureService } from './services/RetextureService.mjs'
 import { GenerationService } from './services/GenerationService.mjs'
 import { getWeaponDetectionPrompts } from './utils/promptLoader.mjs'
 import promptRoutes from './routes/promptRoutes.mjs'
+import projectsRoutes from './routes/projects.mjs'
+import teamsRoutes from './routes/teams.mjs'
+import usersRoutes from './routes/users.mjs'
+import assetsRoutes from './routes/assets.mjs'
+import adminRoutes from './routes/admin.mjs'
+import adminModelsRoutes from './routes/admin-models.mjs'
+import aiGatewayRoutes from './routes/ai-gateway.mjs'
+import apiKeysRoutes from './routes/api-keys.mjs'
+import manifestsRoutes from './routes/manifests.mjs'
+import './database/db.mjs' // Initialize database connection
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -30,9 +40,10 @@ app.use((req, res, next) => {
     : req.headers.origin || 'http://localhost:3000'
 
   res.header('Access-Control-Allow-Origin', origin)
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, Expires')
   res.header('Access-Control-Allow-Credentials', 'true')
+  res.header('Access-Control-Expose-Headers', 'Cache-Control, Pragma, Expires')
   
   // Security headers (basic OWASP without helmet)
   res.header('X-Content-Type-Options', 'nosniff')
@@ -75,8 +86,22 @@ const retextureService = new RetextureService({
 })
 const generationService = new GenerationService()
 
-// Use prompt routes
+// Use routes
 app.use('/api', promptRoutes)
+app.use('/api/projects', projectsRoutes)
+app.use('/api/teams', teamsRoutes)
+app.use('/api/users', usersRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/admin/models', adminModelsRoutes)
+app.use('/api/ai-gateway', aiGatewayRoutes)
+app.use('/api/api-keys', apiKeysRoutes)
+app.use('/api/manifests', manifestsRoutes)
+
+// Database-driven Assets API
+// NOTE: This conflicts with the file-based asset endpoints below (lines 101-247)
+// Registered at /api/v2/assets to avoid breaking existing file-based functionality
+// TODO: Migrate to unified asset management system
+app.use('/api/v2/assets', assetsRoutes)
 
 // Routes
 app.get('/api/health', (req, res) => {

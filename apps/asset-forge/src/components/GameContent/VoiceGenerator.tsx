@@ -20,7 +20,7 @@ import React, { useState, useEffect, memo, useCallback, useMemo } from 'react'
 
 import { CDN_URL } from '../../config/api'
 import { voiceGenerationService } from '../../services/VoiceGenerationService'
-import { useVoiceGenerationStore } from '../../store/useVoiceGenerationStore'
+import { useVoiceGenerationStore } from '../../stores/useVoiceGenerationStore'
 import type { NPCScript, DialogueNode } from '../../types/npc-scripts'
 import type { VoiceClip } from '../../types/voice-generation'
 import { VoiceBrowser } from '../Voice/VoiceBrowser'

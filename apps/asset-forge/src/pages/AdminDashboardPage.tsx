@@ -3,13 +3,16 @@
  * Admin panel for managing users, whitelist, and system stats
  */
 
-import { Shield, Activity, Users, Settings } from 'lucide-react'
+import { Shield, Activity, Users, Settings, Cpu } from 'lucide-react'
 import { StatsCards, UserTable, WhitelistManager, ActivityFeed } from '@/components/Admin'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/common'
+import { AdminRoute } from '@/components/guards/AdminRoute'
+import { ModelConfiguration } from '@/components/Admin/ModelConfiguration'
 
 export function AdminDashboardPage() {
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <AdminRoute>
+      <div className="min-h-screen bg-bg-primary">
       {/* Header */}
       <div className="bg-bg-secondary border-b border-border-primary backdrop-blur-md">
         <div className="max-w-[1920px] mx-auto px-6 py-6">
@@ -57,6 +60,22 @@ export function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* AI Model Configuration */}
+        <div>
+          <Card className="bg-bg-secondary border-border-primary backdrop-blur-md">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-primary" />
+                <CardTitle>AI Model Configuration</CardTitle>
+              </div>
+              <CardDescription>Configure which AI models are used for different tasks</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ModelConfiguration />
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Activity Feed */}
         <div>
           <Card className="bg-bg-secondary border-border-primary backdrop-blur-md">
@@ -74,5 +93,6 @@ export function AdminDashboardPage() {
         </div>
       </div>
     </div>
+    </AdminRoute>
   )
 }

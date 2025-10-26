@@ -10,8 +10,8 @@ import { Play, AlertTriangle, AlertCircle, Info, Download } from 'lucide-react'
 import React, { useState } from 'react'
 
 import { API_ENDPOINTS } from '../../config/api'
-import { useContentGenerationStore } from '../../store/useContentGenerationStore'
-import { useMultiAgentStore } from '../../store/useMultiAgentStore'
+import { useContentGenerationStore } from '../../stores/useContentGenerationStore'
+import { useMultiAgentStore } from '../../stores/useMultiAgentStore'
 import type { GeneratedQuest } from '../../types/content-generation'
 import type {
   TesterArchetype,

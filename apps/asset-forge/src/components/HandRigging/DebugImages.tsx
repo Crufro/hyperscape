@@ -1,7 +1,7 @@
 import { Camera } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 
 interface DebugImagesProps {

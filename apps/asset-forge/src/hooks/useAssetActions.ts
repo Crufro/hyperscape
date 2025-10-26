@@ -1,7 +1,7 @@
 import { useCallback, RefObject, useRef, useEffect } from 'react'
 
 import { API_ENDPOINTS } from '../constants/api'
-import { useAssetsStore } from '../store'
+import { useAssetsStore } from '../stores'
 import { Asset } from '../types'
 
 import { ThreeViewerRef } from '@/components/shared/ThreeViewer'

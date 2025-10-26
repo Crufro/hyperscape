@@ -3,7 +3,7 @@
  * Provides division by zero protection for all mathematical operations
  */
 
-import createLogger from './logger.ts'
+import createLogger from './logger'
 
 const logger = createLogger('SafeMath')
 

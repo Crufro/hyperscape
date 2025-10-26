@@ -1,7 +1,9 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { usePrivy } from '@privy-io/react-auth'
 
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { LoadingSpinner } from './components/common/LoadingSpinner'
+import { LoginScreen } from './auth/LoginScreen'
 import { createLogger } from './utils/logger'
 
 const logger = createLogger('App')
@@ -21,7 +23,7 @@ import { NAVIGATION_VIEWS, APP_BACKGROUND_STYLES } from './constants/navigation'
 import { AppProvider } from './contexts/AppContext'
 import { NavigationProvider } from './contexts/NavigationContext'
 import { useNavigation } from './hooks/useNavigation'
-import { useNavigationStore } from './store/useNavigationStore'
+import { useNavigationStore } from './stores/useNavigationStore'
 import type { NavigationView } from './types/navigation'
 
 // Lazy load route-specific pages for better code splitting
@@ -29,14 +31,20 @@ const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then(
 const ArmorFittingPage = lazy(() => import('./pages/ArmorFittingPage').then(m => ({ default: m.ArmorFittingPage })))
 const AssetsPage = lazy(() => import('./pages/AssetsPage').then(m => ({ default: m.AssetsPage })))
 const ContentGenerationPage = lazy(() => import('./pages/ContentGenerationPage').then(m => ({ default: m.ContentGenerationPage })))
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const EquipmentPage = lazy(() => import('./pages/EquipmentPage').then(m => ({ default: m.EquipmentPage })))
 const GenerationPage = lazy(() => import('./pages/GenerationPage').then(m => ({ default: m.GenerationPage })))
 const HandRiggingPage = lazy(() => import('./pages/HandRiggingPage').then(m => ({ default: m.HandRiggingPage })))
+const LorePage = lazy(() => import('./pages/LorePage').then(m => ({ default: m.LorePage })))
 const ManifestVoiceAssignmentPage = lazy(() => import('./pages/ManifestVoiceAssignmentPage').then(m => ({ default: m.ManifestVoiceAssignmentPage })))
 const ManifestsPage = lazy(() => import('./pages/ManifestsPage').then(m => ({ default: m.ManifestsPage })))
+const NPCsPage = lazy(() => import('./pages/NPCsPage').then(m => ({ default: m.NPCsPage })))
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
+const QuestsPage = lazy(() => import('./pages/QuestsPage').then(m => ({ default: m.QuestsPage })))
+const ScriptsPage = lazy(() => import('./pages/ScriptsPage').then(m => ({ default: m.ScriptsPage })))
 const TeamsPage = lazy(() => import('./pages/TeamsPage').then(m => ({ default: m.TeamsPage })))
+const TrackerPage = lazy(() => import('./pages/TrackerPage').then(m => ({ default: m.TrackerPage })))
 const VoiceGenerationPage = lazy(() => import('./pages/VoiceGenerationPage').then(m => ({ default: m.VoiceGenerationPage })))
 const VoiceStandalonePage = lazy(() => import('./pages/VoiceStandalonePage').then(m => ({ default: m.VoiceStandalonePage })))
 
@@ -46,6 +54,13 @@ function getCurrentView(path: string): NavigationView {
   if (path === '/voice/standalone') return NAVIGATION_VIEWS.VOICE_STANDALONE
   if (path === '/voice/manifests') return NAVIGATION_VIEWS.VOICE_MANIFESTS
   if (path === '/voice/dialogue' || path === '/content/voice') return NAVIGATION_VIEWS.VOICE
+
+  // Content-specific routes (check before generic /content)
+  if (path === '/content/quests') return NAVIGATION_VIEWS.CONTENT_QUESTS
+  if (path === '/content/npcs') return NAVIGATION_VIEWS.CONTENT_NPCS
+  if (path === '/content/lore') return NAVIGATION_VIEWS.CONTENT_LORE
+  if (path === '/content/scripts') return NAVIGATION_VIEWS.CONTENT_SCRIPTS
+  if (path === '/content/tracking') return NAVIGATION_VIEWS.CONTENT_TRACKING
 
   // New routes
   if (path === '/dashboard') return NAVIGATION_VIEWS.DASHBOARD
@@ -61,7 +76,7 @@ function getCurrentView(path: string): NavigationView {
   if (path.startsWith('/tools/armor')) return NAVIGATION_VIEWS.ARMOR_FITTING
   if (path.startsWith('/game-data')) return NAVIGATION_VIEWS.GAME_DATA
   if (path.startsWith('/content')) return NAVIGATION_VIEWS.CONTENT_BUILDER
-  return NAVIGATION_VIEWS.GENERATION // default
+  return NAVIGATION_VIEWS.DASHBOARD // default - home page
 }
 
 function AppContent() {
@@ -183,6 +198,41 @@ function AppContent() {
                   </div>
                 </ErrorBoundary>
               )}
+              {currentView === NAVIGATION_VIEWS.CONTENT_QUESTS && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full p-4 sm:p-6 lg:p-8">
+                    <QuestsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.CONTENT_NPCS && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full p-4 sm:p-6 lg:p-8">
+                    <NPCsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.CONTENT_LORE && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full p-4 sm:p-6 lg:p-8">
+                    <LorePage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.CONTENT_SCRIPTS && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full p-4 sm:p-6 lg:p-8">
+                    <ScriptsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.CONTENT_TRACKING && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full p-4 sm:p-6 lg:p-8">
+                    <TrackerPage />
+                  </div>
+                </ErrorBoundary>
+              )}
               {currentView === NAVIGATION_VIEWS.VOICE && (
                 <ErrorBoundary fallback={<VoiceErrorFallback />} resetKeys={[currentView]}>
                   <div className="w-full h-full p-4 sm:p-6 lg:p-8">
@@ -206,10 +256,7 @@ function AppContent() {
               )}
               {currentView === NAVIGATION_VIEWS.DASHBOARD && (
                 <div className="w-full h-full p-4 sm:p-6 lg:p-8">
-                  <div className="text-white">
-                    <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-                    <p className="text-gray-400">Dashboard coming soon...</p>
-                  </div>
+                  <DashboardPage />
                 </div>
               )}
               {currentView === NAVIGATION_VIEWS.ADMIN && (
@@ -250,52 +297,22 @@ function AppContent() {
 }
 
 function App() {
-  // Register service worker on app mount
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then((registration) => {
-          logger.info('Service worker registered successfully', {
-            scope: registration.scope,
-            updateViaCache: registration.updateViaCache
-          })
+  const { ready, authenticated } = usePrivy()
+  const [showApp, setShowApp] = useState(false)
 
-          // Check for updates periodically
-          setInterval(() => {
-            registration.update()
-          }, 60 * 60 * 1000) // Check every hour
+  // Show loading while Privy initializes
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    )
+  }
 
-          // Listen for updates
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  logger.info('New service worker available - reload to update')
-
-                  // Optionally show notification to user
-                  if (window.confirm('New version available! Reload to update?')) {
-                    newWorker.postMessage({ type: 'SKIP_WAITING' })
-                    window.location.reload()
-                  }
-                }
-              })
-            }
-          })
-        })
-        .catch((error) => {
-          logger.error('Service worker registration failed', error)
-        })
-
-      // Listen for controller change (new service worker activated)
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        logger.info('Service worker controller changed')
-      })
-    } else {
-      logger.warn('Service workers not supported in this browser')
-    }
-  }, [])
+  // Show login screen if not authenticated
+  if (!authenticated) {
+    return <LoginScreen onAuthenticated={() => setShowApp(true)} />
+  }
 
   return (
     <AppProvider>

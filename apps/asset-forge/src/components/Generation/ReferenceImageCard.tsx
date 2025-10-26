@@ -1,7 +1,7 @@
 import { Info, Image as ImageIcon, Link as LinkIcon, X as XIcon } from 'lucide-react'
 import React, { useCallback } from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Input, Button } from '@/components/common'
 

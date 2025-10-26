@@ -1,11 +1,11 @@
-import { 
-  RotateCw, 
-  Eye, 
-  EyeOff, 
-  Grid, 
-  Sun, 
-  Moon, 
-  Palette, 
+import {
+  RotateCw,
+  Eye,
+  EyeOff,
+  Grid,
+  Sun,
+  Moon,
+  Palette,
   RefreshCw,
   X,
   Layers,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import React from 'react'
 
-import { useAssetsStore } from '../../store'
+import { useAssetsStore } from '../../stores'
 
 interface ViewerControlsProps {
   onViewerReset: () => void

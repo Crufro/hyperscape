@@ -6,7 +6,7 @@ import {
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 
 import { getTierColor } from '../../constants'
-import { useAssetsStore } from '../../store'
+import { useAssetsStore } from '../../stores'
 import { Asset } from '../../types'
 
 

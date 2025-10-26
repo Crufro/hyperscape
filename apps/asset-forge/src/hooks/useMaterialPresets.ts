@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 
-import { useGenerationStore } from '../store'
+import { useGenerationStore } from '../stores'
 import { MaterialPreset } from '../types'
 import { notify } from '../utils/notify'
 

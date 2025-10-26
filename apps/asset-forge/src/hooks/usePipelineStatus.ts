@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import { useGenerationStore } from '../store'
+import { useGenerationStore } from '../stores'
 import { GeneratedAsset, AssetType, BaseAssetMetadata, GenerationAssetMetadata } from '../types'
 import { pipelinePollingService } from '../services/PipelinePollingService'
 import type { PipelineResult } from '../services/api/GenerationAPIClient'

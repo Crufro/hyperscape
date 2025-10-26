@@ -3,7 +3,7 @@ import React from 'react'
 
 import { CREATURE_PRESETS, CREATURE_SIZE_CATEGORIES, getCreatureCategory } from '../../constants'
 import { CreatureScalingService } from '../../services/processing/CreatureScalingService'
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { RangeInput, Button, Badge, Checkbox } from '../common'
 
 interface CreatureSizeControlsProps {

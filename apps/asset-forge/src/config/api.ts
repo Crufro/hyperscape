@@ -1,11 +1,11 @@
 /**
  * API Configuration
  *
- * Centralized API endpoint configuration for the Asset Forge frontend.
+ * Centralized API endpoint configuration for the HyperForge frontend.
  * Uses environment variables with sensible fallbacks for development.
  */
 
-import { DEFAULT_API_URL, DEFAULT_CDN_URL } from '../constants/network.ts'
+import { DEFAULT_API_URL, DEFAULT_CDN_URL } from '../constants/network'
 
 // Get API URL from environment variable or fall back to localhost
 const getApiUrl = (): string => {
@@ -79,4 +79,12 @@ export const API_ENDPOINTS = {
   voiceManifestDelete: (manifestType: string, entityId: string) =>
     `${API_URL}/api/voice/manifest/${manifestType}/${entityId}`,
   voiceManifestGenerateSample: `${API_URL}/api/voice/manifest/generate-sample`,
+
+  // Hyperscape Manifests API
+  manifestsList: `${API_URL}/api/manifests`,
+  manifestsGet: (type: string) => `${API_URL}/api/manifests/${type}`,
+  manifestsGetItem: (type: string, id: string) => `${API_URL}/api/manifests/${type}/${id}`,
+  manifestsUpdate: (type: string) => `${API_URL}/api/manifests/${type}`,
+  manifestsAddItem: (type: string) => `${API_URL}/api/manifests/${type}/item`,
+  manifestsUpdateItem: (type: string, id: string) => `${API_URL}/api/manifests/${type}/${id}`,
 } as const

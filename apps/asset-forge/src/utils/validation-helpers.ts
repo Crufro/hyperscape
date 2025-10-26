@@ -7,7 +7,7 @@
  * by providing consistent, reusable validation patterns throughout the application.
  */
 
-import createLogger from './logger.ts'
+import createLogger from './logger'
 
 const logger = createLogger('ValidationHelpers')
 

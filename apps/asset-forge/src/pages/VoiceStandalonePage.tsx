@@ -29,7 +29,7 @@ import { Button } from '../components/common/Button'
 import { Card, CardHeader, CardContent } from '../components/common/Card'
 import { RangeInput } from '../components/common/RangeInput'
 import { voiceGenerationService } from '../services/VoiceGenerationService'
-import { useVoiceGenerationStore } from '../store/useVoiceGenerationStore'
+import { useVoiceGenerationStore } from '../stores/useVoiceGenerationStore'
 
 const MAX_CHARACTERS = 5000 // ElevenLabs limit per request
 const WARNING_THRESHOLD = 4500 // Show warning at 90%

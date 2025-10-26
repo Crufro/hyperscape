@@ -2,7 +2,7 @@ import { Brain, ChevronRight, Plus, Trash2, Sparkles, Save, Edit2, Palette, Wand
 import React, { useState } from 'react'
 
 import type { GameStylePrompt, PromptsResponse } from '../../services/api/PromptService'
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 import { CustomAssetType } from '../../types/generation'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Textarea } from '../common'
 

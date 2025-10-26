@@ -5,6 +5,7 @@
 
 import EventEmitter from 'events'
 import { AICreationService } from './AICreationService.mjs'
+import { AISDKService } from './AISDKService.mjs'
 import { ImageHostingService } from './ImageHostingService.mjs'
 import { getGenerationPrompts, getGPT4EnhancementPrompts } from '../utils/promptLoader.mjs'
 import fs from 'fs/promises'
@@ -43,7 +44,10 @@ export class GenerationService extends EventEmitter {
         format: 'glb'
       }
     })
-    
+
+    // Initialize AI SDK service for text generation
+    this.aiSDKService = new AISDKService()
+
     // Initialize image hosting service
     this.imageHostingService = new ImageHostingService()
   }
@@ -764,118 +768,11 @@ export class GenerationService extends EventEmitter {
   }
 
   /**
-   * Enhance prompt with GPT-4
+   * Enhance prompt with GPT-4 using AI SDK
    */
   async enhancePromptWithGPT4(config) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY required for GPT-4 enhancement')
-    }
-    
-    // Load GPT-4 enhancement prompts
-    const gpt4Prompts = await getGPT4EnhancementPrompts()
-    
-    const isAvatar = config.generationType === 'avatar' || config.type === 'character'
-    const isArmor = config.type === 'armor'
-    const isChestArmor = isArmor && (config.subtype?.toLowerCase().includes('chest') || config.subtype?.toLowerCase().includes('body'))
-    
-    // Build system prompt from loaded prompts
-    let systemPrompt = gpt4Prompts?.systemPrompt?.base || `You are an expert at optimizing prompts for 3D asset generation. 
-Your task is to enhance the user's description to create better results with image generation and 3D conversion.`
-    
-    if (isAvatar) {
-      systemPrompt += '\n' + (gpt4Prompts?.typeSpecific?.avatar?.critical || `CRITICAL for characters: The character MUST be in a T-pose (arms stretched out horizontally, legs slightly apart) for proper rigging. The character must have EMPTY HANDS - no weapons, tools, or held items. Always add "standing in T-pose with empty hands" to the description.`)
-    }
-    
-    if (isArmor) {
-      systemPrompt += '\n' + (gpt4Prompts?.typeSpecific?.armor?.base || `CRITICAL for armor pieces: The armor must be shown ALONE without any armor stand, mannequin, or body inside.`)
-      if (isChestArmor) {
-        systemPrompt += ' ' + (gpt4Prompts?.typeSpecific?.armor?.chest || 'EXTRA IMPORTANT for chest/body armor: This MUST be shaped for a SCARECROW POSE (T-POSE) - imagine a scarecrow with arms sticking STRAIGHT OUT SIDEWAYS...')
-      }
-      systemPrompt += ' ' + (gpt4Prompts?.typeSpecific?.armor?.positioning || 'The armor MUST be positioned and SHAPED for a SCARECROW/T-POSE body...')
-    }
-    
-    // Add focus points
-    const focusPoints = gpt4Prompts?.systemPrompt?.focusPoints || [
-      'Clear, specific visual details',
-      'Material and texture descriptions',
-      'Geometric shape and form',
-      `Style consistency (especially for ${config.style || 'low-poly RuneScape'} style)`
-    ]
-    
-    systemPrompt += '\nFocus on:\n' + focusPoints.map(point => '- ' + point.replace('${config.style || \'low-poly RuneScape\'}', config.style || 'low-poly RuneScape')).join('\n')
-    
-    if (isAvatar) {
-      systemPrompt += '\n' + (gpt4Prompts?.typeSpecific?.avatar?.focus || '- T-pose stance with empty hands for rigging compatibility')
-    }
-    
-    if (isArmor) {
-      const armorFocus = gpt4Prompts?.typeSpecific?.armor?.focus || [
-        '- Armor SHAPED for T-pose body (shoulder openings pointing straight sideways, not down)',
-        '- Chest armor should form a "T" or cross shape when viewed from above',
-        '- Shoulder openings at 180° angle to each other (straight line across)'
-      ]
-      systemPrompt += '\n' + armorFocus.join('\n')
-    }
-    
-    systemPrompt += '\n' + (gpt4Prompts?.systemPrompt?.closingInstruction || 'Keep the enhanced prompt concise but detailed.')
-    
-    // Include custom game style text (if present) ahead of the description for better style adherence
-    const stylePrefix = config.customPrompts?.gameStyle ? `${config.customPrompts.gameStyle} — ` : ''
-    const baseDescription = `${stylePrefix}${config.description}`
-    const userPrompt = isArmor 
-      ? (gpt4Prompts?.typeSpecific?.armor?.enhancementPrefix || `Enhance this armor piece description for 3D generation. CRITICAL: The armor must be SHAPED FOR A T-POSE BODY - shoulder openings must point STRAIGHT SIDEWAYS at 90 degrees (like a scarecrow), NOT angled downward! Should look like a wide "T" shape. Ends at shoulders (no arm extensions), hollow openings, no armor stand: `) + `"${baseDescription}"`
-      : `Enhance this ${config.type} asset description for 3D generation: "${baseDescription}"`
-    
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 200
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`GPT-4 API error: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      const optimizedPrompt = data.choices[0].message.content.trim()
-      
-      return {
-        originalPrompt: config.description,
-        optimizedPrompt,
-        model: 'gpt-4',
-        keywords: this.extractKeywords(optimizedPrompt)
-      }
-      
-    } catch (error) {
-      console.error('GPT-4 enhancement failed:', error)
-      // Load generation prompts for fallback
-      const generationPrompts = await getGenerationPrompts()
-      const fallbackTemplate = generationPrompts?.imageGeneration?.fallbackEnhancement || 
-        '${config.description}. ${config.style || "game-ready"} style, clean geometry, game-ready 3D asset.'
-      
-      // Replace template variables
-      const fallbackPrompt = fallbackTemplate
-        .replace('${config.description}', config.description)
-        .replace('${config.style || "game-ready"}', config.style || 'game-ready')
-      
-      return {
-        originalPrompt: config.description,
-        optimizedPrompt: fallbackPrompt,
-        error: error.message
-      }
-    }
+    // Delegate to AI SDK service
+    return await this.aiSDKService.enhancePromptWithGPT4(config.description, config)
   }
 
   /**

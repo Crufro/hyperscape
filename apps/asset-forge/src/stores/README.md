@@ -1,6 +1,6 @@
-# Asset Forge State Management
+# HyperForge State Management
 
-This directory contains Zustand stores for managing application state in Asset Forge.
+This directory contains Zustand stores for managing application state in HyperForge.
 
 ## Stores
 
@@ -10,7 +10,7 @@ Manages user profile, usage statistics, and generation history.
 
 **State:**
 - `user` - Current authenticated user from Privy
-- `profile` - Extended user profile with Asset Forge data
+- `profile` - Extended user profile with HyperForge data
 - `usage` - Usage statistics (generations, API calls, storage)
 - `history` - Generation history with filters
 - `loading` - Loading state

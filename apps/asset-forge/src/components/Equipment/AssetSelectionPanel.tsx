@@ -1,7 +1,7 @@
 import { Search, ChevronRight, User, Sword, Shield, Box, Loader2 } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { Asset } from '../../types'
 import { Badge, Input } from '../common'
 

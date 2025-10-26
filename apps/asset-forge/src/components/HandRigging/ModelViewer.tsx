@@ -1,7 +1,7 @@
 import { Box, Eye, Download, Hand, Package } from 'lucide-react'
 import React, { memo } from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import type { Asset } from '../../types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge } from '../common'
 import ThreeViewer, { ThreeViewerRef } from '../shared/ThreeViewer'

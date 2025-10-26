@@ -7,8 +7,8 @@ import {
 import React, { useEffect, useMemo } from 'react'
 
 
-import { useGenerationStore } from '../store'
-import type { PipelineStage } from '../store'
+import { useGenerationStore } from '../stores'
+import type { PipelineStage } from '../stores'
 import { MaterialPreset } from '../types'
 import { buildGenerationConfig } from '../utils/generationConfigBuilder'
 import { notify } from '../utils/notify'
@@ -36,7 +36,7 @@ import {
   ReferenceImageCard
 } from '@/components/Generation'
 import {
-  Button, Card, CardContent
+  Button, Card, CardContent, ProjectSelector
 } from '@/components/common'
 import { useGameStylePrompts, useAssetTypePrompts, useMaterialPromptTemplates } from '@/hooks/usePrompts'
 import { usePipelineStatus } from '@/hooks/usePipelineStatus'
@@ -71,6 +71,10 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
   const description = useGenerationStore(state => state.description)
   const gameStyle = useGenerationStore(state => state.gameStyle)
   const customStyle = useGenerationStore(state => state.customStyle)
+
+  // Project Context
+  const selectedProjectId = useGenerationStore(state => state.selectedProjectId)
+  const setSelectedProject = useGenerationStore(state => state.setSelectedProject)
 
   // Custom Prompts
   const customGamePrompt = useGenerationStore(state => state.customGamePrompt)
@@ -563,9 +567,9 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
   }
 
   return (
-    <div className="fixed inset-0 pt-[60px] bg-bg-primary bg-opacity-95 backdrop-blur-xl z-40 overflow-y-auto animate-fade-in scrollbar-hide">
+    <div className="min-h-screen w-full bg-bg-primary overflow-y-auto animate-fade-in scrollbar-hide">
       {/* Main container with hidden scrollbar for clean appearance while maintaining scroll functionality */}
-      
+
       {/* Main Content Area */}
       <div className="bg-bg-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
@@ -607,6 +611,17 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                     }}
                     onSaveCustomGameStyle={saveCustomGameStyle}
                   />
+
+                  {/* Project Selector */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <ProjectSelector
+                        selectedProjectId={selectedProjectId}
+                        onSelect={setSelectedProject}
+                        showUnassigned={true}
+                      />
+                    </CardContent>
+                  </Card>
 
                   {/* Advanced Prompts Card */}
                   <AdvancedPromptsCard

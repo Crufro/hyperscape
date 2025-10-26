@@ -2,7 +2,7 @@ import { Sparkles, Package, Loader, CheckCircle, Wand2, Plus, Image as ImageIcon
 import React, { useState } from 'react'
 
 import { useMaterialPresets, useRetexturing } from '../../hooks/useAssets'
-import { patterns, cn } from '../../styles'
+import { patterns, cn } from '../../style'
 import { Asset, MaterialPreset } from '../../types'
 import {
   Modal,

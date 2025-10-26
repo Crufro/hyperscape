@@ -1,7 +1,7 @@
 import { Grid3X3, Camera } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 
 interface ViewportControlsProps {
   showWireframe: boolean

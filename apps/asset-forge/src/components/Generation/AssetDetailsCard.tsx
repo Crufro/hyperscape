@@ -2,7 +2,7 @@ import { FileText, Layers, Package, User, ChevronRight, Gamepad2 } from 'lucide-
 import React from 'react'
 
 import { GameStylePrompt } from '../../services/api/PromptService'
-// import { cn } from '../../styles'
+// import { cn } from '../../style/utils'
 import { CustomAssetType } from '../../types/generation'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Textarea } from '../common'
 

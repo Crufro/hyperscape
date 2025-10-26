@@ -16,9 +16,9 @@
 import type { GeneratedQuest, GeneratedNPC, LoreEntry } from '../types/content-generation'
 import type { ItemManifest, MobManifest, NPCManifest, ResourceManifest, AnyManifest } from '../types/manifests'
 import type { EntityRelationship } from '../types/relationships'
-import { getTierForDifficulty, type LevelTier } from '../utils/level-progression.ts'
+import { getTierForDifficulty, type LevelTier } from '../utils/level-progression'
 
-import { manifestService } from './ManifestService.ts'
+import { manifestService } from './ManifestService'
 
 // Type guards for manifest discrimination
 function isItemManifest(manifest: AnyManifest): manifest is ItemManifest {

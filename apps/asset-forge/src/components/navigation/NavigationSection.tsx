@@ -9,7 +9,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 
 import { isNavLink } from '../../config/navigation-config'
-import { useNavigationStore } from '../../store/useNavigationStore'
+import { useNavigationStore } from '../../stores/useNavigationStore'
 import type { NavigationSection as NavigationSectionType } from '../../types/navigation'
 
 import NavigationItem from './NavigationItem'
@@ -23,6 +23,7 @@ export default function NavigationSection({ section }: NavigationSectionProps) {
   const collapsed = useNavigationStore(state => state.collapsed)
   const expandedSections = useNavigationStore(state => state.expandedSections)
   const toggleSection = useNavigationStore(state => state.toggleSection)
+  const setCollapsed = useNavigationStore(state => state.setCollapsed)
 
   // Check if section is expanded
   const isExpanded = useMemo(
@@ -32,9 +33,18 @@ export default function NavigationSection({ section }: NavigationSectionProps) {
 
   const handleToggle = useCallback(() => {
     if (section.collapsible) {
-      toggleSection(section.id)
+      // If sidebar is collapsed, expand it and the section
+      if (collapsed) {
+        setCollapsed(false)
+        if (!expandedSections.includes(section.id)) {
+          toggleSection(section.id)
+        }
+      } else {
+        // Just toggle the section
+        toggleSection(section.id)
+      }
     }
-  }, [section.collapsible, section.id, toggleSection])
+  }, [section.collapsible, section.id, collapsed, expandedSections, toggleSection, setCollapsed])
 
   // Check permission and visibility
   if (section.permission && !section.permission()) return null
@@ -69,6 +79,7 @@ export default function NavigationSection({ section }: NavigationSectionProps) {
       'asset-creation': 'text-purple-400',
       'fitting-rigging': 'text-orange-400',
       'game-content': 'text-green-400',
+      'voice-generation': 'text-cyan-400',
     }
     return colorMap[sectionId] || 'text-text-secondary'
   }
@@ -109,7 +120,7 @@ export default function NavigationSection({ section }: NavigationSectionProps) {
       )}
 
       {/* Section Items */}
-      {(!section.collapsible || isExpanded || collapsed) && (
+      {(!section.collapsible || isExpanded) && !collapsed && (
         <div className={`space-y-0.5 ${section.type === 'collapsible' && !collapsed ? 'mt-1.5 ml-1' : ''}`}>
           {section.items.map((item) => {
             if (!isNavLink(item)) return null

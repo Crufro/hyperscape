@@ -1,6 +1,6 @@
 import { Bone, Box3, Group, Object3D, SkinnedMesh, Vector3 } from 'three'
 
-import { safeScale } from './safe-math.ts'
+import { safeScale } from './safe-math'
 
 /**
  * Bone mapping for different naming conventions

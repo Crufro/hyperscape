@@ -8,7 +8,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { isRouteActive } from '../../config/navigation-config'
-import { useNavigationStore } from '../../store/useNavigationStore'
+import { useNavigationStore } from '../../stores/useNavigationStore'
 import type { NavigationLink } from '../../types/navigation'
 
 interface NavigationItemProps {

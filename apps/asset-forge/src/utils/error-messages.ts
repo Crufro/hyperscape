@@ -1,7 +1,7 @@
 /**
  * Standardized Error Messages and Codes
  *
- * Provides consistent error handling across Asset Forge with:
+ * Provides consistent error handling across HyperForge with:
  * - Structured error codes by category
  * - User-friendly and developer-friendly messages
  * - Proper error context and metadata

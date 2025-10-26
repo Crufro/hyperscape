@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import React, { forwardRef } from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 
 export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
   label?: React.ReactNode

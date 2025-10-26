@@ -6,7 +6,7 @@
 import { Package, Swords, Users, Filter, ChevronDown, AlertCircle } from 'lucide-react'
 import React, { useState, useMemo, useCallback } from 'react'
 
-import { usePreviewManifestsStore } from '../../store/usePreviewManifestsStore'
+import { usePreviewManifestsStore } from '../../stores/usePreviewManifestsStore'
 import { Badge } from '../common/Badge'
 import { Button } from '../common/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common/Card'

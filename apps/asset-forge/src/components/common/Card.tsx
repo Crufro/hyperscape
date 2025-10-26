@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'hover' | 'interactive'

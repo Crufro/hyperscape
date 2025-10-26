@@ -1,8 +1,7 @@
 import { Upload, Box, CheckCircle, AlertCircle } from 'lucide-react'
 import React, { useRef, useCallback, useEffect } from 'react'
 
-import { useHandRiggingStore } from '../../store'
-import { cn } from '../../styles'
+import { useHandRiggingStore, cn } from '../../stores'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 
 export function HandUploadZone() {

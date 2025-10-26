@@ -48,11 +48,15 @@ export async function loadAllPrompts() {
     'material-prompts',
     'generation-prompts',
     'gpt4-enhancement-prompts',
-    'weapon-detection-prompts'
+    'weapon-detection-prompts',
+    'quest-prompts',
+    'npc-prompts',
+    'dialogue-prompts',
+    'lore-prompts'
   ]
 
   const prompts = {}
-  
+
   for (const type of promptTypes) {
     const data = await loadPromptFile(type)
     if (data) {
@@ -61,7 +65,7 @@ export async function loadAllPrompts() {
       prompts[key] = data
     }
   }
-  
+
   return prompts
 }
 
@@ -138,6 +142,26 @@ export async function getGPT4EnhancementPrompts() {
 
 export async function getWeaponDetectionPrompts() {
   const prompts = await loadPromptFile('weapon-detection-prompts')
+  return prompts || {} // Return empty object if not found
+}
+
+export async function getQuestPrompts() {
+  const prompts = await loadPromptFile('quest-prompts')
+  return prompts || {} // Return empty object if not found
+}
+
+export async function getNPCPrompts() {
+  const prompts = await loadPromptFile('npc-prompts')
+  return prompts || {} // Return empty object if not found
+}
+
+export async function getDialoguePrompts() {
+  const prompts = await loadPromptFile('dialogue-prompts')
+  return prompts || {} // Return empty object if not found
+}
+
+export async function getLorePrompts() {
+  const prompts = await loadPromptFile('lore-prompts')
   return prompts || {} // Return empty object if not found
 }
 

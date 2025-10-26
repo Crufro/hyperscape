@@ -7,7 +7,7 @@
 import { Zap, DollarSign, Sparkles } from 'lucide-react'
 import React from 'react'
 
-import { AVAILABLE_MODELS } from '../../lib/ai-models'
+import { AVAILABLE_MODELS } from '../../config/ai-models'
 
 interface ModelSelectorProps {
   selectedModel?: string

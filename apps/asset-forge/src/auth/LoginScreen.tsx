@@ -34,13 +34,14 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
           {/* Logo/Title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+            <div className="flex items-center justify-center mb-6">
+              <img
+                src="/hf.png"
+                alt="HyperForge"
+                className="w-48 h-48 object-contain"
+              />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Asset Forge</h1>
-            <p className="text-gray-400">AI-Powered 3D Asset Generation</p>
+            <p className="text-gray-400 text-center">AI-Powered 3D Asset Generation</p>
           </div>
 
           {/* Features */}
@@ -106,7 +107,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         {/* Additional Info */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">
-            New to Asset Forge?{' '}
+            New to HyperForge?{' '}
             <button className="text-blue-400 hover:text-blue-300 font-medium">
               Learn More
             </button>

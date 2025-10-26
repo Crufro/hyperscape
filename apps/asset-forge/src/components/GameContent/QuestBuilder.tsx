@@ -8,9 +8,9 @@ import React, { useState, useEffect } from 'react'
 
 import { API_ENDPOINTS } from '../../config/api'
 import { manifestService } from '../../services/ManifestService'
-import { useContentGenerationStore } from '../../store/useContentGenerationStore'
-import { usePreviewManifestsStore } from '../../store/usePreviewManifestsStore'
-import { useRelationshipsStore } from '../../store/useRelationshipsStore'
+import { useContentGenerationStore } from '../../stores/useContentGenerationStore'
+import { usePreviewManifestsStore } from '../../stores/usePreviewManifestsStore'
+import { useRelationshipsStore } from '../../stores/useRelationshipsStore'
 import type { GeneratedQuest, QuestObjective, QuestReward } from '../../types/content-generation'
 import type { ItemManifest, MobManifest, NPCManifest, ResourceManifest } from '../../types/manifests'
 import type { ManifestGap } from '../../types/preview-manifests'
@@ -225,7 +225,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
       tags: [difficulty, ...objectives.map(o => o.type)],
       metadata: {
         createdAt: new Date().toISOString(),
-        author: 'Asset Forge',
+        author: 'HyperForge',
         version: '1.0.0'
       }
     }

@@ -45,7 +45,7 @@ export function exportScriptPackJSON(scripts: NPCScript[], packName: string = 'N
     metadata: {
       exportedAt: new Date().toISOString(),
       scriptCount: scripts.length,
-      tool: 'Asset Forge Content Builder'
+      tool: 'HyperForge Content Builder'
     }
   }
   

@@ -9,7 +9,7 @@ import { useCallback } from 'react'
 import { Menu, X } from 'lucide-react'
 
 import { navigationConfig } from '../../config/navigation-config'
-import { useNavigationStore } from '../../store/useNavigationStore'
+import { useNavigationStore } from '../../stores/useNavigationStore'
 
 import CollapseButton from './CollapseButton'
 import NavigationFooter from './NavigationFooter'
@@ -64,20 +64,24 @@ export default function SideNavigation() {
         <div className="flex items-center justify-between h-14 px-3 border-b border-border-primary/50 shrink-0">
           {!collapsed && (
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md flex-shrink-0">
-                <span className="text-lg font-bold text-white">AF</span>
-              </div>
+              <img
+                src="/forge.svg"
+                alt="HyperForge"
+                className="w-9 h-9 flex-shrink-0"
+              />
               <div className="min-w-0">
-                <h1 className="text-sm font-bold text-text-primary truncate">Asset Forge</h1>
+                <h1 className="text-sm font-bold text-text-primary truncate">HyperForge</h1>
                 <p className="text-[10px] text-text-secondary/70 truncate">AI-Powered 3D</p>
               </div>
             </div>
           )}
 
           {collapsed && (
-            <div className="w-9 h-9 mx-auto rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md">
-              <span className="text-lg font-bold text-white">AF</span>
-            </div>
+            <img
+              src="/forge.svg"
+              alt="HyperForge"
+              className="w-9 h-9 mx-auto"
+            />
           )}
 
           {/* Desktop Collapse Button */}

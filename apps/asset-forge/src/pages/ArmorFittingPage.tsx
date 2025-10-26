@@ -1,8 +1,8 @@
 import { Bug, Download, Upload, Package, RotateCcw } from 'lucide-react'
 import React, { useRef } from 'react'
 
-import { useArmorFittingStore } from '../store/useArmorFittingStore'
-import { cn } from '../styles'
+import { useArmorFittingStore } from '../stores/useArmorFittingStore'
+import { cn } from '../style/utils'
 
 import {
   ArmorFittingViewer,
@@ -14,8 +14,9 @@ import {
   FittingProgress,
   MeshFittingDebugger
 } from '@/components/ArmorFitting'
-import { ErrorNotification, EmptyState } from '@/components/common'
+import { ErrorNotification, EmptyState, Card, ProjectSelector } from '@/components/common'
 import { useAssets } from '@/hooks/useAssets'
+import { useGenerationStore } from '@/stores/useGenerationStore'
 
 
 
@@ -23,6 +24,10 @@ export const ArmorFittingPage: React.FC = () => {
   const { assets, loading } = useAssets()
   const viewerRef = useRef<ArmorFittingViewerRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Project Context
+  const selectedProjectId = useGenerationStore(state => state.selectedProjectId)
+  const setSelectedProject = useGenerationStore(state => state.setSelectedProject)
 
   // Get state and actions from Zustand store
   const {
@@ -141,6 +146,15 @@ export const ArmorFittingPage: React.FC = () => {
 
       {/* Left Panel - Asset Selection */}
       <div className="card overflow-hidden w-80 flex flex-col bg-gradient-to-br from-bg-primary to-bg-secondary">
+        {/* Project Selector */}
+        <div className="p-4 border-b border-border-primary">
+          <ProjectSelector
+            selectedProjectId={selectedProjectId}
+            onSelect={setSelectedProject}
+            showUnassigned={true}
+          />
+        </div>
+
         <ArmorAssetList
           assets={assets}
           loading={loading}

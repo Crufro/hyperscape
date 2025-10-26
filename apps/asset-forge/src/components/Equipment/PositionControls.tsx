@@ -1,7 +1,7 @@
 import { Move } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { RangeInput, Button } from '../common'
 
 interface PositionControlsProps {

@@ -8,7 +8,7 @@ import { Search, Loader2, AlertCircle, RotateCcw } from 'lucide-react'
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 
 import { voiceGenerationService } from '../../services/VoiceGenerationService'
-import { useVoiceGenerationStore } from '../../store/useVoiceGenerationStore'
+import { useVoiceGenerationStore } from '../../stores/useVoiceGenerationStore'
 import type { ElevenLabsVoice } from '../../types/voice-generation'
 
 import { VoiceCard } from './VoiceCard'

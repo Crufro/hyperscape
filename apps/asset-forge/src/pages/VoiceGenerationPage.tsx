@@ -8,11 +8,16 @@ import { Mic, Download, Play, Volume2, Settings } from 'lucide-react'
 import React, { useState } from 'react'
 
 import { VoiceGenerator } from '../components/GameContent/VoiceGenerator'
-import { Card } from '../components/common'
+import { Card, ProjectSelector } from '../components/common'
+import { useGenerationStore } from '../stores/useGenerationStore'
 
 export const VoiceGenerationPage: React.FC = () => {
   const [_selectedDialogue, _setSelectedDialogue] = useState<string>('')
   const [_voiceId, _setVoiceId] = useState<string>('')
+
+  // Project Context
+  const selectedProjectId = useGenerationStore(state => state.selectedProjectId)
+  const setSelectedProject = useGenerationStore(state => state.setSelectedProject)
 
   return (
     <div className="w-full h-full overflow-auto">
@@ -82,6 +87,17 @@ export const VoiceGenerationPage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </Card>
+
+        {/* Project Selector */}
+        <Card className="mb-6">
+          <div className="p-4">
+            <ProjectSelector
+              selectedProjectId={selectedProjectId}
+              onSelect={setSelectedProject}
+              showUnassigned={true}
+            />
           </div>
         </Card>
 

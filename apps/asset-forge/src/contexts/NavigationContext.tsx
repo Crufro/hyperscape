@@ -6,7 +6,7 @@ import { NavigationView, NavigationContextValue } from '../types'
 const NavigationContext = createContext<NavigationContextValue | null>(null)
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentView, setCurrentView] = useState<NavigationView>(NAVIGATION_VIEWS.GENERATION)
+  const [currentView, setCurrentView] = useState<NavigationView>(NAVIGATION_VIEWS.DASHBOARD)
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [navigationHistory, setNavigationHistory] = useState<NavigationView[]>([])
 

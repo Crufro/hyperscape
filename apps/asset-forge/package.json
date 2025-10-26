@@ -1,7 +1,7 @@
 {
   "name": "asset-forge-web",
   "version": "1.0.0",
-  "description": "Asset Forge Web Application",
+  "description": "HyperForge Web Application",
   "type": "module",
   "private": true,
   "scripts": {

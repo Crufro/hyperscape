@@ -1,81 +1,30 @@
 /**
  * AI Creation Service for Server
- * Provides image generation and Meshy integration without TypeScript
+ * Provides image generation and Meshy integration
+ * Now using AI SDK v5 for all AI operations
  */
 
 import fetch from 'node-fetch'
-import { getGenerationPrompts } from '../utils/promptLoader.mjs'
+import { AISDKService } from './AISDKService.mjs'
 
 export class AICreationService {
   constructor(config) {
     this.config = config
-    this.imageService = new ImageGenerationService(config.openai)
+    // Use the new AI SDK service instead of direct API calls
+    this.aiSDKService = new AISDKService(config.openai)
+    this.imageService = new ImageGenerationService(this.aiSDKService)
     this.meshyService = new MeshyService(config.meshy)
   }
 }
 
 class ImageGenerationService {
-  constructor(config) {
-    this.apiKey = config.apiKey
-    this.model = config.model || 'gpt-image-1'
+  constructor(aiSDKService) {
+    this.aiSDKService = aiSDKService
   }
 
   async generateImage(description, assetType, style) {
-    // Load generation prompts
-    const generationPrompts = await getGenerationPrompts()
-    const promptTemplate = generationPrompts?.imageGeneration?.base || 
-      '${description}. ${style || "game-ready"} style, ${assetType}, clean geometry suitable for 3D conversion.'
-    
-    // Replace template variables
-    const prompt = promptTemplate
-      .replace('${description}', description)
-      .replace('${style || "game-ready"}', style || 'game-ready')
-      .replace('${assetType}', assetType)
-
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: this.model,
-        prompt: prompt,
-        size: '1024x1024',
-        quality: 'high'  // gpt-image-1 doesn't support n or response_format parameters
-      })
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`)
-    }
-
-    const data = await response.json()
-    const imageData = data.data[0]
-    let imageUrl
-
-    // Handle both URL and base64 responses
-    if (imageData.b64_json) {
-      // gpt-image-1 returns base64 data
-      imageUrl = `data:image/png;base64,${imageData.b64_json}`
-    } else if (imageData.url) {
-      // Some models return URLs
-      imageUrl = imageData.url
-    } else {
-      throw new Error('No image data returned from OpenAI')
-    }
-
-    return {
-      imageUrl: imageUrl,
-      prompt: prompt,
-      metadata: {
-        model: this.model,
-        resolution: '1024x1024',
-        quality: 'high',
-        timestamp: new Date().toISOString()
-      }
-    }
+    // Delegate to AI SDK service
+    return await this.aiSDKService.generateImage(description, assetType, style)
   }
 }
 

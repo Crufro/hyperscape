@@ -2,7 +2,7 @@ import { Activity, Edit3, Layers } from 'lucide-react'
 import React, { useRef, useCallback, lazy, Suspense } from 'react'
 
 import { API_ENDPOINTS } from '../constants'
-import { useAssetsStore } from '../store'
+import { useAssetsStore } from '../stores'
 
 import AssetDetailsPanel from '@/components/Assets/AssetDetailsPanel'
 import AssetFilters from '@/components/Assets/AssetFilters'

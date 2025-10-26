@@ -13,7 +13,7 @@
  */
 
 import { GenerationAPIClient, PipelineResult } from './api/GenerationAPIClient'
-import { createLogger } from '../utils/logger.ts'
+import { createLogger } from '../utils/logger'
 
 const logger = createLogger('PipelinePollingService')
 

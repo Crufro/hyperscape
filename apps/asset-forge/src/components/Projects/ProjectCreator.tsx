@@ -132,7 +132,7 @@ export function ProjectCreator({ project, onClose, onSave }: ProjectCreatorProps
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6" noValidate>
           {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-900/20 border border-red-700 rounded-lg">
@@ -151,6 +151,7 @@ export function ProjectCreator({ project, onClose, onSave }: ProjectCreatorProps
               onChange={(e) => setName(e.target.value)}
               placeholder="My Awesome Game Assets"
               className="w-full px-4 py-2 bg-bg-tertiary border border-border-primary rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoComplete="off"
               required
             />
           </div>
@@ -166,6 +167,7 @@ export function ProjectCreator({ project, onClose, onSave }: ProjectCreatorProps
               placeholder="Describe your project..."
               rows={3}
               className="w-full px-4 py-2 bg-bg-tertiary border border-border-primary rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              autoComplete="off"
             />
           </div>
 

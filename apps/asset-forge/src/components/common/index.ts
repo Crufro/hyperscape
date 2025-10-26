@@ -51,4 +51,8 @@ export { ErrorNotification } from './ErrorNotification'
 export { EmptyState } from './EmptyState'
 export { RangeInput } from './RangeInput'
 export { ModelSelector } from './ModelSelector'
-export { GlobalSearch } from './GlobalSearch' 
+export { GlobalSearch } from './GlobalSearch'
+
+// Project Selector
+export { ProjectSelector } from './ProjectSelector'
+export type { ProjectSelectorProps } from './ProjectSelector' 

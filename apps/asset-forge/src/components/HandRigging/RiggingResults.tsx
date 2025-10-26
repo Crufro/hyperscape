@@ -3,7 +3,7 @@ import React from 'react'
 
 import type { HandRiggingResult } from '../../services/hand-rigging/HandRiggingService'
 import type { SimpleHandRiggingResult } from '../../services/hand-rigging/SimpleHandRiggingService'
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { Card, CardHeader, CardTitle, CardContent } from '../common'
 
 interface RiggingResultsProps {

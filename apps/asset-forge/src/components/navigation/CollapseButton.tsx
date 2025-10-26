@@ -6,7 +6,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-import { useNavigationStore } from '../../store/useNavigationStore'
+import { useNavigationStore } from '../../stores/useNavigationStore'
 
 export default function CollapseButton() {
   const { collapsed, toggleCollapse } = useNavigationStore()

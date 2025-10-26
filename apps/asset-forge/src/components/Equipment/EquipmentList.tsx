@@ -2,7 +2,7 @@ import { Search, ChevronRight, Package } from 'lucide-react'
 import React, { useState, useMemo } from 'react'
 
 import { EQUIPMENT_SLOTS } from '../../constants'
-import { cn } from '../../styles'
+import { cn } from '../../stores'
 import { Asset } from '../../types'
 import { Card, CardContent, Badge, Input } from '../common'
 

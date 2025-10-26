@@ -4,18 +4,42 @@
  */
 
 import { FolderOpen, Plus, Grid, List, Clock, Star } from 'lucide-react'
-import { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge } from '@/components/common'
+import { useState, useEffect } from 'react'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge, Modal, ModalHeader, ModalBody, ModalFooter, Input, Textarea } from '@/components/common'
+import { useProjectsStore } from '../stores/useProjectsStore'
+import { useNavigationStore } from '../stores/useNavigationStore'
+import { usePrivy } from '@privy-io/react-auth'
 
 export function ProjectsPage() {
+  const { user } = usePrivy()
+  const { projects, isLoading, fetchProjects, createProject } = useProjectsStore()
+  const navigateTo = useNavigationStore(state => state.navigateTo)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [isCreating, setIsCreating] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newProject, setNewProject] = useState({ name: '', description: '' })
 
-  // Sample projects data structure (will be replaced with real data later)
-  const projects = [
-    { id: 1, name: 'Game Assets Pack', description: 'Core game assets for fantasy RPG', assetCount: 127, lastModified: '2 hours ago', status: 'active' },
-    { id: 2, name: 'Character Models', description: 'Player and NPC character models', assetCount: 43, lastModified: '1 day ago', status: 'active' },
-    { id: 3, name: 'Environment Pack', description: 'Trees, rocks, and landscape assets', assetCount: 89, lastModified: '3 days ago', status: 'archived' },
-  ]
+  useEffect(() => {
+    fetchProjects()
+  }, [fetchProjects])
+
+  const handleCreateProject = async () => {
+    if (!newProject.name.trim()) return
+
+    setIsCreating(true)
+    try {
+      await createProject({
+        name: newProject.name,
+        description: newProject.description,
+        status: 'active',
+        userId: user?.id || ''
+      })
+      setShowCreateModal(false)
+      setNewProject({ name: '', description: '' })
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -47,7 +71,12 @@ export function ProjectsPage() {
                   <List className="w-4 h-4" />
                 </button>
               </div>
-              <Button variant="primary" className="gap-2">
+              <Button
+                variant="primary"
+                className="gap-2"
+                onClick={() => setShowCreateModal(true)}
+                disabled={isLoading}
+              >
                 <Plus className="w-4 h-4" />
                 New Project
               </Button>
@@ -58,8 +87,26 @@ export function ProjectsPage() {
 
       {/* Main Content */}
       <div className="max-w-[1920px] mx-auto px-6 py-6">
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-          {projects.map(project => (
+        {isLoading && projects.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-text-secondary">Loading projects...</p>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-12">
+            <FolderOpen className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
+            <p className="text-text-secondary mb-4">No projects yet. Create your first project to organize your assets!</p>
+            <Button
+              variant="primary"
+              className="gap-2"
+              onClick={() => setShowCreateModal(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Create Project
+            </Button>
+          </div>
+        ) : (
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+            {projects.map(project => (
             <Card key={project.id} className="bg-bg-secondary border-border-primary backdrop-blur-md hover:border-primary/50 transition-all">
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -87,12 +134,75 @@ export function ProjectsPage() {
                 <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
                   {project.status}
                 </Badge>
-                <Button variant="ghost" size="sm">Open</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigateTo('/assets')}
+                >
+                  Open
+                </Button>
               </CardFooter>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Create Project Modal */}
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} size="md">
+        <ModalHeader title="Create New Project" onClose={() => setShowCreateModal(false)} />
+        <ModalBody>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Project Name
+              </label>
+              <Input
+                type="text"
+                value={newProject.name}
+                onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                placeholder="Enter project name"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newProject.name.trim()) {
+                    handleCreateProject()
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Description
+              </label>
+              <Textarea
+                value={newProject.description}
+                onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                placeholder="Enter project description (optional)"
+                rows={4}
+              />
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowCreateModal(false)
+              setNewProject({ name: '', description: '' })
+            }}
+            disabled={isCreating}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleCreateProject}
+            disabled={isCreating || !newProject.name.trim()}
+          >
+            {isCreating ? 'Creating...' : 'Create Project'}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }

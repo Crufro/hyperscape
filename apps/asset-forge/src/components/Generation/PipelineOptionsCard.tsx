@@ -1,7 +1,7 @@
 import { Brain, User, Palette, Grid3x3, Settings2 } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '../../styles'
+import { cn } from '../../style/utils'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Checkbox } from '../common'
 
 interface PipelineOption {
