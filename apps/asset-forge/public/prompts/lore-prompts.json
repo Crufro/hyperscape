@@ -1,0 +1,172 @@
+{
+  "system": "You are an expert world-builder for a RuneScape-style MMORPG. Create rich, cohesive lore that enhances the game world and provides context for quests, locations, and characters.",
+  "loreCategories": {
+    "world_history": {
+      "name": "World History",
+      "template": "Create historical lore about {{time_period}} in {{world_name}}. Include major events, key figures, and how it shaped the present.",
+      "time_periods": ["ancient", "classical", "medieval", "recent", "current"],
+      "elements": ["wars", "discoveries", "catastrophes", "golden_ages", "dark_ages"],
+      "examples": [
+        {
+          "period": "ancient",
+          "event": "The God Wars",
+          "description": "A cataclysmic conflict where gods walked the earth and reshaped the world with their battles."
+        }
+      ]
+    },
+    "location_lore": {
+      "name": "Location Lore",
+      "template": "Create lore for {{location_name}}, explaining its history, significance, and current state.",
+      "location_types": ["city", "dungeon", "wilderness", "landmark", "ruins", "castle"],
+      "aspects": ["founding", "notable_events", "famous_residents", "mysteries", "threats"],
+      "examples": [
+        {
+          "location": "Varrock",
+          "lore": "Founded centuries ago as a mining settlement, Varrock grew into a bustling trade hub and center of military power."
+        }
+      ]
+    },
+    "character_backstory": {
+      "name": "Character Backstory",
+      "template": "Create backstory for {{character_name}}, explaining their origins, motivations, and how they became who they are.",
+      "character_types": ["hero", "villain", "mentor", "ruler", "legendary_figure"],
+      "elements": ["origin", "defining_moment", "relationships", "goals", "fears"],
+      "examples": [
+        {
+          "character": "The Wise Old Man",
+          "backstory": "Once an adventurer who saved kingdoms, now he shares wisdom with a new generation of heroes."
+        }
+      ]
+    },
+    "faction_lore": {
+      "name": "Faction Lore",
+      "template": "Create lore for {{faction_name}}, including their beliefs, goals, history, and relationships with other factions.",
+      "faction_types": ["guild", "kingdom", "cult", "order", "tribe", "organization"],
+      "elements": ["founding", "ideology", "hierarchy", "enemies", "allies", "resources"],
+      "examples": [
+        {
+          "faction": "Heroes' Guild",
+          "lore": "An elite organization that trains and certifies heroes, ensuring they uphold the highest standards of heroism."
+        }
+      ]
+    },
+    "item_lore": {
+      "name": "Item Lore",
+      "template": "Create lore for {{item_name}}, explaining its creation, powers, and significance in the world.",
+      "item_types": ["legendary_weapon", "artifact", "relic", "cursed_object", "magical_item"],
+      "elements": ["creation", "creator", "powers", "history", "current_location"],
+      "examples": [
+        {
+          "item": "Godsword",
+          "lore": "Forged during the God Wars from the shards of divine power, this blade can channel the strength of the gods themselves."
+        }
+      ]
+    },
+    "creature_lore": {
+      "name": "Creature Lore",
+      "template": "Create lore for {{creature_type}}, explaining their origins, behavior, and role in the ecosystem.",
+      "creature_types": ["dragon", "demon", "undead", "beast", "elemental", "construct"],
+      "elements": ["origin", "habitat", "behavior", "weaknesses", "purpose"],
+      "examples": [
+        {
+          "creature": "Dragons",
+          "lore": "Ancient beings of immense power, dragons were created by the gods as guardians of sacred treasures and knowledge."
+        }
+      ]
+    },
+    "magic_system": {
+      "name": "Magic System Lore",
+      "template": "Create lore explaining {{magic_type}} and how it works in the world.",
+      "magic_types": ["elemental", "divine", "arcane", "necromancy", "druidic", "blood"],
+      "elements": ["source", "practice", "limitations", "dangers", "practitioners"],
+      "examples": [
+        {
+          "type": "Rune Magic",
+          "lore": "Magic channeled through ancient runes carved by the Elder Gods. Each rune embodies a fundamental force of nature."
+        }
+      ]
+    },
+    "mythology": {
+      "name": "Mythology & Legends",
+      "template": "Create a myth or legend about {{topic}} that exists in the world's folklore.",
+      "topics": ["creation", "prophecy", "curse", "blessing", "monster", "hero_tale"],
+      "purposes": ["explain_natural_phenomenon", "moral_lesson", "historical_allegory", "entertainment"],
+      "examples": [
+        {
+          "legend": "The Sleeping Giant",
+          "story": "They say the mountains were formed when a titan fell asleep and became stone over eons."
+        }
+      ]
+    }
+  },
+  "themes": {
+    "heroism": "Stories of bravery, sacrifice, and standing against evil",
+    "tragedy": "Fallen heroes, lost civilizations, mistakes with consequences",
+    "mystery": "Unsolved puzzles, ancient secrets, hidden truths",
+    "redemption": "Villains seeking forgiveness, second chances, hope",
+    "ambition": "The drive for power, discovery, or greatness",
+    "corruption": "How power corrupts, the price of dark deals",
+    "legacy": "What we leave behind, living up to ancestors",
+    "balance": "Order vs chaos, nature vs civilization, light vs dark"
+  },
+  "consistency_elements": {
+    "tone": "Fantasy, medieval, slightly whimsical (RuneScape style)",
+    "technology_level": "Medieval with magical enhancement",
+    "magic_prevalence": "Common but respected, magical items are valuable",
+    "divine_presence": "Gods exist but rarely intervene directly",
+    "racial_diversity": "Multiple races coexist with varying relationships",
+    "mortality": "Death is significant, resurrection is rare/difficult",
+    "scale": "Epic but personal - heroes can make a difference"
+  },
+  "connectionPoints": {
+    "quests": "How does this lore tie into playable quests?",
+    "locations": "What places in the game relate to this lore?",
+    "items": "Are there items connected to this lore?",
+    "npcs": "Which NPCs know or are affected by this lore?",
+    "skills": "Does this lore explain any game skills or mechanics?"
+  },
+  "responseFormat": {
+    "required": true,
+    "schema": {
+      "id": "string (unique lore identifier)",
+      "category": "string (lore category)",
+      "title": "string (lore entry title)",
+      "summary": "string (brief one-line summary)",
+      "content": "string (full lore text)",
+      "related_entities": {
+        "locations": ["array of related location IDs"],
+        "characters": ["array of related character IDs"],
+        "items": ["array of related item IDs"],
+        "quests": ["array of related quest IDs"]
+      },
+      "time_period": "string (when this lore is relevant)",
+      "canon_level": "string (core|extended|apocryphal)",
+      "player_discoverable": "boolean (can players discover this in-game?)",
+      "discovery_method": "string (how players learn this, if discoverable)"
+    }
+  },
+  "guidelines": [
+    "Maintain consistency with existing game lore",
+    "Leave room for mystery - don't explain everything",
+    "Connect new lore to existing elements when possible",
+    "Consider gameplay implications of lore",
+    "Make lore discoverable through quests and exploration",
+    "Balance epic scope with personal stories",
+    "Avoid contradicting established canon",
+    "Include hooks for future content and quests",
+    "Make lore relevant to player experience",
+    "Create depth without requiring PhD to understand"
+  ],
+  "writing_tips": [
+    "Use evocative language that fits the fantasy setting",
+    "Include sensory details to make lore vivid",
+    "Create memorable names for people, places, and events",
+    "Build cause-and-effect relationships between events",
+    "Add human elements - emotions, conflicts, relationships",
+    "Include both triumph and tragedy for emotional range",
+    "Reference lore naturally in dialogue and quest text",
+    "Create layered lore - surface level and deeper secrets",
+    "Make lore feel lived-in, not just exposition",
+    "Balance grandeur with intimacy in storytelling"
+  ]
+}

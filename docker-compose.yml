@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: asset-forge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: asset_forge
+      POSTGRES_PASSWORD: asset_forge_dev_password_2024
+      POSTGRES_DB: asset_forge
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./apps/api/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asset_forge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - asset-forge-network
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: asset-forge-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=asset_forge
+      - DB_USER=asset_forge
+      - DB_PASSWORD=asset_forge_dev_password_2024
+      - PORT=3004
+    env_file:
+      - ./apps/api/.env
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./apps/api/gdd-assets:/app/apps/api/gdd-assets
+      - ./apps/api/temp-images:/app/apps/api/temp-images
+      - ./apps/api/public:/app/apps/api/public
+      - ./packages/server/world/assets/manifests:/app/packages/server/world/assets/manifests
+      - /app/node_modules
+      - /app/apps/api/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - asset-forge-network
+    command: >
+      sh -c "cd /app/apps/api && bun install && bun run dev"
+
+volumes:
+  postgres-data:
+    name: asset-forge-db-data
+
+networks:
+  asset-forge-network:
+    name: asset-forge-network
+    driver: bridge

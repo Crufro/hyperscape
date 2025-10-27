@@ -129,10 +129,10 @@ async function createWebGPUPostProcessing(
 ): Promise<PostProcessingComposer | null> {
   
   try {
-    const { default: PostProcessing } = await import('three/addons/tsl/display/PostProcessing.js');
-    const { pass } = await import('three/addons/tsl/display/PassNode.js');
-    const { bloom } = await import('three/addons/tsl/display/BloomNode.js');
-    const { ao } = await import('three/addons/tsl/display/AONode.js');
+    const { default: PostProcessing } = await import('three/examples/jsm/tsl/display/PostProcessing.js');
+    const { pass } = await import('three/examples/jsm/tsl/display/PassNode.js');
+    const { bloom } = await import('three/examples/jsm/tsl/display/BloomNode.js');
+    const { ao } = await import('three/examples/jsm/tsl/display/AONode.js');
     
     const {
       bloom: bloomOptions = { enabled: true, intensity: 0.3, threshold: 1.0, radius: 0.5 }

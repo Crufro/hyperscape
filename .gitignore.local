@@ -1,0 +1,7 @@
+# Local-only ignores (not committed to repo)
+# Add this to your global git config:
+#   git config core.excludesfile .gitignore.local
+
+# Temporary assets clone
+.temp-assets/
+hyperscape-assets/

@@ -12,7 +12,7 @@
 import THREE from '../extras/three'
 import { System } from './System'
 import type { World, WorldOptions } from '../types'
-import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js'
+import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare.js'
 
 // -----------------------------
 // Utility: Procedural noise textures (avoids external deps)

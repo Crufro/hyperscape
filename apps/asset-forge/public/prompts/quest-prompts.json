@@ -1,0 +1,149 @@
+{
+  "system": "You are an expert quest designer for a RuneScape-style MMORPG. Generate engaging, well-structured quests that fit the game's lore and mechanics.",
+  "questTypes": {
+    "combat": {
+      "name": "Combat Quest",
+      "template": "Create a combat-focused quest where the player must defeat {{enemy_type}} in {{location}}. The quest should involve {{objective_count}} enemies and reward appropriate experience and items.",
+      "examples": [
+        {
+          "title": "Goblin Menace",
+          "description": "Goblins have been raiding farms near Lumbridge. Defeat 10 goblins to protect the villagers.",
+          "objectives": [
+            {"type": "kill", "target": "goblin", "count": 10}
+          ]
+        }
+      ]
+    },
+    "gathering": {
+      "name": "Gathering Quest",
+      "template": "Create a gathering quest where the player must collect {{item_count}} {{item_name}} from {{location}}. Include details about where to find the items and any obstacles.",
+      "examples": [
+        {
+          "title": "Herb Collection",
+          "description": "The apothecary needs rare herbs. Gather 5 guam leaves from the wilderness.",
+          "objectives": [
+            {"type": "gather", "target": "guam_leaf", "count": 5}
+          ]
+        }
+      ]
+    },
+    "delivery": {
+      "name": "Delivery Quest",
+      "template": "Create a delivery quest where the player must transport {{item}} from {{npc_a}} to {{npc_b}}. Include dialogue and potential complications.",
+      "examples": [
+        {
+          "title": "Lost Package",
+          "description": "Deliver a mysterious package from the merchant in Varrock to the wizard in Wizard's Tower.",
+          "objectives": [
+            {"type": "deliver", "item": "mysterious_package", "recipient": "wizard"}
+          ]
+        }
+      ]
+    },
+    "exploration": {
+      "name": "Exploration Quest",
+      "template": "Create an exploration quest where the player must discover {{location_count}} locations in {{region}}. Include lore and environmental storytelling.",
+      "examples": [
+        {
+          "title": "Lost Temple",
+          "description": "Explore the ancient ruins and document 3 mysterious artifacts.",
+          "objectives": [
+            {"type": "explore", "location": "ancient_ruins", "discoveries": 3}
+          ]
+        }
+      ]
+    },
+    "puzzle": {
+      "name": "Puzzle Quest",
+      "template": "Create a puzzle-solving quest involving {{puzzle_type}}. The solution should require logical thinking and clue-finding.",
+      "examples": [
+        {
+          "title": "The Cipher",
+          "description": "Decode an ancient cipher to unlock the treasure vault.",
+          "objectives": [
+            {"type": "solve", "puzzle": "cipher", "hints": 3}
+          ]
+        }
+      ]
+    },
+    "social": {
+      "name": "Social Quest",
+      "template": "Create a social quest requiring interaction with {{npc_count}} NPCs. Include dialogue trees and relationship building.",
+      "examples": [
+        {
+          "title": "Town Gossip",
+          "description": "Talk to 5 villagers to learn about the mysterious stranger.",
+          "objectives": [
+            {"type": "talk", "npcs": 5, "topic": "mysterious_stranger"}
+          ]
+        }
+      ]
+    }
+  },
+  "difficultyLevels": {
+    "easy": {
+      "recommendedLevel": "1-10",
+      "objectiveCount": "1-3",
+      "rewardMultiplier": 1.0,
+      "complexity": "Simple, straightforward objectives"
+    },
+    "medium": {
+      "recommendedLevel": "10-30",
+      "objectiveCount": "3-5",
+      "rewardMultiplier": 1.5,
+      "complexity": "Multiple stages, some backtracking"
+    },
+    "hard": {
+      "recommendedLevel": "30-50",
+      "objectiveCount": "5-8",
+      "rewardMultiplier": 2.0,
+      "complexity": "Complex objectives, puzzle elements"
+    },
+    "expert": {
+      "recommendedLevel": "50+",
+      "objectiveCount": "8-12",
+      "rewardMultiplier": 3.0,
+      "complexity": "Multi-stage, branching paths, difficult combat"
+    }
+  },
+  "responseFormat": {
+    "required": true,
+    "schema": {
+      "id": "string (unique quest identifier)",
+      "title": "string (quest name)",
+      "description": "string (quest description)",
+      "difficulty": "string (easy|medium|hard|expert)",
+      "type": "string (quest type)",
+      "questGiver": "string (NPC who gives the quest)",
+      "objectives": [
+        {
+          "id": "string",
+          "type": "string",
+          "description": "string",
+          "target": "string",
+          "count": "number",
+          "location": "string (optional)"
+        }
+      ],
+      "rewards": {
+        "experience": "number",
+        "gold": "number",
+        "items": ["array of item IDs"]
+      },
+      "dialogue": {
+        "introduction": "string",
+        "completion": "string",
+        "inProgress": "string (optional)"
+      }
+    }
+  },
+  "guidelines": [
+    "Keep quest descriptions concise but engaging",
+    "Ensure objectives are clear and measurable",
+    "Balance rewards appropriately for difficulty",
+    "Include lore that fits the game world",
+    "Consider player level and equipment",
+    "Add optional bonus objectives for replay value",
+    "Include failure conditions if appropriate"
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "system": "You are an expert dialogue writer for a RuneScape-style MMORPG. Create engaging, natural conversations that reveal character, advance story, and provide gameplay information.",
+  "dialogueTypes": {
+    "greeting": {
+      "name": "Greeting Dialogue",
+      "template": "Create a greeting for {{npc_name}} who is {{personality}}. The greeting should reflect their mood and relationship with the player.",
+      "variations": ["first_meeting", "returning_visitor", "friend", "quest_available", "quest_complete"],
+      "examples": [
+        {"context": "first_meeting", "line": "Well met, traveler! I don't believe we've crossed paths before."},
+        {"context": "returning_visitor", "line": "Ah, you're back! Good to see a familiar face."},
+        {"context": "quest_available", "line": "Oh thank goodness you're here! I desperately need your help!"}
+      ]
+    },
+    "quest_related": {
+      "name": "Quest Dialogue",
+      "template": "Create quest-related dialogue for {{quest_name}}. Include quest offer, acceptance, progress checks, and completion.",
+      "stages": {
+        "offer": "Introduce the quest and explain what needs to be done",
+        "acceptance": "Player agrees to help, get final instructions",
+        "in_progress": "Player returns before completing, reminder of objectives",
+        "completion": "Player returns with objectives done, reward dialogue",
+        "rejection": "Player declines the quest",
+        "failure": "Player failed a quest objective (optional)"
+      },
+      "examples": [
+        {
+          "stage": "offer",
+          "line": "Goblins have been raiding our farms! Could you help drive them off? I can offer you gold and my gratitude."
+        },
+        {
+          "stage": "completion",
+          "line": "You've done it! The goblins have fled! Please, accept this reward as thanks for your bravery."
+        }
+      ]
+    },
+    "merchant": {
+      "name": "Merchant Dialogue",
+      "template": "Create merchant dialogue for {{merchant_name}} who sells {{item_type}}. Include sales pitch, haggling, and item descriptions.",
+      "interactions": ["browse", "purchase", "sell", "haggle", "special_offer", "sold_out"],
+      "examples": [
+        {"interaction": "browse", "line": "Take a look at my wares! Finest quality in all the land!"},
+        {"interaction": "purchase", "line": "Excellent choice! That'll serve you well."},
+        {"interaction": "sold_out", "line": "Sorry friend, fresh out of that one. Check back tomorrow!"}
+      ]
+    },
+    "lore": {
+      "name": "Lore Dialogue",
+      "template": "Create lore-revealing dialogue about {{topic}}. Make it interesting and tie into the game world.",
+      "topics": ["history", "location", "character", "item", "event", "legend"],
+      "examples": [
+        {
+          "topic": "history",
+          "line": "Ah, the old kingdom? That was before the great war, when magic flowed freely through these lands..."
+        },
+        {
+          "topic": "legend",
+          "line": "They say a dragon sleeps beneath the mountain, waiting for the day it shall rise again."
+        }
+      ]
+    },
+    "combat": {
+      "name": "Combat Dialogue",
+      "template": "Create combat dialogue for {{npc_name}}. Include taunts, battle cries, retreat dialogue, and death quotes.",
+      "situations": ["engage", "taunt", "low_health", "victory", "defeat", "retreat"],
+      "examples": [
+        {"situation": "engage", "line": "You dare challenge me? Prepare to meet your doom!"},
+        {"situation": "low_health", "line": "This... this can't be happening!"},
+        {"situation": "retreat", "line": "I'll remember this! We'll meet again!"}
+      ]
+    },
+    "ambient": {
+      "name": "Ambient/Idle Dialogue",
+      "template": "Create ambient dialogue for {{npc_name}} in {{location}}. These are lines NPCs say when not directly addressed.",
+      "purposes": ["atmosphere", "hints", "humor", "world_building"],
+      "examples": [
+        {"purpose": "atmosphere", "line": "Another day, another coin to earn..."},
+        {"purpose": "hints", "line": "I heard strange noises coming from the old mine last night."},
+        {"purpose": "humor", "line": "If I have to sweep this floor one more time..."}
+      ]
+    },
+    "relationship": {
+      "name": "Relationship Dialogue",
+      "template": "Create dialogue that changes based on player's relationship level with {{npc_name}}.",
+      "levels": ["stranger", "acquaintance", "friend", "close_friend", "ally"],
+      "examples": [
+        {"level": "stranger", "line": "I don't know you. What do you want?"},
+        {"level": "friend", "line": "Hey there! Always good to see a friendly face!"},
+        {"level": "ally", "line": "My friend! You know you can count on me, always."}
+      ]
+    }
+  },
+  "toneModifiers": {
+    "formal": "Use proper grammar, respectful language",
+    "casual": "Relaxed, friendly, conversational",
+    "urgent": "Quick, concerned, emphasize time pressure",
+    "mysterious": "Cryptic, leaves questions unanswered",
+    "humorous": "Light-hearted, jokes, puns",
+    "dramatic": "Emotional, intense, high stakes",
+    "threatening": "Intimidating, aggressive, confrontational"
+  },
+  "playerResponses": {
+    "yes": ["Accept quest", "Agree", "I'll help", "Let's do it"],
+    "no": ["Decline", "Not now", "I'm busy", "No thanks"],
+    "question": ["Tell me more", "What's in it for me?", "Why should I help?"],
+    "sarcastic": ["Sure, because I have nothing better to do", "Another day, another quest"],
+    "heroic": ["I'll save the day!", "For justice!", "It's the right thing to do"],
+    "practical": ["What's the reward?", "How difficult is this?", "Do I get paid?"]
+  },
+  "contextualElements": {
+    "time_of_day": ["morning", "afternoon", "evening", "night"],
+    "weather": ["sunny", "rainy", "stormy", "snowy"],
+    "player_state": ["injured", "healthy", "wealthy", "poor", "famous", "unknown"],
+    "quest_state": ["none", "active", "completed", "failed"],
+    "relationship": ["stranger", "friend", "enemy", "neutral"]
+  },
+  "responseFormat": {
+    "required": true,
+    "schema": {
+      "npc_id": "string",
+      "dialogue_type": "string",
+      "context": "string (when this dialogue is used)",
+      "lines": [
+        {
+          "text": "string (the dialogue line)",
+          "emotion": "string (optional)",
+          "action": "string (optional gesture/emote)",
+          "conditions": "object (optional conditions for this line)"
+        }
+      ],
+      "player_options": [
+        {
+          "text": "string (player response option)",
+          "leads_to": "string (next dialogue node or action)"
+        }
+      ]
+    }
+  },
+  "guidelines": [
+    "Keep dialogue concise - players want to play, not read novels",
+    "Every line should serve a purpose (advance plot, reveal character, provide info)",
+    "Include player agency with multiple response options",
+    "Match dialogue to NPC personality and background",
+    "Avoid modern slang unless it fits the game's tone",
+    "Add flavor text and world-building details",
+    "Include emotional beats and character moments",
+    "Make important information stand out",
+    "Use dialogue to create memorable moments",
+    "Consider voice-over limitations (if applicable)"
+  ]
+}

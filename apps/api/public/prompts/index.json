@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-26",
+  "description": "HyperForge AI prompts for asset generation and content creation",
+  "prompts": [
+    {
+      "file": "asset-type-prompts.json",
+      "category": "asset-generation",
+      "description": "Prompts for different asset types (weapons, armor, items, environments)",
+      "usage": "Asset type classification and generation guidance"
+    },
+    {
+      "file": "generation-prompts.json",
+      "category": "asset-generation",
+      "description": "Core 3D asset generation prompts for Meshy AI",
+      "usage": "Primary asset generation workflows"
+    },
+    {
+      "file": "gpt4-enhancement-prompts.json",
+      "category": "asset-generation",
+      "description": "GPT-4 prompt enhancement and optimization templates",
+      "usage": "Improving user prompts before sending to Meshy AI"
+    },
+    {
+      "file": "game-style-prompts.json",
+      "category": "style",
+      "description": "Art style prompts (pixel art, low poly, realistic, stylized, etc.)",
+      "usage": "Style-specific generation guidance"
+    },
+    {
+      "file": "material-presets.json",
+      "category": "materials",
+      "description": "Material and texture presets (bronze, steel, mithril, leather, wood, etc.)",
+      "usage": "Material selection and texture generation"
+    },
+    {
+      "file": "material-prompts.json",
+      "category": "materials",
+      "description": "Material-specific generation prompts",
+      "usage": "Advanced material customization"
+    },
+    {
+      "file": "weapon-detection-prompts.json",
+      "category": "computer-vision",
+      "description": "Computer vision prompts for weapon detection and classification",
+      "usage": "Hand rigging and equipment fitting"
+    },
+    {
+      "file": "quest-prompts.json",
+      "category": "content-generation",
+      "description": "Quest design templates for MMORPGs (combat, gathering, delivery, exploration, puzzle, social)",
+      "usage": "Generating quests with objectives, rewards, and progression"
+    },
+    {
+      "file": "npc-prompts.json",
+      "category": "content-generation",
+      "description": "NPC personality and role templates (quest givers, merchants, trainers, enemies, companions)",
+      "usage": "Creating memorable NPCs with distinct personalities and dialogue styles"
+    },
+    {
+      "file": "dialogue-prompts.json",
+      "category": "content-generation",
+      "description": "Dialogue writing templates for various contexts (greetings, quests, combat, lore)",
+      "usage": "Generating natural, character-appropriate dialogue"
+    },
+    {
+      "file": "lore-prompts.json",
+      "category": "content-generation",
+      "description": "World-building templates (history, locations, characters, factions, items, creatures, magic)",
+      "usage": "Creating rich, cohesive game world lore"
+    }
+  ],
+  "categories": {
+    "asset-generation": "Prompts for generating 3D assets",
+    "style": "Art style and aesthetic prompts",
+    "materials": "Material and texture presets",
+    "computer-vision": "Image analysis and detection prompts",
+    "content-generation": "Game content creation (quests, NPCs, dialogue, lore)"
+  }
+}
