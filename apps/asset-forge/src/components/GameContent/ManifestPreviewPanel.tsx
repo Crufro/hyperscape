@@ -14,7 +14,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { BatchPreview } from './BatchPreview'
 import { PreviewCard } from './PreviewCard'
 
-type ManifestFilter = 'all' | 'items' | 'mobs' | 'npcs'
+type ManifestFilter = 'all' | 'items' | 'npcs'
 type SuggestionFilter = 'all' | 'new' | 'reuse' | 'conflicts'
 
 export const ManifestPreviewPanel: React.FC = () => {
@@ -68,7 +68,6 @@ export const ManifestPreviewPanel: React.FC = () => {
     // Single pass counting
     previewItems.forEach(p => {
       if (p.manifestType === 'items') result.items++
-      else if (p.manifestType === 'mobs') result.mobs++
       else if (p.manifestType === 'npcs') result.npcs++
 
       if (p.conflicts && p.conflicts.length > 0) result.conflicts++
@@ -190,22 +189,6 @@ export const ManifestPreviewPanel: React.FC = () => {
                     className="ml-2"
                   >
                     {counts.items}
-                  </Badge>
-                </Button>
-                <Button
-                  variant={manifestFilter === 'mobs' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setManifestFilter('mobs')}
-                  className="text-sm"
-                >
-                  <Swords className="w-3.5 h-3.5 mr-1.5" />
-                  Mobs
-                  <Badge
-                    variant={manifestFilter === 'mobs' ? 'secondary' : 'primary'}
-                    size="sm"
-                    className="ml-2"
-                  >
-                    {counts.mobs}
                   </Badge>
                 </Button>
                 <Button

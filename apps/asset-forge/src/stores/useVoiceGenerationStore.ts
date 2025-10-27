@@ -13,6 +13,7 @@
  */
 
 import { create } from 'zustand'
+import { temporal } from 'zundo'
 
 import { voiceGenerationService } from '../services/VoiceGenerationService'
 import type {
@@ -26,6 +27,12 @@ import { VOICE_CACHE_TTL, VOICE_CACHE_KEY } from '../types/voice-generation'
 import { createLogger } from '../utils/logger'
 
 const logger = createLogger('VoiceGenerationStore')
+
+interface VoiceAssignment {
+  npcId: string
+  voiceId: string
+  voiceName: string
+}
 
 interface VoiceGenerationState {
   // Available voices from ElevenLabs library
@@ -72,9 +79,15 @@ interface VoiceGenerationState {
 
   getNPCVoiceConfig: (npcId: string) => NPCVoiceConfig | undefined
   clearAll: () => void
+
+  // Voice assignment persistence
+  saveVoiceAssignments: (manifestId: string, assignments: VoiceAssignment[], name?: string, description?: string) => Promise<void>
+  loadVoiceAssignments: (manifestId: string) => Promise<VoiceAssignment[]>
 }
 
-export const useVoiceGenerationStore = create<VoiceGenerationState>((set, get) => ({
+export const useVoiceGenerationStore = create<VoiceGenerationState>()(
+  temporal(
+    (set, get) => ({
   // Initial state
   availableVoices: [],
   voicesLoaded: false,
@@ -269,5 +282,85 @@ export const useVoiceGenerationStore = create<VoiceGenerationState>((set, get) =
     },
     generationError: null,
     selectedVoiceId: null
-  })
-}))
+  }),
+
+  saveVoiceAssignments: async (manifestId, assignments, name, description) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004'
+
+    try {
+      logger.info('Saving voice assignments', { manifestId, count: assignments.length })
+
+      const response = await fetch(`${apiUrl}/api/voice-assignments/${manifestId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          assignments
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save voice assignments')
+      }
+
+      const result = await response.json()
+      logger.info('Voice assignments saved successfully', { manifestId, version: result.version })
+    } catch (error) {
+      logger.error('Failed to save voice assignments', { error: (error as Error).message })
+      throw error
+    }
+  },
+
+  loadVoiceAssignments: async (manifestId) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3004'
+
+    try {
+      logger.info('Loading voice assignments', { manifestId })
+
+      const response = await fetch(`${apiUrl}/api/voice-assignments/${manifestId}`)
+
+      if (response.status === 404) {
+        logger.info('No voice assignments found for manifest', { manifestId })
+        return []
+      }
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to load voice assignments')
+      }
+
+      const result = await response.json()
+      logger.info('Voice assignments loaded successfully', { manifestId, count: result.assignments.length })
+
+      return result.assignments
+    } catch (error) {
+      logger.error('Failed to load voice assignments', { error: (error as Error).message })
+      throw error
+    }
+  }
+    }),
+    {
+      limit: 100,
+      partialize: (state) => {
+        // Exclude loading/progress/error states from history
+        // Track only NPC voice assignments and settings
+        const {
+          voicesLoading,
+          isGenerating,
+          generationProgress,
+          generationError,
+          selectedVoiceId,
+          availableVoices,
+          voicesLoaded,
+          voicesCachedAt,
+          ...rest
+        } = state
+        return rest
+      }
+    }
+  )
+)

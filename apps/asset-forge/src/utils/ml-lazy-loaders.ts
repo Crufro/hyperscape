@@ -61,7 +61,7 @@ export async function loadHandPoseDetection(): Promise<{
  */
 export async function createHandDetector(
   model: handPoseDetection.SupportedModels = 'MediaPipeHands' as unknown as handPoseDetection.SupportedModels,
-  config?: handPoseDetection.MediaPipeHandsModelConfig
+  config?: handPoseDetection.MediaPipeHandsTfjsModelConfig
 ): Promise<handPoseDetection.HandDetector> {
   const { handPoseDetection } = await loadHandPoseDetection()
 

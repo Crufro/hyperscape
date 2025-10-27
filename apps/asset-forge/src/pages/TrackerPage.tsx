@@ -13,9 +13,7 @@ import { PlaytesterSwarmPanel } from '../components/GameContent/PlaytesterSwarmP
 import { useQuestTrackingStore } from '../stores/useQuestTrackingStore'
 import { useMultiAgentStore } from '../stores/useMultiAgentStore'
 import type { PlaytestSession } from '../types/multi-agent'
-import { Button } from '../components/common/Button'
-import { Card } from '../components/common/Card'
-import { Badge } from '../components/common/Badge'
+import { Button, Card, Badge } from '../components/common'
 
 export function TrackerPage() {
   const { getActiveQuestCount, getCompletedQuestCount, events } = useQuestTrackingStore()
@@ -27,7 +25,7 @@ export function TrackerPage() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       {/* Header */}
       <div className="border-b border-border-primary/30 bg-bg-secondary/40 backdrop-blur-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-6">
         <div className="flex items-center justify-between">
@@ -135,7 +133,7 @@ export function TrackerPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-semibold text-text-primary">
-                            {session.contentId}
+                            {session.sessionId}
                           </h4>
                           <Badge
                             variant={

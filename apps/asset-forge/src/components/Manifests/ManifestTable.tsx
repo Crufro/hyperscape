@@ -3,13 +3,20 @@
  * Displays manifest data in a searchable table format
  */
 
-import { Search, RefreshCw, Box, AlertCircle } from 'lucide-react'
+import { Search, RefreshCw, Box, AlertCircle, Shield, User, Edit3 } from 'lucide-react'
 import React, { useMemo } from 'react'
 
 import type { AnyManifest } from '../../types/manifests'
 import { hasValidModel } from '../../utils/manifest-to-generation-config'
 import { Badge } from '../common/Badge'
 import { Input } from '../common/Input'
+
+// Extended manifest type with metadata from merged endpoint
+export type ManifestWithMetadata = AnyManifest & {
+  _source?: 'original' | 'user'
+  _status?: 'published' | 'draft' | 'pending_approval' | 'approved'
+  _editable?: boolean
+}
 
 interface ManifestTableProps {
   items: AnyManifest[]
@@ -19,6 +26,7 @@ interface ManifestTableProps {
   selectedItem: AnyManifest | null
   onRefresh?: () => void
   loading?: boolean
+  showSourceBadges?: boolean // Whether to show original/user badges
 }
 
 export const ManifestTable: React.FC<ManifestTableProps> = ({
@@ -28,8 +36,13 @@ export const ManifestTable: React.FC<ManifestTableProps> = ({
   onSelectItem,
   selectedItem,
   onRefresh,
-  loading = false
+  loading = false,
+  showSourceBadges = false
 }) => {
+  // Helper to check if item has metadata
+  const hasMetadata = (item: any): item is ManifestWithMetadata => {
+    return '_source' in item || '_status' in item || '_editable' in item
+  }
   // Helper to render cell value
   const renderCellValue = (value: unknown): string => {
     if (value === null || value === undefined) return '-'
@@ -101,6 +114,11 @@ export const ManifestTable: React.FC<ManifestTableProps> = ({
                     {col}
                   </th>
                 ))}
+                {showSourceBadges && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-border-primary">
+                    Source
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-border-primary">
                   3D Model
                 </th>
@@ -130,6 +148,30 @@ export const ManifestTable: React.FC<ManifestTableProps> = ({
                         {renderCellValue(item[col as keyof typeof item])}
                       </td>
                     ))}
+                    {showSourceBadges && (
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        {hasMetadata(item) && item._source === 'original' && (
+                          <Badge variant="success" className="flex items-center gap-1">
+                            <Shield size={12} />
+                            <span>Published</span>
+                          </Badge>
+                        )}
+                        {hasMetadata(item) && item._source === 'user' && (
+                          <Badge variant="primary" className="flex items-center gap-1">
+                            {item._status === 'draft' && <Edit3 size={12} />}
+                            {item._status === 'pending_approval' && <User size={12} />}
+                            <span>
+                              {item._status === 'draft' && 'Draft'}
+                              {item._status === 'pending_approval' && 'Pending'}
+                              {item._status === 'approved' && 'Approved'}
+                            </span>
+                          </Badge>
+                        )}
+                        {!hasMetadata(item) && (
+                          <Badge variant="secondary">-</Badge>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-sm whitespace-nowrap">
                       {hasModel ? (
                         <div className="flex items-center gap-1 text-green-500">

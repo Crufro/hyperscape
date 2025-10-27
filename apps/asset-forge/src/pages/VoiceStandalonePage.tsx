@@ -258,7 +258,7 @@ export const VoiceStandalonePage: React.FC = () => {
             }}
           >
             <div
-              className="bg-gray-50 rounded-lg p-4 sm:p-6 max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl border border-gray-200"
+              className="bg-[var(--bg-primary)] rounded-lg p-4 sm:p-6 max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl border border-[var(--border-primary)]"
               style={{
                 position: 'relative',
                 zIndex: 10000
@@ -306,13 +306,13 @@ export const VoiceStandalonePage: React.FC = () => {
 Example:
 Welcome to our shop! Looking for something special? We've got the finest wares in all the land..."
               className={`
-                w-full h-40 sm:h-48 p-4 bg-gray-800 border rounded-lg text-white placeholder-gray-400
+                w-full h-40 sm:h-48 p-4 bg-[var(--bg-secondary)] border rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)]
                 focus:outline-none focus:ring-2 resize-none transition-all
                 ${isOverLimit
                   ? 'border-red-500 focus:ring-red-500'
                   : isNearLimit
                     ? 'border-yellow-500 focus:ring-yellow-500'
-                    : 'border-gray-700 focus:ring-purple-500'
+                    : 'border-[var(--border-primary)] focus:ring-[var(--color-primary)]'
                 }
               `}
               maxLength={MAX_CHARACTERS + 100} // Allow slight overflow to show error

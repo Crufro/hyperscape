@@ -84,11 +84,8 @@ export const useManifestsStore = create<ManifestsState>((set, get) => ({
         const search = createItemSearch(items as ItemManifest[])
         return search.search(searchQuery)
       }
-      case 'mobs': {
-        const search = createMobSearch(items as MobManifest[])
-        return search.search(searchQuery)
-      }
       case 'npcs': {
+        // Handle both NPCs and legacy mobs (deprecated)
         const search = createNPCSearch(items as NPCManifest[])
         return search.search(searchQuery)
       }
@@ -104,11 +101,16 @@ export const useManifestsStore = create<ManifestsState>((set, get) => ({
   getStats: () => {
     const { manifests } = get()
     const stats: Partial<Record<ManifestType, number>> = {}
-    
+
     const types: ManifestType[] = [
       'items',
-      'mobs',
       'npcs',
+      'lore',
+      'quests',
+      'music',
+      'voice',
+      'sound_effects',
+      'static_images',
       'resources',
       'world-areas',
       'biomes',
@@ -116,11 +118,11 @@ export const useManifestsStore = create<ManifestsState>((set, get) => ({
       'banks',
       'stores'
     ]
-    
+
     types.forEach((type) => {
       stats[type] = manifests[type]?.length || 0
     })
-    
+
     return stats as Record<ManifestType, number>
   }
 }))

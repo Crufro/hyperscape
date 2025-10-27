@@ -1,4 +1,6 @@
 export { QuestBuilder } from './QuestBuilder'
+export { QuestFixModal } from './QuestFixModal'
+export { QuestFixPreview } from './QuestFixPreview'
 export { NPCScriptGenerator } from './NPCScriptGenerator'
 export { LoreGenerator } from './LoreGenerator'
 export { ActionHandlerSelector } from './ActionHandlerSelector'

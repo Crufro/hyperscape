@@ -17,11 +17,19 @@ export const NAVIGATION_VIEWS = {
   VOICE: 'voice',
   VOICE_STANDALONE: 'voice-standalone',
   VOICE_MANIFESTS: 'voice-manifests',
+  VOICE_CHANGER: 'voice-changer',
+  VOICE_DESIGN: 'voice-design',
+  SOUND_EFFECTS: 'sound-effects',
+  MUSIC: 'music',
   DASHBOARD: 'dashboard',
   ADMIN: 'admin',
+  ADMIN_APPROVALS: 'admin-approvals',
   PROJECTS: 'projects',
   PROFILE: 'profile',
-  TEAM: 'team'
+  TEAM: 'team',
+  SETTINGS: 'settings',
+  AI_CONTEXT_SETTINGS: 'ai-context-settings',
+  HELP: 'help'
 } as const satisfies Record<string, NavigationView>
 
 // Grid background styles for the app

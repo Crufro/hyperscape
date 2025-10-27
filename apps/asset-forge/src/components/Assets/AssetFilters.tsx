@@ -17,11 +17,17 @@ interface AssetFiltersProps {
   filteredCount: number
 }
 
+const FILTERS_EXPANDED_KEY = 'assetFilters.expanded'
+
 const AssetFilters: React.FC<AssetFiltersProps> = ({
   totalAssets,
   filteredCount
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false)
+  // Load initial expanded state from localStorage, default to true
+  const [isExpanded, setIsExpanded] = useState(() => {
+    const stored = localStorage.getItem(FILTERS_EXPANDED_KEY)
+    return stored !== null ? stored === 'true' : true
+  })
   const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([])
   const [showCacheStats, setShowCacheStats] = useState(false)
 
@@ -35,7 +41,12 @@ const AssetFilters: React.FC<AssetFiltersProps> = ({
 
   // Cache stats
   const { stats, clearCache } = useCacheStats(showCacheStats)
-  
+
+  // Persist expanded state to localStorage
+  useEffect(() => {
+    localStorage.setItem(FILTERS_EXPANDED_KEY, String(isExpanded))
+  }, [isExpanded])
+
   // Load material presets from public directory
   useEffect(() => {
     fetch('/prompts/material-presets.json')

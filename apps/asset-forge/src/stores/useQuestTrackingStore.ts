@@ -25,6 +25,7 @@
  */
 
 import { create } from 'zustand'
+import { temporal } from 'zundo'
 
 import type { GeneratedQuest } from '../types/content-generation'
 import type { QuestProgress, QuestExecutionEvent, QuestObjectiveProgress } from '../types/quest-tracking'
@@ -52,7 +53,9 @@ interface QuestTrackingState {
   getCompletedQuestCount: () => number
 }
 
-export const useQuestTrackingStore = create<QuestTrackingState>((set, get) => ({
+export const useQuestTrackingStore = create<QuestTrackingState>()(
+  temporal(
+    (set, get) => ({
   // Initial state
   activeQuests: new Map(),
   completedQuests: new Set(),
@@ -296,5 +299,14 @@ export const useQuestTrackingStore = create<QuestTrackingState>((set, get) => ({
   getCompletedQuestCount: () => {
     return get().completedQuests.size
   }
-}))
+    }),
+    {
+      limit: 100,
+      partialize: (state) => {
+        // Track all quest data in history
+        return state
+      }
+    }
+  )
+)
 

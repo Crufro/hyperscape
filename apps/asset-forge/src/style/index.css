@@ -226,11 +226,11 @@
   
   /* Card Components */
   .card {
-    @apply bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg;
+    @apply bg-[var(--bg-card)] rounded-lg;
   }
   
   .card-hover {
-    @apply card hover:border-[var(--border-hover)] transition-colors duration-[var(--duration-base)];
+    @apply card transition-colors duration-[var(--duration-base)];
   }
   
   .card-interactive {
@@ -271,7 +271,7 @@
            bg-[var(--bg-tertiary)] text-[var(--text-secondary)] 
            hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]
            transition-all duration-200
-           border border-[var(--border-primary)] hover:border-[var(--border-secondary)]
+           hover:border-[var(--border-secondary)]
            hover:shadow-sm active:scale-95;
   }
   
@@ -284,7 +284,7 @@
   .input {
     @apply w-full px-3 py-2 text-sm
            bg-[var(--bg-secondary)] text-[var(--text-primary)]
-           border border-[var(--border-primary)] rounded-md
+           rounded-md
            placeholder:text-[var(--text-muted)]
            transition-colors duration-[var(--duration-base)]
            focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent;
@@ -349,7 +349,7 @@
   
   /* Panel Components */
   .panel {
-    @apply bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg;
+    @apply bg-[var(--bg-secondary)] rounded-lg;
   }
   
   .panel-header {
@@ -725,4 +725,157 @@ body {
   .viewport-height {
     @apply h-[calc(100vh-60px)];
   }
-} 
+}
+
+/* ===== Driver.js Custom Styles ===== */
+/* Custom styling for onboarding tours */
+
+.driver-popover-custom {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-secondary) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-xl) !important;
+  color: var(--text-primary) !important;
+  max-width: 400px !important;
+}
+
+.driver-popover-custom .driver-popover-title {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.driver-popover-custom .driver-popover-description {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  color: var(--text-secondary) !important;
+}
+
+.driver-popover-custom .driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  color: var(--text-tertiary) !important;
+  text-align: center !important;
+  margin-top: 0.5rem !important;
+  padding-top: 0.75rem !important;
+  border-top: 1px solid var(--border-primary) !important;
+}
+
+.driver-popover-custom .driver-popover-footer {
+  display: flex !important;
+  gap: 0.5rem !important;
+  margin-top: 1rem !important;
+}
+
+.driver-popover-custom .driver-popover-btn {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+.driver-popover-custom .driver-popover-next-btn {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.driver-popover-custom .driver-popover-next-btn:hover {
+  background-color: var(--color-primary-dark) !important;
+  transform: scale(1.02) !important;
+}
+
+.driver-popover-custom .driver-popover-prev-btn {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+.driver-popover-custom .driver-popover-prev-btn:hover {
+  background-color: var(--bg-hover) !important;
+  border-color: var(--border-secondary) !important;
+}
+
+.driver-popover-custom .driver-popover-close-btn {
+  background-color: transparent !important;
+  color: var(--text-tertiary) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+.driver-popover-custom .driver-popover-close-btn:hover {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-secondary) !important;
+}
+
+/* Driver overlay - lighter so highlighted elements show through */
+.driver-overlay {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  animation: fadeIn 0.3s ease-out !important;
+}
+
+/* Highlighted element - make it really pop with glow effect */
+.driver-active-element,
+.driver-highlighted-element {
+  position: relative !important;
+  z-index: 9999 !important;
+  box-shadow: 0 0 0 4px var(--color-primary),
+              0 0 20px rgba(99, 102, 241, 0.6),
+              0 0 40px rgba(99, 102, 241, 0.4) !important;
+  border-radius: 8px !important;
+}
+
+/* Alternative: Add a pulsing glow animation */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px var(--color-primary),
+                0 0 20px rgba(99, 102, 241, 0.6),
+                0 0 40px rgba(99, 102, 241, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--color-primary-light),
+                0 0 30px rgba(99, 102, 241, 0.8),
+                0 0 50px rgba(99, 102, 241, 0.6);
+  }
+}
+
+.driver-active-element {
+  animation: glowPulse 2s ease-in-out infinite !important;
+}
+
+/* Popover arrow */
+.driver-popover-custom .driver-popover-arrow {
+  border-color: var(--bg-secondary) !important;
+}
+
+/* Progress indicator */
+.driver-popover-custom .driver-popover-progress-text::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--color-primary) var(--progress-width, 0%),
+    var(--bg-tertiary) var(--progress-width, 0%)
+  );
+  margin-bottom: 0.5rem;
+  border-radius: 2px;
+}
+
+/* Animations for tour transitions */
+@keyframes tourSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.driver-popover-custom {
+  animation: tourSlideIn 0.3s ease-out !important;
+}

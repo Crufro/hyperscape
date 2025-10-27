@@ -59,6 +59,11 @@ export async function apiFetch(input: string, init: RequestOptions = {}): Promis
         headers.set('x-user-id', user.id)
       }
 
+      // Add wallet address if available
+      if (user?.wallet?.address) {
+        headers.set('x-wallet-address', user.wallet.address)
+      }
+
       // Make request
       const response = await fetch(url, {
         ...rest,
@@ -66,7 +71,9 @@ export async function apiFetch(input: string, init: RequestOptions = {}): Promis
         signal: signal ?? controller.signal
       })
 
-      // Log response
+      // Clone response immediately to avoid body stream consumption issues
+      const clonedResponse = response.clone()
+
       if (!response.ok) {
         const errorContext = {
           url,
@@ -75,9 +82,9 @@ export async function apiFetch(input: string, init: RequestOptions = {}): Promis
         }
         logger.error(`API request failed: ${response.status} ${response.statusText}`, errorContext)
 
-        // Try to parse error message from response
+        // Try to parse error message from original response (which we won't return)
         try {
-          const errorData = await response.clone().json()
+          const errorData = await response.json()
           if (errorData.error || errorData.message) {
             logger.error('API error details:', errorData)
           }
@@ -88,7 +95,8 @@ export async function apiFetch(input: string, init: RequestOptions = {}): Promis
         logger.debug(`✓ ${response.status} ${method} ${url}`)
       }
 
-      return response
+      // Return the cloned response which has an unconsumed body stream
+      return clonedResponse
 
     } catch (error) {
       // Handle different error types

@@ -1,14 +1,15 @@
-import { Search, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, AlertCircle, Shield, Users, UserCircle, CheckCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { Card, CardContent, CardHeader, CardTitle, Input, Badge } from '@/components/common'
+import { Card, CardContent, CardHeader, CardTitle, Input, Badge, Button } from '@/components/common'
 import { apiFetch } from '@/utils/api'
+import { useUserStore } from '@/stores/userStore'
 
 interface User {
   id: string
   name: string
   email: string
-  role: 'user' | 'admin'
+  role: 'admin' | 'team_leader' | 'member'
   walletAddress?: string
   teamId?: string
   teamName?: string
@@ -20,6 +21,11 @@ export function UserTable() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Get current user profile to prevent self-demotion
+  const currentUserProfile = useUserStore(state => state.profile)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -48,6 +54,45 @@ export function UserTable() {
       setError(err instanceof Error ? err.message : 'Failed to load users')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRoleChange = async (userId: string, newRole: 'admin' | 'team_leader' | 'member') => {
+    // Prevent self-demotion
+    if (currentUserProfile?.id === userId && newRole !== 'admin') {
+      setError('You cannot demote yourself from admin')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    try {
+      setRoleChangeLoading(userId)
+      setError(null)
+      setSuccessMessage(null)
+
+      const response = await apiFetch(`/api/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: newRole })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || data.error || 'Failed to update role')
+      }
+
+      // Update local state
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+
+      setSuccessMessage(`Role updated successfully`)
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update role')
+      setTimeout(() => setError(null), 5000)
+    } finally {
+      setRoleChangeLoading(null)
     }
   }
 
@@ -83,8 +128,27 @@ export function UserTable() {
     setCurrentPage(1)
   }, [searchQuery])
 
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Badge variant="warning" size="sm" className="gap-1"><Shield className="w-3 h-3" />Admin</Badge>
+      case 'team_leader':
+        return <Badge variant="primary" size="sm" className="gap-1"><Users className="w-3 h-3" />Team Leader</Badge>
+      default:
+        return <Badge variant="secondary" size="sm" className="gap-1"><UserCircle className="w-3 h-3" />Member</Badge>
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400">
+          <CheckCircle className="w-5 h-5" />
+          {successMessage}
+        </div>
+      )}
+
       {/* Search and Filters */}
       <Card className="bg-bg-secondary border-border-primary">
         <CardContent className="p-4">
@@ -153,7 +217,7 @@ export function UserTable() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Wallet</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Team</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Created</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Last Login</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-text-secondary">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -162,11 +226,7 @@ export function UserTable() {
                         <td className="py-3 px-4 text-sm font-medium text-text-primary">{user.name}</td>
                         <td className="py-3 px-4 text-sm text-text-primary">{user.email}</td>
                         <td className="py-3 px-4">
-                          {user.role === 'admin' ? (
-                            <Badge variant="warning" size="sm">Admin</Badge>
-                          ) : (
-                            <Badge variant="secondary" size="sm">User</Badge>
-                          )}
+                          {getRoleBadge(user.role)}
                         </td>
                         <td className="py-3 px-4">
                           {user.walletAddress ? (
@@ -181,7 +241,46 @@ export function UserTable() {
                           {user.teamName || <span className="text-text-tertiary italic">No team</span>}
                         </td>
                         <td className="py-3 px-4 text-sm text-text-secondary">{formatDate(user.createdAt)}</td>
-                        <td className="py-3 px-4 text-sm text-text-secondary">{formatDate(user.lastLogin)}</td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {user.role !== 'admin' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRoleChange(user.id, 'admin')}
+                                disabled={roleChangeLoading === user.id}
+                                className="text-xs"
+                              >
+                                <Shield className="w-3 h-3 mr-1" />
+                                Make Admin
+                              </Button>
+                            )}
+                            {user.role !== 'team_leader' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRoleChange(user.id, 'team_leader')}
+                                disabled={roleChangeLoading === user.id}
+                                className="text-xs"
+                              >
+                                <Users className="w-3 h-3 mr-1" />
+                                Make Team Leader
+                              </Button>
+                            )}
+                            {user.role !== 'member' && user.id !== currentUserProfile?.id && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRoleChange(user.id, 'member')}
+                                disabled={roleChangeLoading === user.id}
+                                className="text-xs"
+                              >
+                                <UserCircle className="w-3 h-3 mr-1" />
+                                Make Member
+                              </Button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

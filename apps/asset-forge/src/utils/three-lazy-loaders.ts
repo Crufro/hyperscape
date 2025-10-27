@@ -14,7 +14,7 @@
  * Total savings: ~500KB+ when not all features are used immediately
  */
 
-import type { LoadingManager } from 'three'
+import type { Camera, LoadingManager, Scene, WebGLRenderer } from 'three'
 import type { GLTFLoader as GLTFLoaderType } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { FBXLoader as FBXLoaderType } from 'three/examples/jsm/loaders/FBXLoader.js'
 import type { OBJLoader as OBJLoaderType } from 'three/examples/jsm/loaders/OBJLoader.js'
@@ -66,7 +66,7 @@ export async function loadGLTFExporter(): Promise<GLTFExporterType> {
  * Usage: const controls = await loadOrbitControls(camera, domElement)
  */
 export async function loadOrbitControls(
-  camera: THREE.Camera,
+  camera: Camera,
   domElement?: HTMLElement
 ): Promise<OrbitControlsType> {
   const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
@@ -78,9 +78,9 @@ export async function loadOrbitControls(
  * Usage: const { composer, renderPass, ssaoPass, bloomPass } = await loadPostProcessing(...)
  */
 export async function loadPostProcessing(config: {
-  renderer: THREE.WebGLRenderer
-  scene: THREE.Scene
-  camera: THREE.Camera
+  renderer: WebGLRenderer
+  scene: Scene
+  camera: Camera
   enableSSAO?: boolean
   enableBloom?: boolean
 }): Promise<{
@@ -151,7 +151,7 @@ async function cachedImport<T>(key: string, importFn: () => Promise<T>): Promise
 export async function preloadCommonLoaders(): Promise<void> {
   await Promise.all([
     loadGLTFLoader(),
-    loadOrbitControls(null as unknown as THREE.Camera) // Just to load the module
+    loadOrbitControls(null as unknown as Camera) // Just to load the module
   ])
 }
 

@@ -21,9 +21,11 @@
  */
 
 import { create } from 'zustand'
+import { temporal } from 'zundo'
 
 import type { GeneratedNPC } from '../types/content-generation'
 import type { NPCScript, DialogueNode, DialogueResponse, ShopItem, DialogueEffect } from '../types/npc-scripts'
+import { COMMON_UI_EXCLUSIONS } from './middleware/temporal'
 
 interface NPCScriptsState {
   // Data
@@ -44,6 +46,7 @@ interface NPCScriptsState {
   addDialogueNode: (scriptId: string, node: DialogueNode) => void
   updateDialogueNode: (scriptId: string, nodeId: string, updates: Partial<DialogueNode>) => void
   deleteDialogueNode: (scriptId: string, nodeId: string) => void
+  updateDialogueTree: (scriptId: string, nodes: DialogueNode[], entryNodeId: string) => void
   setEditingNodeId: (nodeId: string | null) => void
   
   // Response Actions
@@ -65,7 +68,9 @@ interface NPCScriptsState {
   createScriptFromNPC: (npc: GeneratedNPC) => NPCScript
 }
 
-export const useNPCScriptsStore = create<NPCScriptsState>((set, get) => ({
+export const useNPCScriptsStore = create<NPCScriptsState>()(
+  temporal(
+    (set, get) => ({
   // Initial state
   npcScripts: [],
   selectedScript: null,
@@ -145,7 +150,7 @@ export const useNPCScriptsStore = create<NPCScriptsState>((set, get) => ({
   deleteDialogueNode: (scriptId, nodeId) => set((state) => {
     const script = state.npcScripts.find(s => s.id === scriptId)
     if (!script) return state
-    
+
     const updatedScript = {
       ...script,
       dialogueTree: {
@@ -153,13 +158,31 @@ export const useNPCScriptsStore = create<NPCScriptsState>((set, get) => ({
         nodes: script.dialogueTree.nodes.filter(n => n.id !== nodeId)
       }
     }
-    
+
     return {
       npcScripts: state.npcScripts.map(s => s.id === scriptId ? updatedScript : s),
       selectedScript: state.selectedScript?.id === scriptId ? updatedScript : state.selectedScript
     }
   }),
-  
+
+  updateDialogueTree: (scriptId, nodes, entryNodeId) => set((state) => {
+    const script = state.npcScripts.find(s => s.id === scriptId)
+    if (!script) return state
+
+    const updatedScript = {
+      ...script,
+      dialogueTree: {
+        entryNodeId,
+        nodes
+      }
+    }
+
+    return {
+      npcScripts: state.npcScripts.map(s => s.id === scriptId ? updatedScript : s),
+      selectedScript: state.selectedScript?.id === scriptId ? updatedScript : state.selectedScript
+    }
+  }),
+
   setEditingNodeId: (nodeId) => set({ editingNodeId: nodeId }),
   
   // Response Actions
@@ -368,5 +391,15 @@ export const useNPCScriptsStore = create<NPCScriptsState>((set, get) => ({
 
     return script
   }
-}))
+    }),
+    {
+      limit: 100,
+      partialize: (state) => {
+        // Exclude UI state from history
+        const { editingNodeId, ...rest } = state
+        return rest
+      }
+    }
+  )
+)
 

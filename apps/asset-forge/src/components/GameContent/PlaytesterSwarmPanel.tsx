@@ -6,7 +6,7 @@
  * assess difficulty, predict engagement, and generate comprehensive test reports.
  */
 
-import { Play, AlertTriangle, AlertCircle, Info, Download } from 'lucide-react'
+import { Play, AlertTriangle, AlertCircle, Info, Download, Wand2 } from 'lucide-react'
 import React, { useState } from 'react'
 
 import { API_ENDPOINTS } from '../../config/api'
@@ -24,6 +24,7 @@ import { Button } from '../common/Button'
 import { Card } from '../common/Card'
 import { ModelSelector } from '../common/ModelSelector'
 
+import { QuestFixModal } from './QuestFixModal'
 import { TesterPersonaSelector } from './TesterPersonaSelector'
 
 interface PlaytesterSwarmPanelProps {
@@ -74,6 +75,7 @@ export const PlaytesterSwarmPanel: React.FC<PlaytesterSwarmPanelProps> = ({
   // View State
   const [showReport, setShowReport] = useState(false)
   const [bugFilter, setBugFilter] = useState<BugSeverity | 'all'>('all')
+  const [showFixModal, setShowFixModal] = useState(false)
 
   const handleRunTest = async () => {
     if (!selectedQuest || selectedPersonas.length === 0) {
@@ -152,6 +154,33 @@ export const PlaytesterSwarmPanel: React.FC<PlaytesterSwarmPanelProps> = ({
     a.download = `playtest-report-${activePlaytest.sessionId}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleQuestFixed = (fixedQuest: GeneratedQuest, changes: any[]) => {
+    console.log('[PlaytesterSwarmPanel] Quest fixed with AI:', fixedQuest.title)
+    console.log('[PlaytesterSwarmPanel] Changes applied:', changes.length)
+
+    // Update the quest in the store
+    const updateQuest = useContentGenerationStore.getState().updateQuest
+    if (updateQuest) {
+      updateQuest(fixedQuest)
+    }
+
+    // Update selected quest
+    setSelectedQuest(fixedQuest)
+  }
+
+  const handleRetestRequest = (fixedQuest: GeneratedQuest) => {
+    console.log('[PlaytesterSwarmPanel] Re-testing fixed quest:', fixedQuest.title)
+
+    // Update selected quest and trigger retest
+    setSelectedQuest(fixedQuest)
+    setShowReport(false)
+
+    // Automatically run test again
+    setTimeout(() => {
+      handleRunTest()
+    }, 500)
   }
 
   const filteredBugs =
@@ -302,6 +331,33 @@ export const PlaytesterSwarmPanel: React.FC<PlaytesterSwarmPanelProps> = ({
               </Button>
             </div>
           </div>
+
+          {/* Fix with AI Button */}
+          {activePlaytest.report.summary.grade !== 'A' &&
+           selectedQuest &&
+           (activePlaytest.aggregatedMetrics.bugReports.length > 0 ||
+            activePlaytest.recommendations.length > 0) && (
+            <Card className="p-4 bg-purple-500 bg-opacity-10 border-purple-500">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-3">
+                  <Wand2 size={20} className="text-purple-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold text-purple-400 mb-1">
+                      AI Can Fix This Quest
+                    </div>
+                    <div className="text-sm text-text-secondary">
+                      Let AI analyze the playtester feedback and automatically fix the issues while
+                      maintaining your quest's core concept.
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={() => setShowFixModal(true)} variant="primary" size="sm">
+                  <Wand2 size={16} className="mr-2" />
+                  Fix with AI
+                </Button>
+              </div>
+            </Card>
+          )}
 
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -467,6 +523,18 @@ export const PlaytesterSwarmPanel: React.FC<PlaytesterSwarmPanelProps> = ({
             </div>
           )}
         </Card>
+      )}
+
+      {/* Quest Fix Modal */}
+      {selectedQuest && activePlaytest && (
+        <QuestFixModal
+          isOpen={showFixModal}
+          onClose={() => setShowFixModal(false)}
+          quest={selectedQuest}
+          playtestSession={activePlaytest}
+          onQuestFixed={handleQuestFixed}
+          onRetestRequest={handleRetestRequest}
+        />
       )}
     </div>
   )

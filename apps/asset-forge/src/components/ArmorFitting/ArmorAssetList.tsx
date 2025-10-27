@@ -136,6 +136,7 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
         {hideTypeToggle && (
           <div className="flex gap-2 p-1 bg-bg-tertiary/30 rounded-xl">
             <button
+              data-tour="avatar-select"
               onClick={() => onAssetTypeChange('avatar')}
               className={cn(
                 "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
@@ -149,6 +150,7 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
               Avatars
             </button>
             <button
+              data-tour="armor-select"
               onClick={() => onAssetTypeChange(equipmentSlot === 'Head' ? 'helmet' : 'armor')}
               className={cn(
                 "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",

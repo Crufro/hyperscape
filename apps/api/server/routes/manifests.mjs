@@ -7,6 +7,7 @@ import express from 'express'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { query } from '../database/db.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -14,7 +15,10 @@ const __dirname = path.dirname(__filename)
 const router = express.Router()
 
 // Path to Hyperscape manifests
-const MANIFESTS_PATH = path.join(__dirname, '../../../..', 'packages/server/world/assets/manifests')
+// In Docker: /app/packages/server/world/assets/manifests
+// On host: /Users/home/hyperscape-3/packages/server/world/assets/manifests
+const MANIFESTS_PATH = process.env.MANIFESTS_PATH ||
+  path.join(__dirname, '../../../..', 'packages/server/world/assets/manifests')
 
 /**
  * GET /api/manifests
@@ -58,10 +62,46 @@ router.get('/', async (req, res) => {
 /**
  * GET /api/manifests/:type
  * Get specific manifest by type (items, mobs, npcs, etc.)
+ * Now uses preview_manifests table with fallback to JSON files
  */
 router.get('/:type', async (req, res) => {
   try {
     const { type } = req.params
+
+    // Try to get from preview_manifests table first (system user's original manifest)
+    try {
+      const systemUserResult = await query(
+        `SELECT id FROM users WHERE privy_user_id = 'system' LIMIT 1`
+      )
+
+      if (systemUserResult.rows.length > 0) {
+        const systemUserId = systemUserResult.rows[0].id
+
+        const manifestResult = await query(
+          `SELECT * FROM preview_manifests
+           WHERE user_id = $1 AND manifest_type = $2 AND is_original = true`,
+          [systemUserId, type]
+        )
+
+        if (manifestResult.rows.length > 0) {
+          const manifest = manifestResult.rows[0]
+
+          return res.json({
+            type,
+            data: manifest.content || [],
+            count: Array.isArray(manifest.content) ? manifest.content.length : 0,
+            source: 'preview-manifests-db',
+            version: manifest.version,
+            status: manifest.status,
+            updatedAt: manifest.updated_at
+          })
+        }
+      }
+    } catch (dbError) {
+      console.warn('[Manifests API] Database query failed, falling back to file system:', dbError.message)
+    }
+
+    // Fallback to file system if not in database
     const fileName = `${type}.json`
     const filePath = path.join(MANIFESTS_PATH, fileName)
 
@@ -84,7 +124,7 @@ router.get('/:type', async (req, res) => {
       type,
       data,
       count: Array.isArray(data) ? data.length : Object.keys(data).length,
-      source: 'hyperscape-server',
+      source: 'hyperscape-server-filesystem',
       filePath: fileName
     })
   } catch (error) {

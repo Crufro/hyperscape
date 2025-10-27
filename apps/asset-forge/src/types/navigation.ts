@@ -22,11 +22,19 @@ export type NavigationView =
   | 'voice'
   | 'voice-standalone'
   | 'voice-manifests'
+  | 'voice-changer'
+  | 'voice-design'
+  | 'sound-effects'
+  | 'music'
   | 'dashboard'
   | 'admin'
+  | 'admin-approvals'
   | 'projects'
   | 'profile'
   | 'team'
+  | 'settings'
+  | 'ai-context-settings'
+  | 'help'
 
 export interface NavigationState {
   currentView: NavigationView

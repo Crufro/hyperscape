@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
+import { temporal } from 'zundo'
 
 import { ArmorFittingViewerRef } from '../components/ArmorFitting/ArmorFittingViewer'
 import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/ArmorFittingService'
@@ -8,11 +9,6 @@ import { Asset } from '../types'
 import { createLogger } from '../utils/logger'
 
 const logger = createLogger('ArmorFittingStore')
-
-interface HistoryEntry {
-  fittingConfig: FittingConfig
-  timestamp: number
-}
 
 interface ArmorFittingState {
   // Selected items
@@ -60,10 +56,6 @@ interface ArmorFittingState {
 
   // Error handling
   lastError: string | null
-
-  // History for undo/redo
-  history: HistoryEntry[]
-  historyIndex: number
 
   // Loading states for specific operations
   isExporting: boolean
@@ -120,13 +112,6 @@ interface ArmorFittingActions {
   // Error handling
   setLastError: (error: string | null) => void
   clearError: () => void
-
-  // History management
-  saveToHistory: () => void
-  undo: () => void
-  redo: () => void
-  canUndo: () => boolean
-  canRedo: () => boolean
 
   // Complex actions
   performFitting: (viewerRef: React.RefObject<ArmorFittingViewerRef | null>) => Promise<void>
@@ -215,10 +200,6 @@ const initialState: ArmorFittingState = {
   // Error handling
   lastError: null,
 
-  // History
-  history: [],
-  historyIndex: -1,
-
   // Loading states
   isExporting: false,
   isSavingConfig: false
@@ -228,7 +209,8 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
   subscribeWithSelector(
     devtools(
       persist(
-        immer((set, get) => ({
+        temporal(
+          immer((set, get) => ({
           ...initialState,
 
           // Asset selection
@@ -248,8 +230,7 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             state.assetTypeFilter = type
           }),
           handleAssetSelect: (asset) => {
-            const { assetTypeFilter, saveToHistory } = get()
-            saveToHistory()
+            const { assetTypeFilter } = get()
             set((state) => {
               if (assetTypeFilter === 'avatar') {
                 state.selectedAvatar = asset
@@ -267,7 +248,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             state.fittingConfig = config
           }),
           updateFittingConfig: (updates) => {
-            get().saveToHistory()
             set((state) => {
               Object.assign(state.fittingConfig, updates)
             })
@@ -425,44 +405,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             state.lastError = null
           }),
 
-          // History management
-          saveToHistory: () => set((state) => {
-            const entry: HistoryEntry = {
-              fittingConfig: { ...state.fittingConfig },
-              timestamp: Date.now()
-            }
-
-            // Remove any entries after current index
-            state.history = state.history.slice(0, state.historyIndex + 1)
-            state.history.push(entry)
-            state.historyIndex = state.history.length - 1
-
-            // Keep history size reasonable
-            if (state.history.length > 50) {
-              state.history = state.history.slice(-50)
-              state.historyIndex = state.history.length - 1
-            }
-          }),
-
-          undo: () => set((state) => {
-            if (state.historyIndex > 0) {
-              state.historyIndex--
-              const entry = state.history[state.historyIndex]
-              state.fittingConfig = { ...entry.fittingConfig }
-            }
-          }),
-
-          redo: () => set((state) => {
-            if (state.historyIndex < state.history.length - 1) {
-              state.historyIndex++
-              const entry = state.history[state.historyIndex]
-              state.fittingConfig = { ...entry.fittingConfig }
-            }
-          }),
-
-          canUndo: () => get().historyIndex > 0,
-          canRedo: () => get().historyIndex < get().history.length - 1,
-
           // Complex actions
           performFitting: async (viewerRef) => {
             const { selectedAvatar, selectedArmor, fittingConfig, enableWeightTransfer, isFitting } = get()
@@ -532,9 +474,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
                   state.isArmorFitted = true
                 }
               })
-
-              // Save to history after successful fitting
-              get().saveToHistory()
 
             } catch (error) {
               logger.error('Fitting failed', { error: (error as Error).message })
@@ -869,9 +808,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
                 state.enableWeightTransfer = config.enableWeightTransfer
               })
 
-              // Save to history after loading
-              get().saveToHistory()
-
             } catch (error) {
               set((state) => {
                 state.lastError = `Failed to load configuration: ${(error as Error).message}`
@@ -881,9 +817,7 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
 
           resetAll: () => {
             set({
-              ...initialState,
-              history: [],
-              historyIndex: -1
+              ...initialState
             })
           },
 
@@ -898,8 +832,8 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
           },
 
           hasUnsavedChanges: () => {
-            const { history, historyIndex } = get()
-            return historyIndex < history.length - 1 || history.length > 0
+            // This can be implemented by checking temporal state if needed
+            return false
           },
 
           fittingMethod: () => get().fittingConfig.method,
@@ -912,7 +846,29 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             if (progress < 75) return 'Fitting...'
             return 'Finalizing...'
           }
-        })),
+          })),
+          {
+            limit: 100,
+            partialize: (state) => {
+              // Track fitting parameters in history
+              // Exclude loading/progress/error states and UI states
+              const {
+                isFitting,
+                fittingProgress,
+                isExporting,
+                isSavingConfig,
+                lastError,
+                showDebugger,
+                showWireframe,
+                bodyRegions,
+                collisions,
+                isAnimationPlaying,
+                ...rest
+              } = state
+              return rest
+            }
+          }
+        ),
         {
           name: 'armor-fitting-storage',
           partialize: (state) => ({

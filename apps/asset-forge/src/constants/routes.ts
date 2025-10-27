@@ -31,9 +31,21 @@ export const ROUTES = {
   VOICE_STANDALONE: '/voice/standalone',
   VOICE_MANIFESTS: '/voice/manifests',
   VOICE_DIALOGUE: '/voice/dialogue',
+  VOICE_CHANGER: '/voice/changer',
+  VOICE_DESIGN: '/voice/design',
+
+  // Sound Effects
+  SOUND_EFFECTS: '/sfx/generate',
+
+  // Music Generation
+  MUSIC: '/music/generate',
 
   // Data & Reference
   GAME_DATA: '/game-data',
+
+  // Manifests
+  PREVIEW_MANIFESTS: '/manifests/preview',
+  SUBMISSIONS: '/manifests/submissions',
 
   // User & Team Management
   PROJECTS: '/projects',
@@ -42,9 +54,11 @@ export const ROUTES = {
 
   // Admin
   ADMIN: '/admin',
+  ADMIN_APPROVALS: '/admin/approvals',
 
   // System
   SETTINGS: '/settings',
+  AI_CONTEXT_SETTINGS: '/settings/ai-context',
   HELP: '/help',
 } as const
 
@@ -169,10 +183,30 @@ export const ROUTE_METADATA: Record<string, RouteMetadata> = {
     title: 'Dialogue Voice Generation',
     breadcrumb: 'Dialogue',
   },
+  [ROUTES.VOICE_CHANGER]: {
+    path: ROUTES.VOICE_CHANGER,
+    title: 'Voice Changer',
+    breadcrumb: 'Voice Changer',
+  },
+  [ROUTES.VOICE_DESIGN]: {
+    path: ROUTES.VOICE_DESIGN,
+    title: 'Voice Design',
+    breadcrumb: 'Voice Design',
+  },
   [ROUTES.GAME_DATA]: {
     path: ROUTES.GAME_DATA,
     title: 'Game Manifests',
     breadcrumb: 'Game Data',
+  },
+  [ROUTES.PREVIEW_MANIFESTS]: {
+    path: ROUTES.PREVIEW_MANIFESTS,
+    title: 'Preview Manifest',
+    breadcrumb: 'Preview',
+  },
+  [ROUTES.SUBMISSIONS]: {
+    path: ROUTES.SUBMISSIONS,
+    title: 'My Submissions',
+    breadcrumb: 'Submissions',
   },
   [ROUTES.PROJECTS]: {
     path: ROUTES.PROJECTS,
@@ -194,9 +228,21 @@ export const ROUTE_METADATA: Record<string, RouteMetadata> = {
     title: 'Admin Dashboard',
     breadcrumb: 'Admin',
   },
+  [ROUTES.ADMIN_APPROVALS]: {
+    path: ROUTES.ADMIN_APPROVALS,
+    title: 'Content Approvals',
+    parent: ROUTES.ADMIN,
+    breadcrumb: 'Approvals',
+  },
   [ROUTES.SETTINGS]: {
     path: ROUTES.SETTINGS,
     title: 'Settings',
+  },
+  [ROUTES.AI_CONTEXT_SETTINGS]: {
+    path: ROUTES.AI_CONTEXT_SETTINGS,
+    title: 'AI Context Settings',
+    parent: ROUTES.SETTINGS,
+    breadcrumb: 'AI Context',
   },
   [ROUTES.HELP]: {
     path: ROUTES.HELP,

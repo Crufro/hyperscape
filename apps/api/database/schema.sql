@@ -22,12 +22,29 @@ CREATE TABLE IF NOT EXISTS users (
   settings JSONB DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  last_login_at TIMESTAMP WITH TIME ZONE
+  last_login_at TIMESTAMP WITH TIME ZONE,
+  CONSTRAINT users_role_check CHECK (role IN ('admin', 'team_leader', 'member'))
 );
 
 CREATE INDEX idx_users_privy_id ON users(privy_user_id);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_wallet ON users(wallet_address);
+
+-- =====================================================
+-- ADMIN WHITELIST (REFERENCE ONLY)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS admin_whitelist (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  wallet_address VARCHAR(255) UNIQUE NOT NULL,
+  added_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  reason TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_admin_whitelist_wallet ON admin_whitelist(wallet_address);
+CREATE INDEX idx_admin_whitelist_added_by ON admin_whitelist(added_by);
 
 -- =====================================================
 -- TEAMS & COLLABORATION
@@ -39,11 +56,16 @@ CREATE TABLE IF NOT EXISTS teams (
   description TEXT,
   owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   settings JSONB DEFAULT '{}',
+  approval_status VARCHAR(50) DEFAULT 'pending',
+  approved_at TIMESTAMP WITH TIME ZONE,
+  approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT teams_approval_status_check CHECK (approval_status IN ('pending', 'approved', 'rejected'))
 );
 
 CREATE INDEX idx_teams_owner ON teams(owner_id);
+CREATE INDEX idx_teams_approval_status ON teams(approval_status);
 
 CREATE TABLE IF NOT EXISTS team_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -738,6 +760,9 @@ $$ language 'plpgsql';
 
 -- Apply updated_at trigger to all relevant tables
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_admin_whitelist_updated_at BEFORE UPDATE ON admin_whitelist
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams

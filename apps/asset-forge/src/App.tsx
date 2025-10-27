@@ -4,12 +4,14 @@ import { usePrivy } from '@privy-io/react-auth'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { LoadingSpinner } from './components/common/LoadingSpinner'
 import { LoginScreen } from './auth/LoginScreen'
+import { useUserStore } from './stores/userStore'
 import { createLogger } from './utils/logger'
 
 const logger = createLogger('App')
 
 // Lazy load GlobalSearch to avoid pulling in search dependencies
 const GlobalSearch = lazy(() => import('./components/common/GlobalSearch').then(m => ({ default: m.GlobalSearch })))
+const KeyboardShortcutsHelp = lazy(() => import('./components/common/KeyboardShortcutsHelp').then(m => ({ default: m.KeyboardShortcutsHelp })))
 import {
   GenerationErrorFallback,
   AssetsErrorFallback,
@@ -24,10 +26,13 @@ import { AppProvider } from './contexts/AppContext'
 import { NavigationProvider } from './contexts/NavigationContext'
 import { useNavigation } from './hooks/useNavigation'
 import { useNavigationStore } from './stores/useNavigationStore'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { NavigationView } from './types/navigation'
 
 // Lazy load route-specific pages for better code splitting
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })))
+const AdminApprovalsPage = lazy(() => import('./pages/AdminApprovalsPage').then(m => ({ default: m.AdminApprovalsPage })))
+const AIContextSettingsPage = lazy(() => import('./pages/AIContextSettingsPage').then(m => ({ default: m.AIContextSettingsPage })))
 const ArmorFittingPage = lazy(() => import('./pages/ArmorFittingPage').then(m => ({ default: m.ArmorFittingPage })))
 const AssetsPage = lazy(() => import('./pages/AssetsPage').then(m => ({ default: m.AssetsPage })))
 const ContentGenerationPage = lazy(() => import('./pages/ContentGenerationPage').then(m => ({ default: m.ContentGenerationPage })))
@@ -47,13 +52,27 @@ const TeamsPage = lazy(() => import('./pages/TeamsPage').then(m => ({ default: m
 const TrackerPage = lazy(() => import('./pages/TrackerPage').then(m => ({ default: m.TrackerPage })))
 const VoiceGenerationPage = lazy(() => import('./pages/VoiceGenerationPage').then(m => ({ default: m.VoiceGenerationPage })))
 const VoiceStandalonePage = lazy(() => import('./pages/VoiceStandalonePage').then(m => ({ default: m.VoiceStandalonePage })))
+const VoiceChangerPage = lazy(() => import('./pages/VoiceChangerPage').then(m => ({ default: m.VoiceChangerPage })))
+const VoiceDesignPage = lazy(() => import('./pages/VoiceDesignPage').then(m => ({ default: m.VoiceDesignPage })))
+const SoundEffectsPage = lazy(() => import('./pages/SoundEffectsPage').then(m => ({ default: m.default })))
+const MusicPage = lazy(() => import('./pages/MusicPage').then(m => ({ default: m.default })))
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const HelpPage = lazy(() => import('./pages/HelpPage').then(m => ({ default: m.HelpPage })))
 
 // Helper function to get current view from route path
 function getCurrentView(path: string): NavigationView {
   // Check for voice generation routes first (before generic /content check)
   if (path === '/voice/standalone') return NAVIGATION_VIEWS.VOICE_STANDALONE
   if (path === '/voice/manifests') return NAVIGATION_VIEWS.VOICE_MANIFESTS
+  if (path === '/voice/changer') return NAVIGATION_VIEWS.VOICE_CHANGER
+  if (path === '/voice/design') return NAVIGATION_VIEWS.VOICE_DESIGN
   if (path === '/voice/dialogue' || path === '/content/voice') return NAVIGATION_VIEWS.VOICE
+
+  // Sound Effects
+  if (path === '/sfx/generate') return NAVIGATION_VIEWS.SOUND_EFFECTS
+
+  // Music Generation
+  if (path === '/music/generate') return NAVIGATION_VIEWS.MUSIC
 
   // Content-specific routes (check before generic /content)
   if (path === '/content/quests') return NAVIGATION_VIEWS.CONTENT_QUESTS
@@ -62,12 +81,20 @@ function getCurrentView(path: string): NavigationView {
   if (path === '/content/scripts') return NAVIGATION_VIEWS.CONTENT_SCRIPTS
   if (path === '/content/tracking') return NAVIGATION_VIEWS.CONTENT_TRACKING
 
+  // Manifest routes
+  if (path === '/manifests/preview' || path === '/manifests/submissions') return NAVIGATION_VIEWS.GAME_DATA
+  if (path.startsWith('/manifests')) return NAVIGATION_VIEWS.GAME_DATA
+
   // New routes
   if (path === '/dashboard') return NAVIGATION_VIEWS.DASHBOARD
+  if (path === '/admin/approvals') return NAVIGATION_VIEWS.ADMIN_APPROVALS
   if (path === '/admin') return NAVIGATION_VIEWS.ADMIN
   if (path === '/projects') return NAVIGATION_VIEWS.PROJECTS
   if (path === '/profile') return NAVIGATION_VIEWS.PROFILE
   if (path === '/team') return NAVIGATION_VIEWS.TEAM
+  if (path === '/settings/ai-context') return NAVIGATION_VIEWS.AI_CONTEXT_SETTINGS
+  if (path === '/settings') return NAVIGATION_VIEWS.SETTINGS
+  if (path === '/help') return NAVIGATION_VIEWS.HELP
 
   if (path.startsWith('/generate')) return NAVIGATION_VIEWS.GENERATION
   if (path.startsWith('/assets')) return NAVIGATION_VIEWS.ASSETS
@@ -85,6 +112,7 @@ function AppContent() {
   const collapsed = useNavigationStore(state => state.collapsed)
   const navigateToLegacyView = useNavigationStore(state => state.navigateToLegacyView)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
 
   // Sync new navigation store with old navigation context
   useEffect(() => {
@@ -93,22 +121,13 @@ function AppContent() {
       legacyNavigateTo(viewFromPath)
     }
   }, [currentPath, currentView, legacyNavigateTo])
-  
-  // Global search keyboard shortcut (Cmd/Ctrl + K)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setIsSearchOpen(true)
-      }
-      if (e.key === 'Escape') {
-        setIsSearchOpen(false)
-      }
-    }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts({
+    onOpenSearch: () => setIsSearchOpen(true),
+    onOpenHelp: () => setIsHelpOpen(true),
+    enabled: true,
+  })
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-bg-primary to-bg-secondary relative overflow-hidden">
@@ -138,6 +157,11 @@ function AppContent() {
           {isSearchOpen && (
             <Suspense fallback={null}>
               <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+            </Suspense>
+          )}
+          {isHelpOpen && (
+            <Suspense fallback={null}>
+              <KeyboardShortcutsHelp isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
             </Suspense>
           )}
 
@@ -254,15 +278,50 @@ function AppContent() {
                   </div>
                 </ErrorBoundary>
               )}
+              {currentView === NAVIGATION_VIEWS.VOICE_CHANGER && (
+                <ErrorBoundary fallback={<VoiceErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <VoiceChangerPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.VOICE_DESIGN && (
+                <ErrorBoundary fallback={<VoiceErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <VoiceDesignPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.SOUND_EFFECTS && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <SoundEffectsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.MUSIC && (
+                <ErrorBoundary fallback={<ContentErrorFallback />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <MusicPage />
+                  </div>
+                </ErrorBoundary>
+              )}
               {currentView === NAVIGATION_VIEWS.DASHBOARD && (
                 <div className="w-full h-full p-4 sm:p-6 lg:p-8">
                   <DashboardPage />
                 </div>
               )}
-              {currentView === NAVIGATION_VIEWS.ADMIN && (
+              {currentView === NAVIGATION_VIEWS.ADMIN && useUserStore.getState().profile?.isAdmin && (
                 <ErrorBoundary fallback={<ToolsErrorFallback toolName="Admin Dashboard" />} resetKeys={[currentView]}>
                   <div className="w-full h-full">
                     <AdminDashboardPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.ADMIN_APPROVALS && useUserStore.getState().profile?.isAdmin && (
+                <ErrorBoundary fallback={<ToolsErrorFallback toolName="Admin Approvals" />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <AdminApprovalsPage />
                   </div>
                 </ErrorBoundary>
               )}
@@ -284,6 +343,27 @@ function AppContent() {
                 <ErrorBoundary fallback={<ToolsErrorFallback toolName="Team Management" />} resetKeys={[currentView]}>
                   <div className="w-full h-full">
                     <TeamsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.SETTINGS && (
+                <ErrorBoundary fallback={<ToolsErrorFallback toolName="Settings" />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <SettingsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.AI_CONTEXT_SETTINGS && (
+                <ErrorBoundary fallback={<ToolsErrorFallback toolName="AI Context Settings" />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <AIContextSettingsPage />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {currentView === NAVIGATION_VIEWS.HELP && (
+                <ErrorBoundary fallback={<ToolsErrorFallback toolName="Help" />} resetKeys={[currentView]}>
+                  <div className="w-full h-full">
+                    <HelpPage />
                   </div>
                 </ErrorBoundary>
               )}

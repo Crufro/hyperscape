@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database with pgvector
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: asset-forge-db
     restart: unless-stopped
     environment:
@@ -47,6 +47,7 @@ services:
       - ./apps/api/gdd-assets:/app/apps/api/gdd-assets
       - ./apps/api/temp-images:/app/apps/api/temp-images
       - ./apps/api/public:/app/apps/api/public
+      - ./packages/server/world/assets/manifests:/app/packages/server/world/assets/manifests
       - /app/node_modules
       - /app/apps/api/node_modules
     depends_on:

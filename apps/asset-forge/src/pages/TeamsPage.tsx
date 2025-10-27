@@ -19,9 +19,9 @@ export function TeamsPage() {
   }, [fetchTeams])
 
   const getRoleBadge = (role: string) => {
-    const variants: Record<string, 'default' | 'secondary'> = {
-      owner: 'default',
-      admin: 'default',
+    const variants: Record<string, 'primary' | 'secondary'> = {
+      owner: 'primary',
+      admin: 'primary',
       member: 'secondary'
     }
     return <Badge variant={variants[role] || 'secondary'}>{role}</Badge>

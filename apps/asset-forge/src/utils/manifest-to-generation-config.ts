@@ -24,7 +24,7 @@
  */
 
 import type { GenerationConfig } from '../types/generation'
-import type { ItemManifest, MobManifest, NPCManifest, ResourceManifest, AnyManifest } from '../types/manifests'
+import type { ItemManifest, MobManifest, NPCManifest, ResourceManifest, LoreManifest, QuestManifest, AnyManifest } from '../types/manifests'
 
 export type ManifestType = ItemManifest | MobManifest | NPCManifest | ResourceManifest
 
@@ -45,6 +45,48 @@ export function manifestToGenerationConfig(
 
   if ('harvestSkill' in item) {
     return resourceToGenerationConfig(item as ResourceManifest)
+  }
+
+  // Handle LoreManifest
+  if ('title' in item && 'content' in item && 'category' in item) {
+    const loreItem = item as LoreManifest
+    return {
+      name: loreItem.title,
+      type: 'misc',
+      subtype: loreItem.category,
+      description: loreItem.summary || loreItem.content.substring(0, 200),
+      style: 'low-poly runescape style, game asset',
+      quality: 'high',
+      generationType: 'item',
+      enableRetexturing: false,
+      enableSprites: true,
+      enableGeneration: true,
+      metadata: {
+        gameId: loreItem.id,
+        manifestSource: 'game-data',
+      }
+    }
+  }
+
+  // Handle QuestManifest
+  if ('objective' in item && 'difficulty' in item && 'objectives' in item) {
+    const questItem = item as QuestManifest
+    return {
+      name: questItem.name,
+      type: 'misc',
+      subtype: questItem.type,
+      description: questItem.description,
+      style: 'low-poly runescape style, game asset',
+      quality: 'high',
+      generationType: 'item',
+      enableRetexturing: false,
+      enableSprites: true,
+      enableGeneration: true,
+      metadata: {
+        gameId: questItem.id,
+        manifestSource: 'game-data',
+      }
+    }
   }
 
   // For unsupported manifest types (WorldArea, Biome, Zone, Bank, Store)
@@ -110,7 +152,9 @@ function itemToGenerationConfig(item: ItemManifest): GenerationConfig {
  * Convert mob manifest to generation config
  */
 function mobToGenerationConfig(mob: MobManifest): GenerationConfig {
-  const description = `${mob.description}. A level ${mob.stats.level} ${mob.type} creature with ${mob.stats.constitution} constitution. ${mob.behavior.aggressive ? 'Aggressive and dangerous' : 'Passive creature'}. Low-poly game character design.`
+  const level = mob.stats?.level || mob.level || 1
+  const constitution = mob.stats?.constitution || 10
+  const description = `${mob.description}. A level ${level} ${mob.type} creature with ${constitution} constitution. ${mob.isAggressive ? 'Aggressive and dangerous' : 'Passive creature'}. Low-poly game character design.`
 
   return {
     name: mob.name,
@@ -130,8 +174,8 @@ function mobToGenerationConfig(mob: MobManifest): GenerationConfig {
     metadata: {
       gameId: mob.id,
       mobType: mob.type,
-      level: mob.stats.level,
-      constitution: mob.stats.constitution,
+      level,
+      constitution,
       xpReward: mob.xpReward,
       creatureType: 'biped', // Most mobs are biped
       manifestSource: 'game-data',
@@ -147,7 +191,9 @@ function mobToGenerationConfig(mob: MobManifest): GenerationConfig {
  */
 function npcToGenerationConfig(npc: NPCManifest): GenerationConfig {
   const npcType = npc.npcType || npc.type || 'generic'
-  const description = `${npc.description}. A ${npcType} NPC who provides ${npc.services.join(', ')} services. Friendly humanoid character. Low-poly game character design.`
+  const services = npc.services || []
+  const serviceText = services.length > 0 ? ` who provides ${services.join(', ')} services` : ''
+  const description = `${npc.description}. A ${npcType} NPC${serviceText}. Friendly humanoid character. Low-poly game character design.`
 
   return {
     name: npc.name,
@@ -167,7 +213,7 @@ function npcToGenerationConfig(npc: NPCManifest): GenerationConfig {
     metadata: {
       gameId: npc.id,
       npcType: npcType,
-      services: npc.services.join(','),
+      services: services.join(','),
       creatureType: 'biped',
       manifestSource: 'game-data',
       sourceManifest: 'characters.json', // Unified character manifest (filtered by characterType: 'npc')

@@ -26,7 +26,7 @@ function isItemManifest(manifest: AnyManifest): manifest is ItemManifest {
 }
 
 function isMobManifest(manifest: AnyManifest): manifest is MobManifest {
-  return 'combatLevel' in manifest || ('stats' in manifest && 'level' in (manifest as MobManifest).stats)
+  return 'combatLevel' in manifest || ('stats' in manifest && manifest.stats !== undefined && 'level' in manifest.stats)
 }
 
 function isNPCManifest(manifest: AnyManifest): manifest is NPCManifest {
@@ -88,7 +88,7 @@ export class ContextBuilder {
       }
     )
 
-    const availableMobs = (manifests.mobs || []).filter(
+    const availableMobs = (manifests.npcs || []).filter(
       (mob): mob is MobManifest => {
         if (!isMobManifest(mob)) return false
         const mobLevel = mob.combatLevel || mob.stats?.level || 1
@@ -318,7 +318,8 @@ CRITICAL INSTRUCTIONS:
       type: npc.archetype,
       npcType: npc.archetype,
       modelPath: '',
-      services: []
+      services: [],
+      isAggressive: false
     }))
 
     prompt += this.formatReuseGuidelines(npcManifests, context.generatedNPCs, role)
@@ -345,7 +346,6 @@ CRITICAL INSTRUCTIONS:
     // Total counts
     context += `WORLD INVENTORY:\n`
     context += `  - ${manifests.items?.length || 0} items\n`
-    context += `  - ${manifests.mobs?.length || 0} mobs\n`
     context += `  - ${manifests.npcs?.length || 0} NPCs\n`
     context += `  - ${manifests.resources?.length || 0} resources\n`
     context += `  - ${params.existingQuests?.length || 0} quests\n\n`

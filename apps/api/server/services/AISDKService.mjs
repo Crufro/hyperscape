@@ -460,6 +460,13 @@ Your task is to enhance the user's description to create better results with ima
 
     try {
       const models = await gateway.getAvailableModels()
+
+      // Handle case where gateway returns undefined or null
+      if (!models || !Array.isArray(models)) {
+        console.warn('[AISDKService] gateway.getAvailableModels() returned non-array:', models)
+        return []
+      }
+
       return models.map(model => ({
         id: model.id,
         name: model.name,

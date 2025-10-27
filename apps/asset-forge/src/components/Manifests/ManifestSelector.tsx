@@ -30,7 +30,6 @@ const MANIFEST_TYPES: Array<{
   icon: React.ReactNode
 }> = [
   { type: 'items', label: 'Items', icon: <Database size={18} /> },
-  { type: 'mobs', label: 'Mobs', icon: <Ghost size={18} /> },
   { type: 'npcs', label: 'NPCs', icon: <Users size={18} /> },
   { type: 'resources', label: 'Resources', icon: <TreePine size={18} /> },
   { type: 'world-areas', label: 'World Areas', icon: <MapIcon size={18} /> },

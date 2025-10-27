@@ -38,17 +38,21 @@ export type { Asset, MaterialPreset } from '@/services/api/AssetService'
  * ```
  */
 export const useAssets = () => {
-  const { data, loading, refetch, forceReload } = useDataFetch(
-    async (bypassCache) => AssetService.listAssets(bypassCache),
+  const { data, isLoading, refetch } = useDataFetch(
+    async () => AssetService.listAssets(),
     {
-      fetchOnMount: true,
-      errorMessage: 'Failed to load assets'
+      enabled: true
     }
   )
 
+  const forceReload = async () => {
+    await AssetService.invalidateAssetsCache()
+    await refetch()
+  }
+
   return {
     assets: data || [],
-    loading,
+    loading: isLoading,
     reloadAssets: refetch,
     forceReload
   }
@@ -83,17 +87,16 @@ export const useAssets = () => {
  * ```
  */
 export const useMaterialPresets = () => {
-  const { data, loading, refetch } = useDataFetch(
+  const { data, isLoading, refetch } = useDataFetch(
     async () => AssetService.getMaterialPresets(),
     {
-      fetchOnMount: true,
-      errorMessage: 'Failed to load material presets'
+      enabled: true
     }
   )
 
   return {
     presets: data || [],
-    loading,
+    loading: isLoading,
     refetch
   }
 }
@@ -132,17 +135,12 @@ export const useMaterialPresets = () => {
  * ```
  */
 export const useRetexturing = () => {
-  const { execute, loading } = useAsyncOperation<RetextureResponse>(
-    async (request: RetextureRequest) => AssetService.retexture(request),
-    {
-      showSuccessNotification: true,
-      showErrorNotification: true,
-      errorMessage: 'Retexturing failed'
-    }
+  const { execute, isLoading } = useAsyncOperation<RetextureResponse, [RetextureRequest]>(
+    async (request: RetextureRequest) => AssetService.retexture(request)
   )
 
   return {
     retextureAsset: execute,
-    isRetexturing: loading
+    isRetexturing: isLoading
   }
 }

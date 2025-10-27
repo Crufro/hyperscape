@@ -26,6 +26,7 @@ class RequestDeduplicator {
 
   /**
    * Deduplicate a request by sharing the promise if an identical request is in flight
+   * For Response objects, returns a clone to avoid body stream consumption issues
    */
   async deduplicate<T>(key: string, executor: () => Promise<T>): Promise<T> {
     this.stats.totalRequests++
@@ -34,7 +35,12 @@ class RequestDeduplicator {
     const existing = this.pendingRequests.get(key)
     if (existing) {
       this.stats.deduplicated++
-      return existing as Promise<T>
+      const result = await existing
+      // If result is a Response, clone it to avoid body stream issues
+      if (result instanceof Response) {
+        return result.clone() as T
+      }
+      return result as T
     }
 
     // Execute the request and cache the promise
@@ -43,6 +49,10 @@ class RequestDeduplicator {
 
     try {
       const result = await promise
+      // If result is a Response, clone it to avoid body stream issues
+      if (result instanceof Response) {
+        return result.clone() as T
+      }
       return result
     } finally {
       // Clean up after the request completes

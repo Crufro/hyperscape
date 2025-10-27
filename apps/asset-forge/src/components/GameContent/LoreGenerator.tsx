@@ -40,13 +40,12 @@ export const LoreGenerator: React.FC<LoreGeneratorProps> = ({
 
   const loadManifests = async () => {
     try {
-      const [itemsData, mobsData, npcsData] = await Promise.all([
+      const [itemsData, npcsData] = await Promise.all([
         manifestService.getItems(),
-        manifestService.getMobs(),
         manifestService.getNPCs()
       ])
       setItems(itemsData)
-      setMobs(mobsData)
+      setMobs([])
       setNPCs(npcsData)
     } catch (error) {
       console.error('Failed to load manifests:', error)

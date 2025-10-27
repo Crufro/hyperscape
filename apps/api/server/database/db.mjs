@@ -7,16 +7,25 @@ import pkg from 'pg'
 const { Pool } = pkg
 
 // Database configuration from environment
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5433'),
-  database: process.env.DB_NAME || 'asset_forge',
-  user: process.env.DB_USER || 'asset_forge',
-  password: process.env.DB_PASSWORD || 'asset_forge_dev_password_2024',
-  max: 20, // maximum number of clients in the pool
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-}
+// Support both DATABASE_URL (Railway) and individual env vars (local dev)
+const dbConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    }
+  : {
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5433'),
+      database: process.env.DB_NAME || 'asset_forge',
+      user: process.env.DB_USER || 'asset_forge',
+      password: process.env.DB_PASSWORD || 'asset_forge_dev_password_2024',
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    }
 
 // Create connection pool
 export const pool = new Pool(dbConfig)

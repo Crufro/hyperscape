@@ -1,4 +1,4 @@
-const { theme } = require('./src/styles/tokens.ts')
+const { theme } = require('./src/style/tokens.ts')
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -14,7 +14,7 @@ module.exports = {
       current: 'currentColor',
       white: theme.colors.utility.white,
       black: theme.colors.utility.black,
-      
+
       // Brand colors
       primary: {
         DEFAULT: theme.colors.primary.DEFAULT,
@@ -26,13 +26,13 @@ module.exports = {
         dark: theme.colors.secondary.dark,
         light: theme.colors.secondary.light,
       },
-      
+
       // Semantic colors
       success: theme.colors.ui.success,
       warning: theme.colors.ui.warning,
       error: theme.colors.ui.error,
       info: theme.colors.ui.info,
-      
+
       // Theme colors (using CSS variables for dynamic theming)
       bg: {
         primary: 'var(--bg-primary)',
@@ -54,21 +54,21 @@ module.exports = {
         hover: 'var(--border-hover)',
       },
     },
-    
+
     spacing: theme.spacing,
-    
+
     borderRadius: theme.borderRadius,
-    
+
     fontFamily: theme.typography.fontFamily,
-    
+
     fontSize: theme.typography.fontSize,
-    
+
     fontWeight: theme.typography.fontWeight,
-    
+
     lineHeight: theme.typography.lineHeight,
-    
+
     letterSpacing: theme.typography.letterSpacing,
-    
+
     boxShadow: {
       ...theme.effects.boxShadow,
       // Dynamic shadows using CSS variables
@@ -77,13 +77,13 @@ module.exports = {
       'theme-lg': 'var(--shadow-lg)',
       'theme-xl': 'var(--shadow-xl)',
     },
-    
+
     opacity: theme.effects.opacity,
-    
+
     screens: theme.layout.breakpoints,
-    
+
     zIndex: theme.layout.zIndex,
-    
+
     extend: {
       animation: {
         ...theme.animation.keyframes,
@@ -91,44 +91,44 @@ module.exports = {
         'scale-in-top': 'scale-in-top 0.2s ease-out',
         'fade-in': 'fade-in 0.2s ease-out',
       },
-      
+
       keyframes: {
         'modal-appear': {
-          '0%': { 
-            opacity: '0', 
-            transform: 'translateY(20px) scale(0.95)' 
+          '0%': {
+            opacity: '0',
+            transform: 'translateY(20px) scale(0.95)'
           },
-          '100%': { 
-            opacity: '1', 
-            transform: 'translateY(0) scale(1)' 
+          '100%': {
+            opacity: '1',
+            transform: 'translateY(0) scale(1)'
           },
         },
         'scale-in-top': {
-          '0%': { 
-            opacity: '0', 
+          '0%': {
+            opacity: '0',
             transform: 'scaleY(0)',
             transformOrigin: 'top'
           },
-          '100%': { 
-            opacity: '1', 
+          '100%': {
+            opacity: '1',
             transform: 'scaleY(1)',
             transformOrigin: 'top'
           },
         },
         'fade-in': {
-          '0%': { 
+          '0%': {
             opacity: '0'
           },
-          '100%': { 
+          '100%': {
             opacity: '1'
           },
         },
       },
-      
+
       transitionDuration: theme.animation.duration,
-      
+
       transitionTimingFunction: theme.animation.easing,
-      
+
       maxWidth: theme.layout.container,
     },
   },

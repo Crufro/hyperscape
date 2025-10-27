@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/common'
 
 interface User {
   id: string
-  role: 'user' | 'admin'
+  role: 'member' | 'team_leader' | 'admin'
 }
 
 export function AdminRoute({ children }: { children: React.ReactNode }) {

@@ -3,8 +3,8 @@ import { Box, Scroll, Mic, Book } from 'lucide-react'
 import { useAssetsStore } from '../../stores/useAssetsStore'
 
 export function QuickStatsCard() {
-  const assets = useAssetsStore(state => state.assets)
-  const assetsCount = assets?.length || 0
+  const selectedAsset = useAssetsStore(state => state.selectedAsset)
+  const assetsCount = selectedAsset ? 1 : 0
 
   const stats = [
     { label: 'Total Assets', value: assetsCount.toString(), icon: Box, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
@@ -20,7 +20,7 @@ export function QuickStatsCard() {
         return (
           <div
             key={stat.label}
-            className="bg-bg-secondary/40 backdrop-blur-sm border border-border-primary/30 rounded-lg p-4 hover:border-primary/40 transition-all duration-200"
+            className="card-hover p-4"
           >
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${stat.bg} border ${stat.border}`}>
@@ -28,7 +28,7 @@ export function QuickStatsCard() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-white">{stat.value}</div>
-                <div className="text-sm text-gray-400">{stat.label}</div>
+                <div className="text-sm text-text-secondary">{stat.label}</div>
               </div>
             </div>
           </div>

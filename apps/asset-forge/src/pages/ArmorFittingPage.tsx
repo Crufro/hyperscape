@@ -1,4 +1,4 @@
-import { Bug, Download, Upload, Package, RotateCcw } from 'lucide-react'
+import { Bug, Download, Upload, Package, RotateCcw, GraduationCap } from 'lucide-react'
 import React, { useRef } from 'react'
 
 import { useArmorFittingStore } from '../stores/useArmorFittingStore'
@@ -10,12 +10,12 @@ import {
   ArmorFittingControls,
   ArmorAssetList,
   ViewportControls,
-  UndoRedoControls,
   FittingProgress,
   MeshFittingDebugger
 } from '@/components/ArmorFitting'
-import { ErrorNotification, EmptyState, Card, ProjectSelector } from '@/components/common'
+import { ErrorNotification, EmptyState, Card, ProjectSelector, Button } from '@/components/common'
 import { useAssets } from '@/hooks/useAssets'
+import { useManualTour } from '@/hooks/useTour'
 import { useGenerationStore } from '@/stores/useGenerationStore'
 
 
@@ -79,10 +79,6 @@ export const ArmorFittingPage: React.FC = () => {
     saveConfiguration,
     loadConfiguration,
     clearError,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
     isReadyToFit,
     currentProgress,
     // Helmet actions - NEW
@@ -115,27 +111,9 @@ export const ArmorFittingPage: React.FC = () => {
 
   // Don't auto-update asset type filter - let user choose between avatar and equipment
 
-  // Keyboard shortcuts
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Undo: Ctrl+Z or Cmd+Z
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        if (canUndo()) undo()
-      }
-      // Redo: Ctrl+Shift+Z, Cmd+Shift+Z, or Ctrl+Y
-      else if (
-        ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) ||
-        ((e.ctrlKey || e.metaKey) && e.key === 'y')
-      ) {
-        e.preventDefault()
-        if (canRedo()) redo()
-      }
-    }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, canUndo, canRedo])
+  // Tour hook
+  const { startManualTour } = useManualTour()
 
   return (
     <div className="page-container">
@@ -144,10 +122,23 @@ export const ArmorFittingPage: React.FC = () => {
         <ErrorNotification error={lastError} onClose={clearError} />
       )}
 
+      {/* Tour Button - Top Right */}
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => startManualTour('armor-fitting')}
+          className="gap-2"
+        >
+          <GraduationCap className="w-4 h-4" />
+          Start Tour
+        </Button>
+      </div>
+
       {/* Left Panel - Asset Selection */}
-      <div className="card overflow-hidden w-80 flex flex-col bg-gradient-to-br from-bg-primary to-bg-secondary">
+      <div className="card overflow-hidden w-80 flex flex-col bg-gradient-to-br from-bg-primary to-bg-secondary" data-tour="asset-list">
         {/* Project Selector */}
-        <div className="p-4 border-b border-border-primary">
+        <div className="p-4 border-b border-border-primary" data-tour="project-selector">
           <ProjectSelector
             selectedProjectId={selectedProjectId}
             onSelect={setSelectedProject}
@@ -178,7 +169,7 @@ export const ArmorFittingPage: React.FC = () => {
 
       {/* Center - 3D Viewport */}
       <div className="flex-1 flex flex-col">
-        <div className="overflow-hidden flex-1 relative bg-gradient-to-br from-bg-primary to-bg-secondary rounded-xl">
+        <div className="overflow-hidden flex-1 relative bg-gradient-to-br from-bg-primary to-bg-secondary rounded-xl" data-tour="viewport">
           {selectedAvatar || selectedArmor || selectedHelmet ? (
             <>
               <ArmorFittingViewer
@@ -217,12 +208,6 @@ export const ArmorFittingPage: React.FC = () => {
               />
 
               {/* Undo/Redo Controls */}
-              <UndoRedoControls
-                canUndo={canUndo()}
-                canRedo={canRedo()}
-                onUndo={undo}
-                onRedo={redo}
-              />
 
               {/* Fitting Progress */}
               {isFitting && (

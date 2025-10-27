@@ -7,8 +7,6 @@
 // Buffer polyfill for Privy
 import { Buffer } from 'buffer'
 
-import { Analytics } from '@vercel/analytics/react'
-import { SpeedInsights } from '@vercel/speed-insights/react'
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 
@@ -16,7 +14,7 @@ import App from './App'
 import { LoginScreen } from './auth/LoginScreen'
 import { privyAuthManager } from './auth/PrivyAuthManager'
 import { PrivyAuthProvider } from './auth/PrivyAuthProvider'
-import './styles/index.css'
+import './style/index.css'
 
 // Set up Buffer polyfill for Privy
 if (!globalThis.Buffer) {
@@ -125,8 +123,6 @@ root.render(
   <React.StrictMode>
     <PrivyAuthProvider>
       <AuthenticatedApp />
-      <Analytics />
-      <SpeedInsights />
     </PrivyAuthProvider>
   </React.StrictMode>
 )

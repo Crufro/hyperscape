@@ -217,3 +217,78 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxDelayMs: 10000,
   retryableErrors: ['429', 'system_busy', 'rate_limit', 'ECONNRESET', 'ETIMEDOUT']
 }
+
+// ============================================================================
+// Speech-to-Speech (Voice Changer) Types
+// ============================================================================
+
+// Speech-to-Speech request
+export interface SpeechToSpeechRequest {
+  audio: string | Blob // Base64 encoded audio or Blob
+  voiceId: string
+  modelId?: string
+  outputFormat?: AudioFormat
+  stability?: number // 0-1
+  similarityBoost?: number // 0-1
+  removeBackgroundNoise?: boolean
+  seed?: number
+}
+
+// Speech-to-Speech response
+export interface SpeechToSpeechResponse {
+  success: boolean
+  audio: string // Base64 encoded audio
+  size: number
+  format: AudioFormat
+}
+
+// ============================================================================
+// Text-to-Voice (Voice Design) Types
+// ============================================================================
+
+// Voice Design request
+export interface VoiceDesignRequest {
+  voiceDescription: string // Description of desired voice
+  modelId?: string // 'eleven_multilingual_ttv_v2', 'eleven_ttv_v3'
+  text?: string // Custom text for preview (optional)
+  autoGenerateText?: boolean // Auto-generate preview text
+  loudness?: number // Voice loudness
+  seed?: number // Random seed for reproducibility
+  guidanceScale?: number // How closely to follow description (1-10)
+  outputFormat?: AudioFormat
+}
+
+// Voice Preview
+export interface VoicePreview {
+  generatedVoiceId: string // ID to use for creating the voice
+  audioBase64: string // Base64 encoded audio sample
+  mediaType: string // 'audio/mpeg', etc.
+  durationSecs: number
+  language: string | null
+}
+
+// Voice Design response
+export interface VoiceDesignResponse {
+  previews: VoicePreview[]
+  text: string // The text used for previews
+}
+
+// Create Voice from Preview request
+export interface CreateVoiceRequest {
+  voiceName: string
+  voiceDescription: string
+  generatedVoiceId: string // From VoicePreview
+  labels?: Record<string, string> // Custom labels for organization
+  playedNotSelectedVoiceIds?: string[] // IDs of previews that were heard but not selected
+}
+
+// Create Voice from Preview response
+export interface CreateVoiceResponse {
+  voiceId: string
+  name: string
+  category: string
+  description: string
+  labels: Record<string, string>
+  previewUrl?: string
+  createdAt: number // Unix timestamp
+}

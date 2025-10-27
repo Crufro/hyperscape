@@ -18,7 +18,8 @@ import { Badge } from '../components/common/Badge'
 import { Input } from '../components/common/Input'
 
 export function LorePage() {
-  const { lore, addLore } = useContentGenerationStore()
+  const lore = useContentGenerationStore(state => state.loreEntries)
+  const addLore = useContentGenerationStore(state => state.addLore)
   const [selectedCategory, setSelectedCategory] = useState<LoreEntry['category'] | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -51,7 +52,7 @@ export function LorePage() {
     linkElement.click()
   }
 
-  const filteredLore = lore.filter((entry) => {
+  const filteredLore = lore.filter((entry: LoreEntry) => {
     const matchesCategory = selectedCategory === 'all' || entry.category === selectedCategory
     const matchesSearch = searchQuery === '' ||
       entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -61,7 +62,7 @@ export function LorePage() {
 
   const getCategoryCount = (category: LoreEntry['category'] | 'all') => {
     if (category === 'all') return lore.length
-    return lore.filter((entry) => entry.category === category).length
+    return lore.filter((entry: LoreEntry) => entry.category === category).length
   }
 
   return (
@@ -149,7 +150,7 @@ export function LorePage() {
 
             {/* Lore Entries */}
             <div className="space-y-4">
-              {filteredLore.map((entry) => (
+              {filteredLore.map((entry: LoreEntry) => (
                 <Card key={entry.id} className="p-6 hover:border-primary/50 transition-colors">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -164,7 +165,7 @@ export function LorePage() {
                   {/* Tags */}
                   {entry.tags && entry.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
-                      {entry.tags.map((tag, idx) => (
+                      {entry.tags.map((tag: string, idx: number) => (
                         <Badge key={idx} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>
@@ -177,7 +178,7 @@ export function LorePage() {
                     <div className="pt-3 border-t border-border-primary/30">
                       <div className="text-xs text-text-tertiary mb-2">Related Entities:</div>
                       <div className="flex flex-wrap gap-2">
-                        {entry.relatedEntities.map((entity) => (
+                        {entry.relatedEntities.map((entity: { id: string; type: string; name: string }) => (
                           <Badge key={entity.id} variant="secondary" className="text-xs">
                             {entity.type}: {entity.name}
                           </Badge>

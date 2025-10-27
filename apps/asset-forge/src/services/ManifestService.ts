@@ -72,18 +72,14 @@ export class ManifestService {
 
   /**
    * Fetch all manifests
+   * Only requests manifests that actually exist in Hyperscape
    */
   async fetchAllManifests(): Promise<Record<ManifestType, AnyManifest[]>> {
+    // Only request manifests that exist in packages/server/world/assets/manifests/
     const types: ManifestType[] = [
       'items',
       'mobs',
-      'npcs',
-      'resources',
-      'world-areas',
-      'biomes',
-      'zones',
-      'banks',
-      'stores'
+      'npcs'
     ]
 
     const results = await Promise.allSettled(
@@ -128,7 +124,7 @@ export class ManifestService {
   }
 
   /**
-   * Get resources manifest
+   * Get resources manifest (not yet implemented in Hyperscape)
    */
   async getResources(): Promise<ResourceManifest[]> {
     return this.fetchManifest<ResourceManifest>('resources')

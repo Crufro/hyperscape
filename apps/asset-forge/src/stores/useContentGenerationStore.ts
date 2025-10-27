@@ -58,6 +58,7 @@ interface ContentGenerationState {
   setActiveTab: (tab: 'quest' | 'npc' | 'lore' | 'scripts' | 'tracking' | 'relationships' | 'suggestions' | 'collaboration' | 'playtest') => void
 
   addQuest: (quest: GeneratedQuest) => void
+  updateQuest: (quest: GeneratedQuest) => void
   addNPC: (npc: GeneratedNPC) => void
   addLore: (lore: LoreEntry) => void
 
@@ -68,6 +69,11 @@ interface ContentGenerationState {
   deleteQuest: (id: string) => void
   deleteNPC: (id: string) => void
   deleteLore: (id: string) => void
+
+  // Bulk delete operations
+  removeNPCs: (ids: string[]) => void
+  removeQuests: (ids: string[]) => void
+  removeLore: (ids: string[]) => void
 
   // Context selection
   setSelectedContext: (context: Partial<SelectedContext>) => void
@@ -120,7 +126,12 @@ export const useContentGenerationStore = create<ContentGenerationState>()(
     quests: [...state.quests, quest],
     selectedQuest: quest
   })),
-  
+
+  updateQuest: (quest) => set((state) => ({
+    quests: state.quests.map((q) => (q.id === quest.id ? quest : q)),
+    selectedQuest: quest
+  })),
+
   addNPC: (npc) => set((state) => ({
     npcs: [...state.npcs, npc],
     selectedNPC: npc
@@ -149,7 +160,23 @@ export const useContentGenerationStore = create<ContentGenerationState>()(
     loreEntries: state.loreEntries.filter(l => l.id !== id),
     selectedLore: state.selectedLore?.id === id ? null : state.selectedLore
   })),
-  
+
+  // Bulk delete operations
+  removeNPCs: (ids) => set((state) => ({
+    npcs: state.npcs.filter(n => !ids.includes(n.id)),
+    selectedNPC: state.selectedNPC && ids.includes(state.selectedNPC.id) ? null : state.selectedNPC
+  })),
+
+  removeQuests: (ids) => set((state) => ({
+    quests: state.quests.filter(q => !ids.includes(q.id)),
+    selectedQuest: state.selectedQuest && ids.includes(state.selectedQuest.id) ? null : state.selectedQuest
+  })),
+
+  removeLore: (ids) => set((state) => ({
+    loreEntries: state.loreEntries.filter(l => !ids.includes(l.id)),
+    selectedLore: state.selectedLore && ids.includes(state.selectedLore.id) ? null : state.selectedLore
+  })),
+
   // Context selection
   setSelectedContext: (context) => set((state) => ({
     selectedContext: {

@@ -29,7 +29,7 @@ import { Button } from '../common/Button'
 import { Card } from '../common/Card'
 import { ModelSelector } from '../common/ModelSelector'
 
-import { DialogueTreeEditor } from './DialogueTreeEditor'
+import { DialogueEditorWrapper } from './DialogueEditorWrapper'
 import { EventPayloadPreview } from './EventPayloadPreview'
 import { VoiceGenerator } from './VoiceGenerator'
 
@@ -47,6 +47,7 @@ export const NPCScriptBuilder: React.FC = () => {
     addDialogueNode,
     updateDialogueNode,
     deleteDialogueNode,
+    updateDialogueTree,
     setEditingNodeId,
     addResponse,
     updateResponse,
@@ -280,7 +281,7 @@ export const NPCScriptBuilder: React.FC = () => {
       {selectedScript && (
         <>
           {/* Dialogue Tree Editor */}
-          <DialogueTreeEditor
+          <DialogueEditorWrapper
             nodes={selectedScript.dialogueTree.nodes}
             entryNodeId={selectedScript.dialogueTree.entryNodeId}
             selectedNodeId={editingNodeId}
@@ -289,11 +290,14 @@ export const NPCScriptBuilder: React.FC = () => {
             onNodeUpdate={(nodeId, updates) => updateDialogueNode(selectedScript.id, nodeId, updates)}
             onNodeDelete={(nodeId) => deleteDialogueNode(selectedScript.id, nodeId)}
             onResponseAdd={handleAddResponse}
-            onResponseUpdate={(nodeId, responseId, updates) => 
+            onResponseUpdate={(nodeId, responseId, updates) =>
               updateResponse(selectedScript.id, nodeId, responseId, updates)
             }
             onResponseDelete={(nodeId, responseId) =>
               deleteResponse(selectedScript.id, nodeId, responseId)
+            }
+            onTreeChange={(nodes, entryNodeId) =>
+              updateDialogueTree(selectedScript.id, nodes, entryNodeId)
             }
           />
           

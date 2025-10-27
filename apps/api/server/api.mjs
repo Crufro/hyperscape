@@ -10,6 +10,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { errorHandler } from './middleware/errorHandler.mjs'
+import { requestLogger } from './middleware/requestLogger.mjs'
 import { AssetService } from './services/AssetService.mjs'
 import { RetextureService } from './services/RetextureService.mjs'
 import { GenerationService } from './services/GenerationService.mjs'
@@ -21,9 +22,23 @@ import usersRoutes from './routes/users.mjs'
 import assetsRoutes from './routes/assets.mjs'
 import adminRoutes from './routes/admin.mjs'
 import adminModelsRoutes from './routes/admin-models.mjs'
+import adminLogsRoutes from './routes/admin-logs.mjs'
+import modelsRoutes from './routes/models.mjs'
 import aiGatewayRoutes from './routes/ai-gateway.mjs'
 import apiKeysRoutes from './routes/api-keys.mjs'
 import manifestsRoutes from './routes/manifests.mjs'
+import previewManifestsRoutes from './routes/preview-manifests.mjs'
+import submissionsRoutes from './routes/submissions.mjs'
+import adminApprovalsRoutes from './routes/admin-approvals.mjs'
+import aiContextRoutes from './routes/ai-context.mjs'
+import embeddingsRoutes from './routes/embeddings.mjs'
+import voiceAssignmentsRoutes from './routes/voice-assignments.mjs'
+import questsRoutes from './routes/quests.mjs'
+import contentGenerationRoutes from './routes/content-generation.mjs'
+import multiAgentRoutes from './routes/multi-agent.mjs'
+import voiceGenerationRoutes from './routes/voice-generation.mjs'
+import soundEffectsRoutes from './routes/sound-effects.mjs'
+import musicRoutes from './routes/music.mjs'
 import './database/db.mjs' // Initialize database connection
 
 const __filename = fileURLToPath(import.meta.url)
@@ -41,7 +56,7 @@ app.use((req, res, next) => {
 
   res.header('Access-Control-Allow-Origin', origin)
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, Expires')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, Expires, x-user-id, x-wallet-address')
   res.header('Access-Control-Allow-Credentials', 'true')
   res.header('Access-Control-Expose-Headers', 'Cache-Control, Pragma, Expires')
   
@@ -60,8 +75,22 @@ app.use((req, res, next) => {
 // Body parsing (allow larger payloads for base64 images)
 app.use(express.json({ limit: '25mb' }))
 
+// Request logging middleware (logs all API calls)
+app.use(requestLogger)
+
 // Static file serving with security headers
 app.use('/assets', express.static(path.join(ROOT_DIR, 'public/assets'), {
+  setHeaders: (res) => {
+    res.set('X-Content-Type-Options', 'nosniff')
+  }
+}))
+
+// Serve 3D models from monorepo assets directory
+// Using /models path to avoid conflict with /assets route
+const assetsWorldPath = path.resolve(ROOT_DIR, '../../assets/world')
+const modelsPath = path.join(assetsWorldPath, 'models')
+console.log(`[Models] Serving 3D models from: ${modelsPath}`)
+app.use('/models', express.static(modelsPath, {
   setHeaders: (res) => {
     res.set('X-Content-Type-Options', 'nosniff')
   }
@@ -93,9 +122,23 @@ app.use('/api/teams', teamsRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/admin/models', adminModelsRoutes)
+app.use('/api/admin/logs', adminLogsRoutes)
+app.use('/api/models', modelsRoutes)
 app.use('/api/ai-gateway', aiGatewayRoutes)
 app.use('/api/api-keys', apiKeysRoutes)
 app.use('/api/manifests', manifestsRoutes)
+app.use('/api/preview-manifests', previewManifestsRoutes)
+app.use('/api/submissions', submissionsRoutes)
+app.use('/api/admin/submissions', adminApprovalsRoutes)
+app.use('/api/ai-context', aiContextRoutes)
+app.use('/api/embeddings', embeddingsRoutes)
+app.use('/api/voice-assignments', voiceAssignmentsRoutes)
+app.use('/api/quests', questsRoutes)
+app.use('/api', contentGenerationRoutes)
+app.use('/api', multiAgentRoutes)
+app.use('/api/voice', voiceGenerationRoutes)
+app.use('/api/sfx', soundEffectsRoutes)
+app.use('/api/music', musicRoutes)
 
 // Database-driven Assets API
 // NOTE: This conflicts with the file-based asset endpoints below (lines 101-247)
@@ -105,8 +148,8 @@ app.use('/api/v2/assets', assetsRoutes)
 
 // Routes
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
+  res.json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     services: {
       meshy: !!process.env.MESHY_API_KEY,
@@ -159,27 +202,27 @@ app.get('/api/assets/:id/model', async (req, res, next) => {
 })
 
 // Serve any file from an asset directory (including animations)
-app.get('/api/assets/:id/*', async (req, res, next) => {
+app.get(/^\/api\/assets\/([^\/]+)\/(.+)$/, async (req, res, next) => {
   try {
-    const assetId = req.params.id
-    const filePath = req.params[0] // Gets everything after the asset ID
-    
+    const assetId = req.params[0]
+    const filePath = req.params[1] // Gets everything after the asset ID
+
     const fullPath = path.join(ROOT_DIR, 'gdd-assets', assetId, filePath)
-    
+
     // Security check to prevent directory traversal
     const normalizedPath = path.normalize(fullPath)
     const assetDir = path.join(ROOT_DIR, 'gdd-assets', assetId)
     if (!normalizedPath.startsWith(assetDir)) {
       return res.status(403).json({ error: 'Access denied' })
     }
-    
+
     // Check if file exists
     try {
       await fs.promises.access(fullPath)
     } catch {
       return res.status(404).json({ error: 'File not found' })
     }
-    
+
     res.sendFile(fullPath)
   } catch (error) {
     next(error)
@@ -691,15 +734,21 @@ Respond with ONLY a JSON object:
 app.use(errorHandler)
 
 // Start server
-const PORT = process.env.API_PORT || 3004
-app.listen(PORT, () => {
-  console.log(`🚀 API Server running on http://localhost:${PORT}`)
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
-  
+const PORT = process.env.PORT || process.env.API_PORT || 3004
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost'
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 API Server running on http://${HOST}:${PORT}`)
+  console.log(`📊 Health check: http://${HOST}:${PORT}/api/health`)
+
+  // Optional: Warn about missing default API keys
+  // Note: Users can provide their own API keys via the UI per-request
   if (!process.env.MESHY_API_KEY) {
-    console.warn('⚠️  MESHY_API_KEY not found - retexturing will fail')
+    console.log('ℹ️  MESHY_API_KEY not set (users can provide their own keys via UI)')
   }
   if (!process.env.OPENAI_API_KEY) {
-    console.warn('⚠️  OPENAI_API_KEY not found - base regeneration will fail')
+    console.log('ℹ️  OPENAI_API_KEY not set (users can provide their own keys via UI)')
+  }
+  if (!process.env.ELEVENLABS_API_KEY) {
+    console.log('ℹ️  ELEVENLABS_API_KEY not set (users can provide their own keys via UI)')
   }
 })

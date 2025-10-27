@@ -30,12 +30,88 @@ router.get('/me', async (req, res) => {
     if (result.rows.length === 0) {
       console.log(`[Users API] Creating new user for Privy DID: ${userId}`)
 
+      // Get wallet address from request body or headers
+      const walletAddress = req.body?.wallet_address || req.headers['x-wallet-address']
+
+      // Check if wallet is whitelisted for admin
+      let role = 'member'
+      if (walletAddress) {
+        const whitelistCheck = await query(
+          'SELECT id FROM admin_whitelist WHERE wallet_address = $1',
+          [walletAddress]
+        )
+
+        if (whitelistCheck.rows.length > 0) {
+          role = 'admin'
+          console.log(`[Users API] Wallet ${walletAddress} found in whitelist, creating as admin`)
+        }
+      }
+
       result = await query(
-        `INSERT INTO users (privy_user_id, role, settings)
-         VALUES ($1, $2, $3)
+        `INSERT INTO users (privy_user_id, wallet_address, role, settings)
+         VALUES ($1, $2, $3, $4)
          RETURNING id, privy_user_id, email, wallet_address, display_name, avatar_url, role, settings, created_at`,
-        [userId, 'member', JSON.stringify({})]
+        [userId, walletAddress, role, JSON.stringify({})]
       )
+    } else {
+      // User exists, but check if we need to update wallet address
+      const user = result.rows[0]
+      const walletAddress = req.body?.wallet_address || req.headers['x-wallet-address']
+
+      if (walletAddress && !user.wallet_address) {
+        console.log(`[Users API] Updating wallet address for user ${userId}`)
+
+        // Check if wallet is whitelisted and user is still a member
+        if (user.role === 'member') {
+          const whitelistCheck = await query(
+            'SELECT id FROM admin_whitelist WHERE wallet_address = $1',
+            [walletAddress]
+          )
+
+          if (whitelistCheck.rows.length > 0) {
+            console.log(`[Users API] Wallet ${walletAddress} found in whitelist, promoting to admin`)
+            await query(
+              'UPDATE users SET wallet_address = $1, role = $2 WHERE privy_user_id = $3',
+              [walletAddress, 'admin', userId]
+            )
+
+            // Re-fetch user with updated data
+            result = await query(
+              `SELECT id, privy_user_id, email, wallet_address, display_name, avatar_url, role, settings, created_at
+               FROM users
+               WHERE privy_user_id = $1`,
+              [userId]
+            )
+          } else {
+            await query(
+              'UPDATE users SET wallet_address = $1 WHERE privy_user_id = $2',
+              [walletAddress, userId]
+            )
+
+            // Re-fetch user with updated data
+            result = await query(
+              `SELECT id, privy_user_id, email, wallet_address, display_name, avatar_url, role, settings, created_at
+               FROM users
+               WHERE privy_user_id = $1`,
+              [userId]
+            )
+          }
+        } else {
+          // Just update wallet address, don't change role
+          await query(
+            'UPDATE users SET wallet_address = $1 WHERE privy_user_id = $2',
+            [walletAddress, userId]
+          )
+
+          // Re-fetch user with updated data
+          result = await query(
+            `SELECT id, privy_user_id, email, wallet_address, display_name, avatar_url, role, settings, created_at
+             FROM users
+             WHERE privy_user_id = $1`,
+            [userId]
+          )
+        }
+      }
     }
 
     const user = result.rows[0]

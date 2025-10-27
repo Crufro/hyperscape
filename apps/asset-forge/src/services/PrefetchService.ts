@@ -379,9 +379,9 @@ class PrefetchServiceClass {
     try {
       const stored = localStorage.getItem('prefetch:userPatterns')
       if (stored) {
-        const parsed = JSON.parse(stored)
+        const parsed = JSON.parse(stored) as Record<string, { route: string; nextRoutes: Record<string, number>; lastVisited: number }>
         this.userPatterns = new Map(
-          Object.entries(parsed).map(([key, value]: [string, UserPattern]) => [
+          Object.entries(parsed).map(([key, value]) => [
             key,
             {
               ...value,

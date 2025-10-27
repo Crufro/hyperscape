@@ -5,7 +5,8 @@
 
 export type ManifestType =
   | 'items'
-  | 'npcs'  // Consolidated: mobs are now NPCs with isAggressive flag
+  | 'mobs'   // Hostile creatures (separate from friendly NPCs)
+  | 'npcs'   // Friendly NPCs
   | 'lore'
   | 'quests'
   | 'music'
@@ -446,5 +447,16 @@ export interface ManifestInfo {
   icon: string
   description: string
   count?: number
+}
+
+// Helper function to get the display name from any manifest
+export function getManifestName(manifest: AnyManifest): string {
+  if ('name' in manifest && manifest.name) {
+    return manifest.name
+  }
+  if ('title' in manifest && manifest.title) {
+    return manifest.title
+  }
+  return 'Unnamed'
 }
 

@@ -68,16 +68,15 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
 
   const loadManifests = async () => {
     try {
-      const [itemsData, mobsData, npcsData, resourcesData] = await Promise.all([
+      const [itemsData, mobsData, npcsData] = await Promise.all([
         manifestService.getItems(),
         manifestService.getMobs(),
-        manifestService.getNPCs(),
-        manifestService.getResources()
+        manifestService.getNPCs()
       ])
       setItems(itemsData)
       setMobs(mobsData)
       setNPCs(npcsData)
-      setResources(resourcesData)
+      setResources([]) // Resources not yet implemented in Hyperscape
     } catch (error) {
       console.error('Failed to load manifests:', error)
     } finally {
@@ -301,6 +300,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
             />
             
             <Button
+              data-tour="ai-generate"
               onClick={handleAIGenerate}
               disabled={isGenerating || !aiPrompt.trim()}
               variant="primary"
@@ -335,6 +335,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Title</label>
             <Input
+              data-tour="quest-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="The Missing Hatchet..."
@@ -344,6 +345,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Description</label>
             <textarea
+              data-tour="quest-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="A woodcutter has lost his bronze hatchet..."
@@ -355,6 +357,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Quest Giver (Optional)</label>
             <select
+              data-tour="quest-giver"
               value={questGiver || ''}
               onChange={(e) => {
                 const npc = npcs.find(n => n.id === e.target.value)
@@ -407,7 +410,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div data-tour="quest-objectives" className="space-y-3">
           {objectives.map((obj) => (
             <Card key={obj.id} className="p-4 bg-bg-tertiary">
               <div className="space-y-3">
@@ -578,7 +581,7 @@ export const QuestBuilder: React.FC<QuestBuilderProps> = ({ onQuestGenerated }) 
       </Card>
 
       {/* Rewards */}
-      <Card className="p-6">
+      <Card data-tour="quest-rewards" className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <Gift size={20} className="text-accent" />
           <h3 className="text-lg font-semibold text-text-primary">Rewards</h3>

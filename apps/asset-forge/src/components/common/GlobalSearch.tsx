@@ -12,8 +12,9 @@ import { NAVIGATION_VIEWS } from '../../constants/navigation'
 import { useNavigation } from '../../hooks/useNavigation'
 import { useContentGenerationStore } from '../../stores/useContentGenerationStore'
 import { useManifestsStore } from '../../stores/useManifestsStore'
-import type { ItemManifest, MobManifest, NPCManifest, ResourceManifest } from '../../types/manifests'
+import type { ItemManifest, NPCManifest, ResourceManifest } from '../../types/manifests'
 import { globalSearch, type SearchResult } from '../../utils/fuzzy-search'
+import { HighlightText } from './HighlightText'
 
 interface GlobalSearchProps {
   isOpen: boolean
@@ -37,7 +38,6 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
 
   // Extract manifest arrays with proper typing - memoized to prevent re-renders
   const items = useMemo(() => (manifests.items || []) as ItemManifest[], [manifests.items])
-  const mobs = useMemo(() => (manifests.mobs || []) as MobManifest[], [manifests.mobs])
   const npcs = useMemo(() => (manifests.npcs || []) as NPCManifest[], [manifests.npcs])
   const resources = useMemo(() => (manifests.resources || []) as ResourceManifest[], [manifests.resources])
   
@@ -55,7 +55,6 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
 
     const searchResults = globalSearch(query, {
       items,
-      mobs,
       npcs,
       resources,
       quests,
@@ -64,7 +63,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
     })
 
     setResults(searchResults.slice(0, 20)) // Limit to top 20 results
-  }, [query, items, mobs, npcs, resources, quests, generatedNPCs, loreEntries])
+  }, [query, items, npcs, resources, quests, generatedNPCs, loreEntries])
   
   const getResultIcon = (type: SearchResult['type']) => {
     switch (type) {
@@ -105,11 +104,6 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
         navigateTo(NAVIGATION_VIEWS.GAME_DATA)
         setSelectedType('items')
         setSearchQuery((result.item as ItemManifest).name)
-        break
-      case 'mob':
-        navigateTo(NAVIGATION_VIEWS.GAME_DATA)
-        setSelectedType('mobs')
-        setSearchQuery((result.item as MobManifest).name)
         break
       case 'npc':
         navigateTo(NAVIGATION_VIEWS.GAME_DATA)
@@ -177,7 +171,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-text-primary truncate">
-                        {getResultName(result)}
+                        <HighlightText
+                          text={getResultName(result)}
+                          query={query}
+                        />
                       </span>
                       <span className="text-xs text-text-tertiary px-2 py-0.5 bg-bg-tertiary rounded">
                         {getResultLabel(result.type)}
@@ -185,7 +182,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                     </div>
                     {'description' in result.item && result.item.description && (
                       <p className="text-sm text-text-secondary truncate">
-                        {result.item.description}
+                        <HighlightText
+                          text={result.item.description}
+                          query={query}
+                        />
                       </p>
                     )}
                   </div>

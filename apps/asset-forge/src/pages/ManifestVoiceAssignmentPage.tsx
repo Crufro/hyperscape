@@ -45,6 +45,7 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
   const manifests = useManifestsStore(state => state.manifests)
   const manifestsLoading = useManifestsStore(state => state.loading)
   const selectedVoiceId = useVoiceGenerationStore(state => state.selectedVoiceId)
+  const saveVoiceAssignments = useVoiceGenerationStore(state => state.saveVoiceAssignments)
 
   const [selectedEntityType, setSelectedEntityType] = useState<EntityType>('npc')
   const [searchQuery, setSearchQuery] = useState('')
@@ -54,6 +55,8 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
   const [voiceAssignments, setVoiceAssignments] = useState<Map<string, VoiceAssignment>>(new Map())
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [manifestId, setManifestId] = useState<string>('')
 
   // Load manifests on mount
   useEffect(() => {
@@ -67,12 +70,8 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
 
   // Get entities based on selected type
   const entities = useMemo(() => {
-    if (selectedEntityType === 'npc') {
-      return (manifests.npcs || []) as Entity[]
-    } else {
-      return (manifests.mobs || []) as Entity[]
-    }
-  }, [selectedEntityType, manifests])
+    return (manifests.npcs || []) as Entity[]
+  }, [manifests])
 
   // Extract unique types for filtering
   const entityTypes = useMemo(() => {
@@ -140,19 +139,38 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
     })
   }, [])
 
-  // Save all assignments (would call API in real implementation)
+  // Save all assignments
   const handleSaveAssignments = async () => {
     setSaving(true)
     setSaveError(null)
+    setSaveSuccess(false)
 
     try {
-      // GitHub Issue #5: Implement API endpoint for voice assignment persistence
-      // await voiceGenerationService.saveManifestVoiceAssignments(Array.from(voiceAssignments.values()))
+      // Convert assignments to API format
+      const assignments = Array.from(voiceAssignments.values()).map(assignment => ({
+        npcId: assignment.entityId,
+        voiceId: assignment.voiceId!,
+        voiceName: assignment.voiceName!
+      }))
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Generate a manifest ID if not set (use entity type as identifier)
+      const currentManifestId = manifestId || `manifest-voice-${selectedEntityType}-${Date.now()}`
 
-      console.log('[ManifestVoiceAssignment] Saved assignments:', Array.from(voiceAssignments.values()))
+      if (!manifestId) {
+        setManifestId(currentManifestId)
+      }
+
+      await saveVoiceAssignments(
+        currentManifestId,
+        assignments,
+        `${selectedEntityType.toUpperCase()} Voice Assignments`,
+        `Voice assignments for ${assignments.length} ${selectedEntityType}${assignments.length !== 1 ? 's' : ''}`
+      )
+
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+
+      console.log('[ManifestVoiceAssignment] Saved assignments:', assignments)
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Failed to save assignments')
     } finally {
@@ -211,7 +229,7 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
                 className="flex-1"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
-                Mobs ({(manifests.mobs || []).length})
+                Mobs (0)
               </Button>
             </div>
           </CardContent>
@@ -364,7 +382,14 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
               </div>
               {saveError && (
                 <div className="mt-3 p-3 bg-red-900 bg-opacity-20 border border-red-500 rounded-lg text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 inline mr-2" />
                   {saveError}
+                </div>
+              )}
+              {saveSuccess && (
+                <div className="mt-3 p-3 bg-green-900 bg-opacity-20 border border-green-500 rounded-lg text-green-400 text-sm">
+                  <Check className="w-4 h-4 inline mr-2" />
+                  Voice assignments saved successfully!
                 </div>
               )}
             </CardContent>
@@ -381,7 +406,7 @@ export const ManifestVoiceAssignmentPage: React.FC = () => {
             }}
           >
             <div
-              className="bg-gray-50 rounded-lg p-4 sm:p-6 max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl border border-gray-200"
+              className="bg-[var(--bg-primary)] rounded-lg p-4 sm:p-6 max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl border border-[var(--border-primary)]"
               style={{
                 position: 'relative',
                 zIndex: 10000

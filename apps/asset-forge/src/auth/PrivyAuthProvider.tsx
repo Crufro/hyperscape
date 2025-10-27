@@ -28,7 +28,7 @@ function PrivyAuthHandler({ children }: { children: React.ReactNode }) {
           console.warn('[PrivyAuthProvider] getAccessToken returned null')
           return
         }
-        await privyAuthManager.setAuthenticatedUser(user, token)
+        await privyAuthManager.setAuthenticatedUser(user as typeof user & { [key: string]: unknown }, token)
       } else if (ready && !authenticated) {
         privyAuthManager.clearAuth()
       }

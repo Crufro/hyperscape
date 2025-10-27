@@ -190,6 +190,7 @@ const GameStyleSelector: React.FC<{
         Game Style
       </label>
       <select
+        data-tour="game-style-selector"
         value={currentValue}
         onChange={(e) => handleChange(e.target.value)}
         className="w-full px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none cursor-pointer [&>option]:bg-bg-primary [&>option]:text-text-primary"

@@ -2,7 +2,7 @@ import {
   Sparkles,
   Box, Grid3x3,
   FileText, Brain, Camera, Layers,
-  Loader2, User
+  Loader2, User, GraduationCap, Package
 } from 'lucide-react'
 import React, { useEffect, useMemo } from 'react'
 
@@ -41,6 +41,7 @@ import {
 import { useGameStylePrompts, useAssetTypePrompts, useMaterialPromptTemplates } from '@/hooks/usePrompts'
 import { usePipelineStatus } from '@/hooks/usePipelineStatus'
 import { useMaterialPresets } from '@/hooks/useMaterialPresets'
+import { useManualTour } from '@/hooks/useTour'
 import { Asset, AssetService } from '@/services/api/AssetService'
 import { pipelinePollingService } from '@/services/PipelinePollingService'
 
@@ -172,7 +173,8 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
     getTypesByGeneration 
   } = useAssetTypePrompts()
   const { templates: materialPromptTemplates } = useMaterialPromptTemplates()
-  
+  const { startManualTour } = useManualTour()
+
   // Get custom game styles
   const customGameStyles = useMemo(() => {
     if (!gameStylePrompts) return {}
@@ -558,14 +560,6 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
   }, [])
 
   // Show generation type selector first
-  if (!generationType) {
-    return (
-      <div className="fixed inset-0 overflow-hidden">
-        <GenerationTypeSelector onSelectType={setGenerationType} />
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen w-full bg-bg-primary overflow-y-auto animate-fade-in scrollbar-hide">
       {/* Main container with hidden scrollbar for clean appearance while maintaining scroll functionality */}
@@ -575,13 +569,75 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
           {/* Header with tabs */}
           <div className="mb-6">
-            {/* Tab Navigation */}
-            <TabNavigation
-              activeView={activeView}
-              generatedAssetsCount={generatedAssets.length}
-              onTabChange={setActiveView}
-            />
+            <div className="flex items-center justify-between mb-4">
+              <div />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => startManualTour('asset-generation')}
+                className="gap-2"
+              >
+                <GraduationCap className="w-4 h-4" />
+                Start Tour
+              </Button>
+            </div>
+            <div data-tour="tab-navigation">
+              {/* Tab Navigation */}
+              <TabNavigation
+                activeView={activeView}
+                generatedAssetsCount={generatedAssets.length}
+                onTabChange={setActiveView}
+              />
+            </div>
           </div>
+
+          {/* Generation Type Selector - Show if no type selected */}
+          {!generationType && (
+            <div className="mb-8 animate-fade-in" data-tour="generation-type">
+              <Card className="p-8 bg-gradient-to-br from-bg-secondary to-bg-tertiary border-primary/20">
+                <h2 className="text-2xl font-bold text-text-primary text-center mb-2">
+                  What would you like to create?
+                </h2>
+                <p className="text-text-secondary text-center mb-6">
+                  Choose your generation type to get started
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                  <Button
+                    onClick={() => setGenerationType('item')}
+                    variant="secondary"
+                    className="h-auto p-6 flex-col space-y-3 hover:border-primary hover:bg-bg-tertiary group"
+                  >
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-all">
+                      <Package size={32} className="text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-primary mb-1">Items</h3>
+                      <p className="text-sm text-text-secondary">
+                        Weapons, armor, tools, consumables, and other game objects
+                      </p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    onClick={() => setGenerationType('avatar')}
+                    variant="secondary"
+                    className="h-auto p-6 flex-col space-y-3 hover:border-secondary hover:bg-bg-tertiary group"
+                  >
+                    <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center group-hover:bg-secondary/20 transition-all">
+                      <User size={32} className="text-secondary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-primary mb-1">Avatars</h3>
+                      <p className="text-sm text-text-secondary">
+                        Characters, NPCs, and humanoid creatures with rigging support
+                      </p>
+                    </div>
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
           {/* Configuration Form View */}
           {activeView === 'config' && (
             <div className="animate-fade-in space-y-8">
@@ -589,8 +645,9 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                 {/* Main Form */}
                 <div className="lg:col-span-2 space-y-8">
                   {/* Asset Details Card */}
-                  <AssetDetailsCard
-                    generationType={generationType}
+                  <div data-tour="asset-details-card">
+                    <AssetDetailsCard
+                      generationType={generationType}
                     assetName={assetName}
                     assetType={assetType}
                     description={description}
@@ -610,10 +667,11 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                       resetPipeline()
                     }}
                     onSaveCustomGameStyle={saveCustomGameStyle}
-                  />
+                    />
+                  </div>
 
                   {/* Project Selector */}
-                  <Card>
+                  <Card data-tour="project-selector">
                     <CardContent className="p-4">
                       <ProjectSelector
                         selectedProjectId={selectedProjectId}
@@ -663,8 +721,9 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                 {/* Sidebar */}
                 <div className="space-y-8">
                   {/* Pipeline Options */}
-                  <PipelineOptionsCard
-                    generationType={generationType}
+                  <div data-tour="pipeline-options">
+                    <PipelineOptionsCard
+                      generationType={generationType}
                     useGPT4Enhancement={useGPT4Enhancement}
                     enableRetexturing={enableRetexturing}
                     enableSprites={enableSprites}
@@ -675,11 +734,13 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                     onEnableSpritesChange={setEnableSprites}
                     onEnableRiggingChange={setEnableRigging}
                     onQualityChange={setQuality}
-                  />
+                    />
+                  </div>
 
                   {/* Material Variants */}
                   {enableRetexturing && generationType === 'item' && (
-                    <MaterialVariantsCard
+                    <div data-tour="material-variants">
+                      <MaterialVariantsCard
                       gameStyle={gameStyle}
                       isLoadingMaterials={isLoadingMaterials}
                       materialPresets={materialPresets}
@@ -707,7 +768,8 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                       onSaveCustomMaterials={handleSaveCustomMaterials}
                       onEditPreset={setEditingPreset}
                       onDeletePreset={setShowDeleteConfirm}
-                    />
+                      />
+                    </div>
                   )}
 
                   {/* Avatar Rigging Options */}
@@ -719,8 +781,9 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                   )}
 
                   {/* Reference Image Selection */}
-                  <ReferenceImageCard
-                    generationType={generationType}
+                  <div data-tour="reference-image">
+                    <ReferenceImageCard
+                      generationType={generationType!}
                     mode={referenceImageMode}
                     source={referenceImageSource}
                     url={referenceImageUrl}
@@ -729,10 +792,11 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                     onSourceChange={setReferenceImageSource}
                     onUrlChange={setReferenceImageUrl}
                     onDataUrlChange={setReferenceImageDataUrl}
-                  />
+                    />
+                  </div>
 
                   {/* Start Generation Button */}
-                  <Card className="overflow-hidden bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-primary/20">
+                  <Card className="overflow-hidden bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-primary/20" data-tour="start-generation">
                     <CardContent className="p-4">
                       <Button
                         onClick={handleStartGeneration}
@@ -782,7 +846,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
 
           {/* Results View */}
           {activeView === 'results' && (
-            <div className="animate-fade-in space-y-8">
+            <div className="animate-fade-in space-y-8" data-tour="results-tab">
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Asset List */}
                 <GeneratedAssetsList

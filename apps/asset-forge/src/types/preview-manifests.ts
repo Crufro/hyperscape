@@ -75,8 +75,8 @@ export interface ItemSuggestion extends PreviewManifest<ItemManifest> {
   alternativeIds: string[] // Existing items that could work
 }
 
-export interface MobSuggestion extends PreviewManifest<MobManifest> {
-  manifestType: 'mobs'
+export interface MobSuggestion extends PreviewManifest<NPCManifest> {
+  manifestType: 'npcs'
   alternativeIds: string[]
 }
 
@@ -134,7 +134,7 @@ export function isItemSuggestion(preview: AnyPreviewManifest): preview is ItemSu
 }
 
 export function isMobSuggestion(preview: AnyPreviewManifest): preview is MobSuggestion {
-  return preview.manifestType === 'mobs'
+  return false // mobs are deprecated, use npcs
 }
 
 export function isNPCSuggestion(preview: AnyPreviewManifest): preview is NPCSuggestion {

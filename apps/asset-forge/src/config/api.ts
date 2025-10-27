@@ -51,6 +51,9 @@ const getCdnUrl = (): string => {
 export const API_URL = getApiUrl()
 export const CDN_URL = getCdnUrl()
 
+// Convenience export for API base URL (alias for API_URL)
+export const API_BASE_URL = API_URL
+
 // API Endpoints
 export const API_ENDPOINTS = {
   generateDialogue: `${API_URL}/api/generate-dialogue`,
@@ -80,6 +83,18 @@ export const API_ENDPOINTS = {
     `${API_URL}/api/voice/manifest/${manifestType}/${entityId}`,
   voiceManifestGenerateSample: `${API_URL}/api/voice/manifest/generate-sample`,
 
+  // Sound Effects Generation
+  sfxGenerate: `${API_URL}/api/sfx/generate`,
+  sfxBatch: `${API_URL}/api/sfx/batch`,
+  sfxEstimate: `${API_URL}/api/sfx/estimate`,
+
+  // Music Generation
+  musicGenerate: `${API_URL}/api/music/generate`,
+  musicGenerateDetailed: `${API_URL}/api/music/generate-detailed`,
+  musicPlan: `${API_URL}/api/music/plan`,
+  musicBatch: `${API_URL}/api/music/batch`,
+  musicStatus: `${API_URL}/api/music/status`,
+
   // Hyperscape Manifests API
   manifestsList: `${API_URL}/api/manifests`,
   manifestsGet: (type: string) => `${API_URL}/api/manifests/${type}`,
@@ -87,4 +102,42 @@ export const API_ENDPOINTS = {
   manifestsUpdate: (type: string) => `${API_URL}/api/manifests/${type}`,
   manifestsAddItem: (type: string) => `${API_URL}/api/manifests/${type}/item`,
   manifestsUpdateItem: (type: string, id: string) => `${API_URL}/api/manifests/${type}/${id}`,
+
+  // Preview Manifests
+  previewManifests: `${API_URL}/api/preview-manifests`,
+  previewManifestsType: (type: string) => `${API_URL}/api/preview-manifests/${type}`,
+  previewManifestsMerged: (type: string) => `${API_URL}/api/preview-manifests/${type}/merged`, // NEW: Merged view (original + user drafts)
+  previewManifestsItem: (type: string) => `${API_URL}/api/preview-manifests/${type}/item`,
+  previewManifestsUpdateItem: (type: string, itemId: string) => `${API_URL}/api/preview-manifests/${type}/${itemId}`,
+  previewManifestsTeam: (teamId: string) => `${API_URL}/api/preview-manifests/team/${teamId}`,
+  previewManifestsTeamItem: (teamId: string, type: string) => `${API_URL}/api/preview-manifests/team/${teamId}/${type}/item`,
+  previewManifestsTeamUpdateItem: (teamId: string, type: string, itemId: string) => `${API_URL}/api/preview-manifests/team/${teamId}/${type}/${itemId}`,
+
+  // Submissions
+  submissions: `${API_URL}/api/submissions`,
+  submissionsDetail: (id: string) => `${API_URL}/api/submissions/${id}`,
+  submissionsWithdraw: (id: string) => `${API_URL}/api/submissions/${id}/withdraw`,
+  submissionsStats: `${API_URL}/api/submissions/stats`,
+
+  // Admin Approvals (mounted at /api/admin/submissions in backend)
+  adminPendingSubmissions: `${API_URL}/api/admin/submissions/pending`,
+  adminSubmissionDetail: (id: string) => `${API_URL}/api/admin/submissions/${id}`,
+  adminEditSubmission: (id: string) => `${API_URL}/api/admin/submissions/${id}/edit`,
+  adminApproveSubmission: (id: string) => `${API_URL}/api/admin/submissions/${id}/approve`,
+  adminRejectSubmission: (id: string) => `${API_URL}/api/admin/submissions/${id}/reject`,
+  adminSubmissionStats: `${API_URL}/api/admin/submissions/stats`,
+
+  // AI Context
+  aiContextPreferences: `${API_URL}/api/ai-context/preferences`,
+  aiContextBuild: `${API_URL}/api/ai-context/build`,
+
+  // Quest Management
+  questFixWithAI: `${API_URL}/api/quests/fix-with-ai`,
+  questValidate: `${API_URL}/api/quests/validate`,
+
+  // Admin Logs
+  adminLogsStats: `${API_URL}/api/admin/logs/stats`,
+  adminLogsErrors: `${API_URL}/api/admin/logs/errors`,
+  adminLogsErrorFixPrompt: (index: number) => `${API_URL}/api/admin/logs/error/${index}/fix-prompt`,
+  adminLogsClear: `${API_URL}/api/admin/logs/clear`,
 } as const

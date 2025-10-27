@@ -3,11 +3,14 @@
  * User profile and account settings
  */
 
-import { User, Mail, Shield, Bell, Palette, Key, Save, CheckCircle, AlertCircle } from 'lucide-react'
+import { User, Mail, Shield, Bell, Palette, Key, Save, CheckCircle, AlertCircle, GraduationCap, Play, RotateCcw } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { usePrivy } from '@privy-io/react-auth'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Badge, Checkbox } from '@/components/common'
 import { apiFetch } from '@/utils/api'
+import { useOnboardingStore } from '@/stores/useOnboardingStore'
+import { useManualTour } from '@/hooks/useTour'
+import { tours } from '@/config/tours'
 
 export function ProfilePage() {
   const { user: privyUser } = usePrivy()
@@ -25,6 +28,11 @@ export function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Onboarding tours
+  const { getTourStatus, resetTour, resetAllTours, getProgress } = useOnboardingStore()
+  const { startManualTour } = useManualTour()
+  const progress = getProgress()
 
   // Get user data from Privy
   const user = {
@@ -162,7 +170,7 @@ export function ProfilePage() {
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xl font-semibold text-text-primary">{user.name}</h3>
-                  <Badge variant="default">{user.role}</Badge>
+                  <Badge variant="secondary">{user.role}</Badge>
                 </div>
                 <p className="text-sm text-text-secondary">Member since {user.joinedDate}</p>
               </div>
@@ -247,7 +255,7 @@ export function ProfilePage() {
               </div>
               <Checkbox
                 checked={emailNotifications}
-                onCheckedChange={(checked) => handleEmailNotificationChange(!!checked)}
+                onChange={(e) => handleEmailNotificationChange(e.target.checked)}
               />
             </div>
 
@@ -258,7 +266,7 @@ export function ProfilePage() {
               </div>
               <Checkbox
                 checked={browserNotifications}
-                onCheckedChange={(checked) => handleBrowserNotificationChange(!!checked)}
+                onChange={(e) => handleBrowserNotificationChange(e.target.checked)}
               />
             </div>
           </CardContent>
@@ -302,6 +310,7 @@ export function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
 
         {/* Security */}
         <Card className="bg-bg-secondary border-border-primary backdrop-blur-md">

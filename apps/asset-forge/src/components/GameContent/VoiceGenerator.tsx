@@ -332,14 +332,14 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
             Voice Selection
           </h3>
         </CardHeader>
-        <CardContent>
+        <CardContent data-tour="voice-selector">
           {selectedVoiceId && selectedVoiceName ? (
             <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
               <div>
                 <p className="font-medium text-white">Selected Voice</p>
                 <p className="text-sm text-gray-400">{selectedVoiceName}</p>
               </div>
-              <Button variant="secondary" onClick={() => setShowVoiceLibrary(true)}>
+              <Button data-tour="voice-preview" variant="secondary" onClick={() => setShowVoiceLibrary(true)}>
                 Change Voice
               </Button>
             </div>
@@ -362,7 +362,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
           }}
         >
           <div
-            className="bg-gray-50 rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl border border-gray-200"
+            className="bg-[var(--bg-primary)] rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-auto shadow-2xl border border-[var(--border-primary)]"
             style={{
               position: 'relative',
               zIndex: 10000
@@ -389,7 +389,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
           <CardHeader>
             <h3 className="text-lg font-semibold">Voice Settings</h3>
           </CardHeader>
-          <CardContent>
+          <CardContent data-tour="voice-settings">
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -497,7 +497,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
       )}
 
       {/* Generation Status */}
-      <Card>
+      <Card data-tour="dialogue-input">
         <CardHeader>
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Voice Generation</h3>
@@ -524,6 +524,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
                 )}
               </div>
               <Button
+                data-tour="generate-voice"
                 onClick={handleGenerateAll}
                 disabled={!selectedVoiceId || isGenerating || totalNodes === 0}
                 loading={isGenerating}
@@ -541,7 +542,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
 
             {/* Generated Clips List */}
             {generatedCount > 0 && (
-              <div className="mt-4 space-y-2">
+              <div data-tour="generated-clips" className="mt-4 space-y-2">
                 <h4 className="font-medium text-sm text-gray-300">Generated Clips</h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {dialogueNodes.map(node => {
@@ -570,6 +571,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
                                 <Play className="w-4 h-4" />
                               </Button>
                               <Button
+                                data-tour="download-clip"
                                 size="sm"
                                 variant="ghost"
                                 title="Download"
@@ -605,7 +607,7 @@ export const VoiceGenerator: React.FC<VoiceGeneratorProps> = memo(({
 
       {/* Actions */}
       {generatedCount > 0 && (
-        <Card>
+        <Card data-tour="assign-to-manifest">
           <CardContent>
             <div className="flex gap-4">
               <Button

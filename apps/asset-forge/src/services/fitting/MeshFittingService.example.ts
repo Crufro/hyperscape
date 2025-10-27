@@ -55,7 +55,6 @@ export function fitToTargetExample(
 
       // Calculate displacements for all vertices
       for (let i = 0; i < vertexCount; i++) {
-        // @ts-expect-error - Example code showing buffer creation pattern
         const _vertex = new Vector3(
           position.getX(i),
           position.getY(i),
@@ -242,11 +241,8 @@ export async function processVerticesWithAutoCleanup(
 ): Promise<void> {
   await Pool.withBuffers(async (pool) => {
     // All buffers created here are automatically released when function completes
-    // @ts-expect-error - Example code showing automatic cleanup pattern
     const _positions = pool.createPositionBuffer(vertexCount)
-    // @ts-expect-error - Example code showing automatic cleanup pattern
     const _displacements = pool.createDisplacementBuffer(vertexCount)
-    // @ts-expect-error - Example code showing automatic cleanup pattern
     const _normals = pool.createNormalBuffer(vertexCount)
 
     // ... process vertices ...

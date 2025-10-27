@@ -10,6 +10,7 @@ import { useCallback, useMemo } from 'react'
 
 import { isNavLink } from '../../config/navigation-config'
 import { useNavigationStore } from '../../stores/useNavigationStore'
+import { useUserStore } from '../../stores/userStore'
 import type { NavigationSection as NavigationSectionType } from '../../types/navigation'
 
 import NavigationItem from './NavigationItem'
@@ -24,6 +25,7 @@ export default function NavigationSection({ section }: NavigationSectionProps) {
   const expandedSections = useNavigationStore(state => state.expandedSections)
   const toggleSection = useNavigationStore(state => state.toggleSection)
   const setCollapsed = useNavigationStore(state => state.setCollapsed)
+  const isAdmin = useUserStore(state => state.profile?.isAdmin ?? false)
 
   // Check if section is expanded
   const isExpanded = useMemo(
@@ -49,6 +51,9 @@ export default function NavigationSection({ section }: NavigationSectionProps) {
   // Check permission and visibility
   if (section.permission && !section.permission()) return null
   if (section.visible && !section.visible()) return null
+
+  // Check admin-only sections
+  if (section.adminOnly && !isAdmin) return null
 
   // Single link section (like Home or Game Data)
   if (section.type === 'single' && section.path) {

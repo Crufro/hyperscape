@@ -1,5 +1,5 @@
-import { Activity, Edit3, Layers } from 'lucide-react'
-import React, { useRef, useCallback, lazy, Suspense } from 'react'
+import { Activity, Edit3, Layers, CheckSquare } from 'lucide-react'
+import React, { useRef, useCallback, lazy, Suspense, useState } from 'react'
 
 import { API_ENDPOINTS } from '../constants'
 import { useAssetsStore } from '../stores'
@@ -14,6 +14,9 @@ import ViewerControls from '@/components/Assets/ViewerControls'
 import ThreeViewer, { ThreeViewerRef } from '@/components/shared/ThreeViewer'
 import { useAssetActions } from '@/hooks/useAssetActions'
 import { useAssets } from '@/hooks/useAssets'
+import { useBulkSelection } from '@/hooks/useBulkSelection'
+import { BulkActionsBar, createDeleteAction, createExportAction, createArchiveAction } from '@/components/common'
+import { apiFetch } from '@/utils/api'
 
 // Lazy load modals for better code splitting (saves ~50KB initial bundle)
 const AssetEditModal = lazy(() => import('@/components/Assets/AssetEditModal').then(m => ({ default: m.AssetEditModal })))
@@ -25,6 +28,19 @@ const SpriteGenerationModal = lazy(() => import('@/components/Assets/SpriteGener
 
 export const AssetsPage: React.FC = () => {
   const { assets, loading, reloadAssets, forceReload } = useAssets()
+  const [bulkSelectionMode, setBulkSelectionMode] = useState(false)
+  const [bulkLoading, setBulkLoading] = useState(false)
+
+  // Bulk selection hook
+  const {
+    selectedIds,
+    isSelected,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    selectedCount,
+    selectRange,
+  } = useBulkSelection()
 
   // Get state and actions from store - selective subscriptions
   const selectedAsset = useAssetsStore(state => state.selectedAsset)
@@ -66,6 +82,116 @@ export const AssetsPage: React.FC = () => {
     setModelInfo(info)
   }, [setModelInfo])
 
+  // Bulk operations handlers
+  const handleToggleSelectionMode = () => {
+    setBulkSelectionMode(!bulkSelectionMode)
+    if (bulkSelectionMode) {
+      clearSelection()
+    }
+  }
+
+  const handleToggleSelection = useCallback(
+    (id: string, shiftKey: boolean) => {
+      if (shiftKey && selectedIds.size > 0) {
+        const allIds = filteredAssets.map((a) => a.id)
+        const lastId = Array.from(selectedIds).pop()
+        if (lastId) {
+          selectRange(lastId, id, allIds)
+        }
+      } else {
+        toggleSelection(id)
+      }
+    },
+    [filteredAssets, selectedIds, selectRange, toggleSelection]
+  )
+
+  const handleBulkDelete = async () => {
+    try {
+      setBulkLoading(true)
+      const assetIds = Array.from(selectedIds)
+
+      const response = await apiFetch('/api/assets/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetIds }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete assets')
+      }
+
+      await reloadAssets()
+      clearSelection()
+      setBulkSelectionMode(false)
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      alert('Failed to delete some assets. Please try again.')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkExport = async () => {
+    try {
+      setBulkLoading(true)
+      const assetIds = Array.from(selectedIds)
+
+      const response = await apiFetch('/api/assets/bulk-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetIds }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to export assets')
+      }
+
+      // Download the ZIP file
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `assets-export-${Date.now()}.zip`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      clearSelection()
+    } catch (error) {
+      console.error('Bulk export error:', error)
+      alert('Failed to export assets. Please try again.')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkArchive = async () => {
+    try {
+      setBulkLoading(true)
+      const assetIds = Array.from(selectedIds)
+
+      const response = await apiFetch('/api/assets/bulk-archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetIds }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to archive assets')
+      }
+
+      await reloadAssets()
+      clearSelection()
+      setBulkSelectionMode(false)
+    } catch (error) {
+      console.error('Bulk archive error:', error)
+      alert('Failed to archive some assets. Please try again.')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
   if (loading) {
     return <LoadingState />
   }
@@ -81,9 +207,28 @@ export const AssetsPage: React.FC = () => {
             filteredCount={filteredAssets.length}
           />
 
+          {/* Bulk Selection Toggle */}
+          <div className="flex items-center justify-end px-2">
+            <button
+              onClick={handleToggleSelectionMode}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                bulkSelectionMode
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-bg-tertiary text-text-secondary hover:bg-bg-secondary hover:text-text-primary'
+              }`}
+            >
+              <CheckSquare size={16} />
+              {bulkSelectionMode ? 'Exit Selection' : 'Bulk Select'}
+            </button>
+          </div>
+
           {/* Asset List */}
           <AssetList
             assets={filteredAssets}
+            selectionMode={bulkSelectionMode}
+            selectedIds={selectedIds}
+            onToggleSelection={handleToggleSelection}
+            onSelectAll={selectAll}
           />
         </div>
 
@@ -237,6 +382,20 @@ export const AssetsPage: React.FC = () => {
             }}
           />
         </Suspense>
+      )}
+
+      {/* Bulk Actions Bar */}
+      {bulkSelectionMode && (
+        <BulkActionsBar
+          selectedCount={selectedCount}
+          onClearSelection={clearSelection}
+          isLoading={bulkLoading}
+          actions={[
+            createDeleteAction(handleBulkDelete),
+            createExportAction(handleBulkExport),
+            createArchiveAction(handleBulkArchive),
+          ]}
+        />
       )}
     </div>
   )

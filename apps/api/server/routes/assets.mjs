@@ -449,4 +449,117 @@ router.delete('/:id', async (req, res) => {
   }
 })
 
+// POST /api/assets/bulk-delete - Bulk soft delete
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { assetIds } = req.body
+
+    if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
+      return res.status(400).json({ error: 'assetIds array is required' })
+    }
+
+    // Build placeholders for parameterized query
+    const placeholders = assetIds.map((_, i) => `$${i + 1}`).join(', ')
+
+    const result = await query(
+      `UPDATE assets
+       SET status = 'deleted', updated_at = CURRENT_TIMESTAMP
+       WHERE id IN (${placeholders}) AND status != 'deleted'
+       RETURNING id`,
+      assetIds
+    )
+
+    res.json({
+      success: true,
+      message: `${result.rows.length} assets deleted`,
+      deletedCount: result.rows.length,
+    })
+  } catch (error) {
+    console.error('[Assets API] Error bulk deleting assets:', error)
+    res.status(500).json({ error: 'Failed to delete assets' })
+  }
+})
+
+// POST /api/assets/bulk-export - Bulk export assets (metadata only, no ZIP)
+router.post('/bulk-export', async (req, res) => {
+  try {
+    const { assetIds } = req.body
+
+    if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
+      return res.status(400).json({ error: 'assetIds array is required' })
+    }
+
+    // Build placeholders for parameterized query
+    const placeholders = assetIds.map((_, i) => `$${i + 1}`).join(', ')
+
+    const result = await query(
+      `SELECT
+        a.*,
+        u.display_name as owner_name,
+        p.name as project_name
+       FROM assets a
+       LEFT JOIN users u ON a.owner_id = u.id
+       LEFT JOIN projects p ON a.project_id = p.id
+       WHERE a.id IN (${placeholders}) AND a.status != 'deleted'`,
+      assetIds
+    )
+
+    // Create JSON export
+    const exportData = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      type: row.type,
+      category: row.category,
+      ownerName: row.owner_name,
+      projectName: row.project_name,
+      fileUrl: row.file_url,
+      fileSize: row.file_size,
+      fileType: row.file_type,
+      thumbnailUrl: row.thumbnail_url,
+      tags: row.tags,
+      createdAt: row.created_at,
+    }))
+
+    // Send as JSON download
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Disposition', `attachment; filename="assets-export-${Date.now()}.json"`)
+    res.json(exportData)
+  } catch (error) {
+    console.error('[Assets API] Error bulk exporting assets:', error)
+    res.status(500).json({ error: 'Failed to export assets' })
+  }
+})
+
+// POST /api/assets/bulk-archive - Bulk archive assets
+router.post('/bulk-archive', async (req, res) => {
+  try {
+    const { assetIds } = req.body
+
+    if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
+      return res.status(400).json({ error: 'assetIds array is required' })
+    }
+
+    // Build placeholders for parameterized query
+    const placeholders = assetIds.map((_, i) => `$${i + 1}`).join(', ')
+
+    const result = await query(
+      `UPDATE assets
+       SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+       WHERE id IN (${placeholders}) AND status != 'deleted'
+       RETURNING id`,
+      assetIds
+    )
+
+    res.json({
+      success: true,
+      message: `${result.rows.length} assets archived`,
+      archivedCount: result.rows.length,
+    })
+  } catch (error) {
+    console.error('[Assets API] Error bulk archiving assets:', error)
+    res.status(500).json({ error: 'Failed to archive assets' })
+  }
+})
+
 export default router

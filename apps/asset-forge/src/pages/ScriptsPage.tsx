@@ -13,9 +13,7 @@ import { NPCScriptGenerator } from '../components/GameContent/NPCScriptGenerator
 import { useNPCScriptsStore } from '../stores/useNPCScriptsStore'
 import { useContentGenerationStore } from '../stores/useContentGenerationStore'
 import type { GeneratedNPC } from '../types/content-generation'
-import { Button } from '../components/common/Button'
-import { Card } from '../components/common/Card'
-import { Badge } from '../components/common/Badge'
+import { Button, Card, Badge } from '../components/common'
 import { downloadScriptPack } from '../utils/npc-script-exporter'
 
 export function ScriptsPage() {
@@ -34,7 +32,7 @@ export function ScriptsPage() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       {/* Header */}
       <div className="border-b border-border-primary/30 bg-bg-secondary/40 backdrop-blur-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-6">
         <div className="flex items-center justify-between">
@@ -125,7 +123,7 @@ export function ScriptsPage() {
                     <Card key={script.id} className="p-4 hover:border-primary/50 transition-colors">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold text-text-primary">{script.npcName}</h3>
-                        <Badge variant="secondary">{script.archetype}</Badge>
+                        <Badge variant="secondary">{script.services[0] || 'NPC'}</Badge>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
@@ -156,7 +154,7 @@ export function ScriptsPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-semibold text-text-primary">{script.npcName}</h3>
-                            <Badge variant="secondary">{script.archetype}</Badge>
+                            <Badge variant="secondary">{script.services[0] || 'NPC'}</Badge>
                             <Badge variant="secondary">{script.dialogueTree.nodes.length} nodes</Badge>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">

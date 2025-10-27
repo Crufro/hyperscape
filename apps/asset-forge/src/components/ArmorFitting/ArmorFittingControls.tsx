@@ -1,9 +1,9 @@
-import { 
+import {
   Sliders, Save, Download, RefreshCw, Eye, EyeOff,
   Activity,
-  Grid3X3, Wand2, Zap, Target, Layers, Play, Pause, Link
+  Grid3X3, Wand2, Zap, Target, Layers, Play, Pause, Link, Star
 } from 'lucide-react'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 
 import { EQUIPMENT_SLOTS } from '../../constants'
 import { FittingConfig } from '../../services/fitting/ArmorFittingService'
@@ -81,6 +81,83 @@ const RangeInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { 'aria
   )
 }
 
+// Preset configurations for armor fitting
+interface FittingPreset {
+  name: string
+  description: string
+  config: Partial<FittingConfig>
+}
+
+const FITTING_PRESETS: FittingPreset[] = [
+  {
+    name: 'Quick Fit',
+    description: 'Fast, balanced settings for rapid prototyping',
+    config: {
+      iterations: 5,
+      stepSize: 0.15,
+      smoothingRadius: 2,
+      smoothingStrength: 0.3,
+      targetOffset: 0.015,
+      sampleRate: 0.5,
+      preserveFeatures: false,
+      useImprovedShrinkwrap: false,
+      preserveOpenings: true,
+      pushInteriorVertices: false
+    }
+  },
+  {
+    name: 'Tight Fit',
+    description: 'Minimal gaps with higher quality, slower processing',
+    config: {
+      iterations: 12,
+      stepSize: 0.08,
+      smoothingRadius: 1.5,
+      smoothingStrength: 0.15,
+      targetOffset: 0.005,
+      sampleRate: 0.8,
+      preserveFeatures: true,
+      useImprovedShrinkwrap: true,
+      preserveOpenings: true,
+      pushInteriorVertices: true
+    }
+  },
+  {
+    name: 'Maximum Quality',
+    description: 'Best quality with maximum iterations, slowest',
+    config: {
+      iterations: 20,
+      stepSize: 0.05,
+      smoothingRadius: 1,
+      smoothingStrength: 0.1,
+      targetOffset: 0.003,
+      sampleRate: 1.0,
+      preserveFeatures: true,
+      useImprovedShrinkwrap: true,
+      preserveOpenings: true,
+      pushInteriorVertices: true
+    }
+  },
+  {
+    name: 'Loose Fit',
+    description: 'Faster processing with acceptable gaps',
+    config: {
+      iterations: 3,
+      stepSize: 0.2,
+      smoothingRadius: 3,
+      smoothingStrength: 0.4,
+      targetOffset: 0.025,
+      sampleRate: 0.4,
+      preserveFeatures: false,
+      useImprovedShrinkwrap: false,
+      preserveOpenings: false,
+      pushInteriorVertices: false
+    }
+  }
+]
+
+// LocalStorage key for custom presets
+const CUSTOM_PRESETS_KEY = 'armorFitting_customPresets'
+
 // Using shrinkwrap algorithm from MeshFittingDebugger
 
 
@@ -133,8 +210,57 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
   onAnimationPlayingChange: _onAnimationPlayingChange,
   onToggleAnimation
 }) => {
+  // Preset state
+  const [customPresets, setCustomPresets] = useState<FittingPreset[]>([])
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false)
+  const [presetName, setPresetName] = useState('')
+  const [presetDescription, setPresetDescription] = useState('')
+
+  // Load custom presets from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(CUSTOM_PRESETS_KEY)
+    if (saved) {
+      try {
+        setCustomPresets(JSON.parse(saved))
+      } catch (e) {
+        console.error('Failed to load custom presets:', e)
+      }
+    }
+  }, [])
+
+  // Apply preset
+  const applyPreset = (preset: FittingPreset) => {
+    onFittingConfigChange(preset.config)
+  }
+
+  // Save custom preset
+  const saveCustomPreset = () => {
+    if (!presetName.trim()) return
+
+    const newPreset: FittingPreset = {
+      name: presetName.trim(),
+      description: presetDescription.trim(),
+      config: { ...fittingConfig }
+    }
+
+    const updatedPresets = [...customPresets, newPreset]
+    setCustomPresets(updatedPresets)
+    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updatedPresets))
+
+    setShowSavePresetModal(false)
+    setPresetName('')
+    setPresetDescription('')
+  }
+
+  // Delete custom preset
+  const deleteCustomPreset = (index: number) => {
+    const updatedPresets = customPresets.filter((_, i) => i !== index)
+    setCustomPresets(updatedPresets)
+    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updatedPresets))
+  }
+
   // Filter out weapon slots - only show armor slots (Head, Chest, Legs)
-  const armorSlots = EQUIPMENT_SLOTS.filter(slot => 
+  const armorSlots = EQUIPMENT_SLOTS.filter(slot =>
     slot.id === 'Head' || slot.id === 'Spine2' || slot.id === 'Hips'
   )
   
@@ -355,16 +481,143 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
         null // No method selection - just using shrinkwrap algorithm
       )}
 
-      {/* Fitting Parameters - Only show for armor (chest) */}
+      {/* Presets - Only show for armor (chest) */}
       {equipmentSlot === 'Spine2' && (
         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="w-4 h-4" />
+              Fitting Presets
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Built-in Presets */}
+            <div className="grid grid-cols-2 gap-2">
+              {FITTING_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => applyPreset(preset)}
+                  className="p-3 rounded-lg border border-border-primary bg-bg-secondary/40 hover:bg-bg-tertiary hover:border-primary/50 transition-all text-left"
+                >
+                  <div className="font-medium text-xs text-text-primary mb-1">{preset.name}</div>
+                  <div className="text-[10px] text-text-tertiary leading-tight">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Presets */}
+            {customPresets.length > 0 && (
+              <div className="pt-2 border-t border-border-primary">
+                <div className="text-xs font-medium text-text-secondary mb-2">Custom Presets</div>
+                <div className="space-y-2">
+                  {customPresets.map((preset, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-bg-tertiary/50"
+                    >
+                      <button
+                        onClick={() => applyPreset(preset)}
+                        className="flex-1 text-left"
+                      >
+                        <div className="font-medium text-xs text-text-primary">{preset.name}</div>
+                        {preset.description && (
+                          <div className="text-[10px] text-text-tertiary">{preset.description}</div>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => deleteCustomPreset(idx)}
+                        className="px-2 py-1 text-[10px] text-red-400 hover:text-red-300"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Save Current as Preset */}
+            <Button
+              onClick={() => setShowSavePresetModal(true)}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            >
+              <Star className="w-3 h-3 mr-1.5" />
+              Save Current as Preset
+            </Button>
+
+            {/* Save Preset Modal */}
+            {showSavePresetModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="bg-bg-primary border border-border-primary rounded-xl p-6 max-w-md w-full mx-4">
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Save Custom Preset</h3>
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <label className="text-xs font-medium text-text-secondary block mb-1">
+                        Preset Name
+                      </label>
+                      <input
+                        type="text"
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                        placeholder="My Custom Preset"
+                        className="w-full px-3 py-2 bg-bg-secondary border border-border-primary rounded-lg text-sm text-text-primary placeholder-text-tertiary focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-text-secondary block mb-1">
+                        Description (Optional)
+                      </label>
+                      <textarea
+                        value={presetDescription}
+                        onChange={(e) => setPresetDescription(e.target.value)}
+                        placeholder="Describe when to use this preset..."
+                        rows={3}
+                        className="w-full px-3 py-2 bg-bg-secondary border border-border-primary rounded-lg text-sm text-text-primary placeholder-text-tertiary focus:outline-none focus:border-primary resize-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={saveCustomPreset}
+                      disabled={!presetName.trim()}
+                      variant="primary"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      Save Preset
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowSavePresetModal(false)
+                        setPresetName('')
+                        setPresetDescription('')
+                      }}
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Fitting Parameters - Only show for armor (chest) */}
+      {equipmentSlot === 'Spine2' && (
+        <Card data-tour="fitting-controls">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sliders className="w-4 h-4" />
               Fitting Parameters
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent data-tour="manual-adjustments" className="space-y-3">
             {/* Match MeshFittingDebugger parameters exactly */}
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -532,7 +785,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
             Visualization
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent data-tour="visualization-mode" className="pt-0">
           <div className="grid grid-cols-2 gap-1.5 mb-3">
             {[
               { mode: 'none', label: 'None', icon: <EyeOff className="w-3 h-3" /> },
@@ -643,6 +896,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
       {equipmentSlot === 'Spine2' && (
         <div className="space-y-2 pt-2">
           <Button
+            data-tour="auto-fit-button"
             onClick={onPerformFitting}
             disabled={!canFit || isFitting}
             variant="primary"
@@ -663,6 +917,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
 
           {isArmorFitted && !isArmorBound && onBindArmorToSkeleton && (
             <Button
+              data-tour="bind-skeleton"
               onClick={onBindArmorToSkeleton}
               disabled={isFitting}
               variant="secondary"
@@ -684,6 +939,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
 
           <div className="grid grid-cols-2 gap-2">
             <Button
+              data-tour="export-button"
               onClick={onExportArmor}
               disabled={!canFit}
               variant="secondary"

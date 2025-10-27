@@ -8,7 +8,7 @@ interface GenerationTypeSelectorProps {
 export const GenerationTypeSelector: React.FC<GenerationTypeSelectorProps> = ({ onSelectType }) => {
   return (
     <div className="h-screen flex items-center justify-center bg-gradient-to-br from-bg-primary to-bg-secondary overflow-hidden">
-      <div className="bg-bg-primary bg-opacity-50 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-border-primary max-w-2xl w-full animate-scale-in">
+      <div data-tour="generation-type" className="bg-bg-primary bg-opacity-50 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-border-primary max-w-2xl w-full animate-scale-in">
         <h1 className="text-3xl font-bold text-text-primary text-center mb-2">
           What would you like to create?
         </h1>

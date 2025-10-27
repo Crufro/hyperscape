@@ -73,7 +73,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
             mt-3 w-full py-2.5 px-4 rounded-md font-medium text-sm
             transition-all duration-200 flex items-center justify-center gap-2
             ${isPlaying
-              ? 'bg-white text-[var(--color-primary)] hover:bg-opacity-90'
+              ? 'bg-[var(--bg-card)] text-[var(--color-primary)] border border-[var(--color-primary)] hover:bg-[var(--bg-tertiary)]'
               : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)]'
             }
             active:scale-[0.98]

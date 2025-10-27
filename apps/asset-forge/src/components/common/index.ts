@@ -52,7 +52,12 @@ export { EmptyState } from './EmptyState'
 export { RangeInput } from './RangeInput'
 export { ModelSelector } from './ModelSelector'
 export { GlobalSearch } from './GlobalSearch'
+export { HighlightText } from './HighlightText'
 
 // Project Selector
 export { ProjectSelector } from './ProjectSelector'
-export type { ProjectSelectorProps } from './ProjectSelector' 
+export type { ProjectSelectorProps } from './ProjectSelector'
+
+// Bulk Actions Bar
+export { BulkActionsBar, createDeleteAction, createExportAction, createArchiveAction } from './BulkActionsBar'
+export type { BulkActionsBarProps, BulkAction } from './BulkActionsBar' 

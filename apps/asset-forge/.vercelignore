@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+.vite
+
+# Development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Railway-specific (not needed for Vercel)
+railway.json
+nixpacks.toml
+Caddyfile
+.node-version
+
+# Test files
+test-*
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__

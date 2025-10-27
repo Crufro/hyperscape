@@ -6,6 +6,9 @@ import compression from 'vite-plugin-compression'
 // https://vite.dev/config/
 export default defineConfig({
   publicDir: 'public',
+  define: {
+    global: 'globalThis',
+  },
   plugins: [
     react(),
     // Production compression only (gzip + brotli)
@@ -28,14 +31,11 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'three'],
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      'react': path.resolve(__dirname, '../../node_modules/react'),
-      'react-dom': path.resolve(__dirname, '../../node_modules/react-dom'),
-      'react/jsx-runtime': path.resolve(__dirname, '../../node_modules/react/jsx-runtime'),
-      'three': path.resolve(__dirname, '../../node_modules/three')
+      'buffer': 'buffer/'
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react/jsx-runtime', 'three', '@react-three/fiber', '@react-three/drei'],
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'three', '@react-three/fiber', '@react-three/drei', '@xyflow/react'],
     exclude: ['.eslintrc.cjs', 'tailwind.config.cjs', 'postcss.config.cjs'],
     esbuildOptions: {
       resolveExtensions: ['.mjs', '.js', '.jsx', '.json', '.ts', '.tsx']
@@ -44,32 +44,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // React ecosystem (most frequently used, cache separately)
-          if (id.includes('node_modules/react') ||
-              id.includes('node_modules/react-dom') ||
-              id.includes('node_modules/scheduler')) {
-            return 'vendor-react'
-          }
-
-          // Three.js ecosystem (large library, cache separately)
-          if (id.includes('node_modules/three') ||
-              id.includes('@react-three/')) {
-            return 'vendor-three'
-          }
-
-          // AI/ML libraries (lazy loaded with specific features, separate chunk)
-          if (id.includes('@tensorflow') ||
-              id.includes('@mediapipe') ||
-              id.includes('@ai-sdk')) {
-            return 'vendor-ai'
-          }
-
-          // Everything else (UI libs, state management, utilities)
-          if (id.includes('node_modules')) {
-            return 'vendor'
-          }
-        }
+        manualChunks: undefined
       }
     },
     minify: 'terser',
@@ -95,7 +70,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/assets': {
-        target: 'http://localhost:3004',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       }
     }

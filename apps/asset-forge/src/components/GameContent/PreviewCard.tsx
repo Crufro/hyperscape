@@ -34,8 +34,6 @@ const PreviewCardComponent: React.FC<PreviewCardProps> = ({ preview, onApprove, 
     switch (preview.manifestType) {
       case 'items':
         return <Package className="w-4 h-4" />
-      case 'mobs':
-        return <Swords className="w-4 h-4" />
       case 'npcs':
         return <Users className="w-4 h-4" />
       default:
@@ -54,9 +52,6 @@ const PreviewCardComponent: React.FC<PreviewCardProps> = ({ preview, onApprove, 
     if (preview.manifestType === 'items') {
       const item = preview.data as ItemSuggestion['data']
       return item.name || item.id
-    } else if (preview.manifestType === 'mobs') {
-      const mob = preview.data as MobSuggestion['data']
-      return mob.name || mob.id
     } else if (preview.manifestType === 'npcs') {
       const npc = preview.data as NPCSuggestion['data']
       return npc.name || npc.id

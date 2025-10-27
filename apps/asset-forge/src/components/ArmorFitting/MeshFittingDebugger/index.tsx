@@ -7,7 +7,7 @@ import {
   Scene as ThreeScene, SkinnedMesh, Vector3
 } from 'three'
 
-import { useAssets } from '@/hooks/useAssets'
+import { useAssets, type Asset } from '@/hooks/useAssets'
 import { ArmorFittingService } from '@/services/fitting/ArmorFittingService'
 import { MeshFittingService } from '@/services/fitting/MeshFittingService'
 import { useDebuggerStore } from '@/stores/useDebuggerStore'
@@ -34,9 +34,9 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
 
     // Transform assets into the format expected by the component
     const availableAvatars = React.useMemo(() => {
-        return assets
-            .filter(asset => asset.type === 'character' && asset.hasModel)
-            .map(asset => ({
+        return (assets as Asset[])
+            .filter((asset: Asset) => asset.type === 'character' && asset.hasModel)
+            .map((asset: Asset) => ({
                 id: asset.id,
                 name: asset.name,
                 path: `/api/assets/${asset.id}/model`
@@ -44,14 +44,14 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     }, [assets])
 
     const availableArmors = React.useMemo(() => {
-        return assets
-            .filter(asset =>
+        return (assets as Asset[])
+            .filter((asset: Asset) =>
                 asset.hasModel && (
                     asset.type === 'armor' ||
                     (asset.name.toLowerCase().includes('body') && !asset.name.toLowerCase().includes('helmet'))
                 )
             )
-            .map(asset => ({
+            .map((asset: Asset) => ({
                 id: asset.id,
                 name: asset.name,
                 path: `/api/assets/${asset.id}/model`
@@ -59,14 +59,14 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     }, [assets])
 
     const availableHelmets = React.useMemo(() => {
-        return assets
-            .filter(asset =>
+        return (assets as Asset[])
+            .filter((asset: Asset) =>
                 asset.hasModel && (
                     asset.name.toLowerCase().includes('helmet') ||
                     asset.name.toLowerCase().includes('head')
                 )
             )
-            .map(asset => ({
+            .map((asset: Asset) => ({
                 id: asset.id,
                 name: asset.name,
                 path: `/api/assets/${asset.id}/model`
@@ -74,15 +74,15 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     }, [assets])
 
     // Preload models when assets are loaded
-     
+
     React.useEffect(() => {
-        availableAvatars.forEach(avatar => {
+        availableAvatars.forEach((avatar: { id: string; name: string; path: string }) => {
             if (avatar.path) useGLTF.preload(avatar.path)
         })
-        availableArmors.forEach(armor => {
+        availableArmors.forEach((armor: { id: string; name: string; path: string }) => {
             if (armor.path) useGLTF.preload(armor.path)
         })
-        availableHelmets.forEach(helmet => {
+        availableHelmets.forEach((helmet: { id: string; name: string; path: string }) => {
             if (helmet.path) useGLTF.preload(helmet.path)
         })
     }, [availableAvatars, availableArmors, availableHelmets])
@@ -507,7 +507,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                         <select
                                             value={selectedAvatar?.id || ''}
                                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                                const avatar = availableAvatars.find(a => a.id === e.target.value)
+                                                const avatar = availableAvatars.find((a: { id: string; name: string; path: string }) => a.id === e.target.value)
                                                 if (avatar) {
                                                     setSelectedAvatar({
                                                         id: avatar.id,
@@ -520,7 +520,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                             className={selectClassName}
                                         >
                                             <option value="">Select Avatar...</option>
-                                            {availableAvatars.map(avatar => (
+                                            {availableAvatars.map((avatar: { id: string; name: string; path: string }) => (
                                                 <option key={avatar.id} value={avatar.id}>
                                                     {avatar.name}
                                                 </option>
@@ -536,7 +536,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                             <select
                                                 value={selectedArmor?.id || ''}
                                                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                                    const armor = availableArmors.find(a => a.id === e.target.value)
+                                                    const armor = availableArmors.find((a: { id: string; name: string; path: string }) => a.id === e.target.value)
                                                     if (armor) {
                                                         setSelectedArmor({
                                                             id: armor.id,
@@ -549,7 +549,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                                 className={selectClassName}
                                             >
                                                 <option value="">Select Armor...</option>
-                                                {availableArmors.map(armor => (
+                                                {availableArmors.map((armor: { id: string; name: string; path: string }) => (
                                                     <option key={armor.id} value={armor.id}>
                                                         {armor.name}
                                                     </option>
@@ -563,7 +563,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                             <select
                                                 value={selectedHelmet?.id || ''}
                                                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                                    const helmet = availableHelmets.find(h => h.id === e.target.value)
+                                                    const helmet = availableHelmets.find((h: { id: string; name: string; path: string }) => h.id === e.target.value)
                                                     if (helmet) {
                                                         setSelectedHelmet({
                                                             id: helmet.id,
@@ -576,7 +576,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                                 className={selectClassName}
                                             >
                                                 <option value="">Select Helmet...</option>
-                                                {availableHelmets.map(helmet => (
+                                                {availableHelmets.map((helmet: { id: string; name: string; path: string }) => (
                                                     <option key={helmet.id} value={helmet.id}>
                                                         {helmet.name}
                                                     </option>

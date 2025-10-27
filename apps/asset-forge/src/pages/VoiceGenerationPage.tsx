@@ -4,12 +4,14 @@
  * Users can generate voice clips directly without needing to create NPCs first
  */
 
-import { Mic, Download, Play, Volume2, Settings } from 'lucide-react'
+import { Mic, Download, Play, Volume2, Settings, GraduationCap } from 'lucide-react'
 import React, { useState } from 'react'
 
 import { VoiceGenerator } from '../components/GameContent/VoiceGenerator'
-import { Card, ProjectSelector } from '../components/common'
+import { Card, ProjectSelector, Button } from '../components/common'
 import { useGenerationStore } from '../stores/useGenerationStore'
+import { useVoiceGenerationStore } from '../stores/useVoiceGenerationStore'
+import { useManualTour } from '../hooks/useTour'
 
 export const VoiceGenerationPage: React.FC = () => {
   const [_selectedDialogue, _setSelectedDialogue] = useState<string>('')
@@ -19,12 +21,16 @@ export const VoiceGenerationPage: React.FC = () => {
   const selectedProjectId = useGenerationStore(state => state.selectedProjectId)
   const setSelectedProject = useGenerationStore(state => state.setSelectedProject)
 
+  // Tour hook
+  const { startManualTour } = useManualTour()
+
   return (
-    <div className="w-full h-full overflow-auto">
+    <div className="w-full h-full overflow-auto relative">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6 animate-slide-in-down">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <Mic size={20} className="text-white" />
             </div>
@@ -34,6 +40,16 @@ export const VoiceGenerationPage: React.FC = () => {
                 Generate AI voice clips with ElevenLabs • 20+ voices • Professional quality
               </p>
             </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => startManualTour('voice-generation')}
+              className="gap-2"
+            >
+              <GraduationCap className="w-4 h-4" />
+              Start Tour
+            </Button>
           </div>
 
           {/* Feature badges */}
@@ -52,7 +68,7 @@ export const VoiceGenerationPage: React.FC = () => {
         </div>
 
         {/* Quick Start Guide */}
-        <Card className="mb-6 bg-gradient-to-br from-purple-500 from-opacity-5 to-pink-500 to-opacity-5 border-purple-500 border-opacity-20">
+        <Card className="mb-6 bg-gradient-to-br from-purple-500 from-opacity-5 to-pink-500 to-opacity-5 border-purple-500 border-opacity-20" data-tour="quick-start-guide">
           <div className="p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-2">
               <Volume2 size={18} className="text-purple-400" />
@@ -91,7 +107,7 @@ export const VoiceGenerationPage: React.FC = () => {
         </Card>
 
         {/* Project Selector */}
-        <Card className="mb-6">
+        <Card className="mb-6" data-tour="project-selector">
           <div className="p-4">
             <ProjectSelector
               selectedProjectId={selectedProjectId}
@@ -102,7 +118,7 @@ export const VoiceGenerationPage: React.FC = () => {
         </Card>
 
         {/* Voice Generator Component */}
-        <div className="animate-slide-in-up">
+        <div className="animate-slide-in-up" data-tour="voice-generator">
           <VoiceGenerator
             dialogueTree={[]}
             npcId=""

@@ -22,7 +22,7 @@ const BatchPreviewComponent: React.FC<BatchPreviewProps> = ({ batch, onApprove }
   // Memoize counts to avoid recalculating on every render
   const counts = useMemo(() => {
     const itemCount = batch.previews.filter(p => p.manifestType === 'items').length
-    const mobCount = batch.previews.filter(p => p.manifestType === 'mobs').length
+    const mobCount = 0
     const npcCount = batch.previews.filter(p => p.manifestType === 'npcs').length
     const conflictCount = batch.previews.reduce((sum, p) => sum + p.conflicts.length, 0)
     const hasBlockers = batch.previews.some(p =>
@@ -154,7 +154,6 @@ const BatchPreviewComponent: React.FC<BatchPreviewProps> = ({ batch, onApprove }
                     {/* Type icon */}
                     <div className="p-1.5 bg-bg-tertiary rounded-lg">
                       {preview.manifestType === 'items' && <Package className="w-3.5 h-3.5 text-primary" />}
-                      {preview.manifestType === 'mobs' && <Swords className="w-3.5 h-3.5 text-primary" />}
                       {preview.manifestType === 'npcs' && <Users className="w-3.5 h-3.5 text-primary" />}
                     </div>
 

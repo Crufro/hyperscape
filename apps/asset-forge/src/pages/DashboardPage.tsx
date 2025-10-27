@@ -11,18 +11,14 @@
  */
 
 import React from 'react'
-import { LayoutDashboard, Sparkles, FileText, Mic, Book, Package } from 'lucide-react'
+import { LayoutDashboard } from 'lucide-react'
 import { LatestAsset3DCard } from '../components/Dashboard/LatestAsset3DCard'
 import { LatestQuestCard } from '../components/Dashboard/LatestQuestCard'
 import { LatestVoiceCard } from '../components/Dashboard/LatestVoiceCard'
 import { LatestLoreCard } from '../components/Dashboard/LatestLoreCard'
 import { QuickStatsCard } from '../components/Dashboard/QuickStatsCard'
 import { ActivityFeedCard } from '../components/Dashboard/ActivityFeedCard'
-import { useNavigationStore } from '../stores/useNavigationStore'
-import { ROUTES } from '../constants/routes'
-
 export function DashboardPage() {
-  const navigateTo = useNavigationStore(state => state.navigateTo)
   return (
     <div className="w-full">
       {/* Header */}
@@ -67,82 +63,8 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Additional Content Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {/* Quick Action Cards */}
-          <QuickActionCard
-            icon={<Sparkles className="w-5 h-5" />}
-            title="Generate Asset"
-            description="Create a new 3D asset"
-            onClick={() => navigateTo(ROUTES.GENERATION)}
-            gradient="from-purple-500/20 to-pink-500/20"
-          />
-          <QuickActionCard
-            icon={<FileText className="w-5 h-5" />}
-            title="Create Quest"
-            description="Build a new quest"
-            onClick={() => navigateTo(ROUTES.CONTENT_QUESTS)}
-            gradient="from-blue-500/20 to-cyan-500/20"
-          />
-          <QuickActionCard
-            icon={<Mic className="w-5 h-5" />}
-            title="Generate Voice"
-            description="Create character voice"
-            onClick={() => navigateTo(ROUTES.VOICE_STANDALONE)}
-            gradient="from-orange-500/20 to-yellow-500/20"
-          />
-          <QuickActionCard
-            icon={<Package className="w-5 h-5" />}
-            title="My Projects"
-            description="View and manage projects"
-            onClick={() => navigateTo(ROUTES.PROJECTS)}
-            gradient="from-blue-500/20 to-indigo-500/20"
-          />
-          <QuickActionCard
-            icon={<Book className="w-5 h-5" />}
-            title="My Teams"
-            description="Collaborate with team"
-            onClick={() => navigateTo(ROUTES.TEAM)}
-            gradient="from-green-500/20 to-emerald-500/20"
-          />
-        </div>
       </div>
     </div>
-  )
-}
-
-interface QuickActionCardProps {
-  icon: React.ReactNode
-  title: string
-  description: string
-  onClick: () => void
-  gradient: string
-}
-
-function QuickActionCard({ icon, title, description, onClick, gradient }: QuickActionCardProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        group relative p-6 rounded-lg
-        bg-gradient-to-br ${gradient}
-        border border-border-primary/30
-        hover:border-border-primary/60
-        hover:shadow-lg hover:shadow-accent-primary/5
-        transition-all duration-300
-        text-left
-      `}
-    >
-      <div className="flex items-start gap-4">
-        <div className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
-          {icon}
-        </div>
-        <div>
-          <h3 className="font-semibold text-white mb-1">{title}</h3>
-          <p className="text-sm text-gray-400">{description}</p>
-        </div>
-      </div>
-    </button>
   )
 }
 

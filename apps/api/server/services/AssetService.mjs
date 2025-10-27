@@ -5,6 +5,7 @@
 
 import fs from 'fs/promises'
 import path from 'path'
+import { query } from '../database/db.mjs'
 
 export class AssetService {
   constructor(assetsDir) {
@@ -13,48 +14,41 @@ export class AssetService {
 
   async listAssets() {
     try {
-      const assetDirs = await fs.readdir(this.assetsDir)
-      const assets = []
+      // Query database for assets
+      const result = await query(`
+        SELECT
+          a.*,
+          u.display_name as owner_name,
+          u.privy_user_id as owner_privy_id,
+          p.name as project_name
+        FROM assets a
+        LEFT JOIN users u ON a.owner_id = u.id
+        LEFT JOIN projects p ON a.project_id = p.id
+        WHERE a.status != 'deleted'
+        ORDER BY a.updated_at DESC
+      `)
 
-      for (const assetDir of assetDirs) {
-        if (assetDir.startsWith('.') || assetDir.endsWith('.json')) {
-          continue
-        }
-
-        const assetPath = path.join(this.assetsDir, assetDir)
-        
-        try {
-          const stats = await fs.stat(assetPath)
-          if (!stats.isDirectory()) continue
-
-          const metadataPath = path.join(assetPath, 'metadata.json')
-          const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'))
-          
-          const files = await fs.readdir(assetPath)
-          const glbFile = files.find(f => f.endsWith('.glb'))
-
-          assets.push({
-            id: assetDir,
-            name: metadata.name || assetDir,
-            description: metadata.description || '',
-            type: metadata.type || 'unknown',
-            metadata: metadata,
-            hasModel: !!glbFile,
-            modelFile: glbFile,
-            generatedAt: metadata.generatedAt
-          })
-        } catch (error) {
-          // Skip assets that can't be loaded
-          console.warn(`Failed to load asset ${assetDir}:`, error.message)
-        }
-      }
-
-      // Sort by generation date, newest first
-      return assets.sort((a, b) => 
-        new Date(b.generatedAt || 0).getTime() - new Date(a.generatedAt || 0).getTime()
-      )
+      // Transform to match expected format for frontend
+      return result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        type: row.type,
+        category: row.category,
+        metadata: row.metadata || {},
+        hasModel: !!row.file_url,
+        modelFile: row.file_url, // Frontend expects modelFile
+        fileUrl: row.file_url,
+        thumbnailUrl: row.thumbnail_url,
+        status: row.status,
+        tags: row.tags || [],
+        ownerName: row.owner_name,
+        projectName: row.project_name,
+        generatedAt: row.created_at,
+        updatedAt: row.updated_at
+      }))
     } catch (error) {
-      console.error('Failed to list assets:', error)
+      console.error('Failed to list assets from database:', error)
       return []
     }
   }
