@@ -4,7 +4,6 @@ import { usePrivy } from '@privy-io/react-auth'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { LoadingSpinner } from './components/common/LoadingSpinner'
 import { LoginScreen } from './auth/LoginScreen'
-import { useUserStore } from './stores/userStore'
 import { createLogger } from './utils/logger'
 
 const logger = createLogger('App')
@@ -311,14 +310,14 @@ function AppContent() {
                   <DashboardPage />
                 </div>
               )}
-              {currentView === NAVIGATION_VIEWS.ADMIN && useUserStore.getState().profile?.isAdmin && (
+              {currentView === NAVIGATION_VIEWS.ADMIN && (
                 <ErrorBoundary fallback={<ToolsErrorFallback toolName="Admin Dashboard" />} resetKeys={[currentView]}>
                   <div className="w-full h-full">
                     <AdminDashboardPage />
                   </div>
                 </ErrorBoundary>
               )}
-              {currentView === NAVIGATION_VIEWS.ADMIN_APPROVALS && useUserStore.getState().profile?.isAdmin && (
+              {currentView === NAVIGATION_VIEWS.ADMIN_APPROVALS && (
                 <ErrorBoundary fallback={<ToolsErrorFallback toolName="Admin Approvals" />} resetKeys={[currentView]}>
                   <div className="w-full h-full">
                     <AdminApprovalsPage />

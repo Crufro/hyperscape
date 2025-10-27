@@ -148,8 +148,8 @@ app.use('/api/v2/assets', assetsRoutes)
 
 // Routes
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
+  res.json({ 
+    status: 'healthy', 
     timestamp: new Date().toISOString(),
     services: {
       meshy: !!process.env.MESHY_API_KEY,
