@@ -40,4 +40,6 @@ interface IAdminSystem {
     uint16 itemId4,
     uint16 itemId4Chance
   ) external;
+
+  function hyperscape__setItemsContractAddress(address _itemsContract) external;
 }
