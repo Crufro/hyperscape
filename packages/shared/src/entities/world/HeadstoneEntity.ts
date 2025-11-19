@@ -420,14 +420,27 @@ export class HeadstoneEntity extends InteractableEntity {
         .join(", ") || "(none)",
     );
 
-    // Emit corpse click event to show loot interface
-    // NOTE: No loot protection needed - gravestone spawns AFTER respawn (RuneScape-style)
-    this.world.emit(EventType.CORPSE_CLICK, {
+    const lootData = {
       corpseId: this.id,
       playerId: data.playerId,
       lootItems: this.lootItems,
       position: this.getPosition(),
-    });
+    };
+
+    // Emit local event for server-side systems
+    // NOTE: No loot protection needed - gravestone spawns AFTER respawn (RuneScape-style)
+    this.world.emit(EventType.CORPSE_CLICK, lootData);
+
+    // Send to specific client over network (opens loot UI immediately)
+    if (this.world.isServer && this.world.network) {
+      const network = this.world.network as any;
+      if (network.sendTo) {
+        network.sendTo(data.playerId, "corpseLoot", lootData);
+        console.log(
+          `[HeadstoneEntity] Sent corpseLoot packet to ${data.playerId}`,
+        );
+      }
+    }
   }
 
   /**
