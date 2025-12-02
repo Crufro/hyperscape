@@ -146,6 +146,7 @@ export interface NPCLocation {
   services?: string[];
   modelPath?: string;
   description?: string;
+  storeId?: string; // Links NPC to store in stores.json (for general_store type)
 }
 
 /**
