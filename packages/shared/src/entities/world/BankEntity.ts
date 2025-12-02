@@ -70,10 +70,6 @@ export class BankEntity extends InteractableEntity {
     super(world, interactableConfig);
     this.config = config;
     this.bankId = config.properties?.bankId || "spawn_bank";
-
-    console.log(
-      `[BankEntity] Constructed ${this.id} at (${config.position.x}, ${config.position.y}, ${config.position.z})`,
-    );
   }
 
   protected async createMesh(): Promise<void> {
@@ -114,18 +110,12 @@ export class BankEntity extends InteractableEntity {
       this.node.userData.interactable = true;
       this.node.userData.bankId = this.bankId;
     }
-
-    console.log(`[BankEntity] Created mesh for ${this.id}`);
   }
 
   /**
    * Handle bank interaction - opens bank interface
    */
   public async handleInteraction(data: EntityInteractionData): Promise<void> {
-    console.log(
-      `[BankEntity] ${this.id} handleInteraction called by ${data.playerId}`,
-    );
-
     // Emit event to open bank
     this.world.emit(EventType.BANK_OPEN, {
       playerId: data.playerId,
@@ -139,7 +129,6 @@ export class BankEntity extends InteractableEntity {
       };
       if (network.sendTo) {
         network.sendTo(data.playerId, "bankOpen", { bankId: this.bankId });
-        console.log(`[BankEntity] Sent bankOpen packet to ${data.playerId}`);
       }
     }
   }
