@@ -839,9 +839,11 @@ export class ResourceSystem extends SystemBase {
     const actionName =
       resource.skillRequired === "woodcutting"
         ? "chopping"
-        : resource.skillRequired === "fishing"
-          ? "fishing"
-          : "gathering";
+        : resource.skillRequired === "mining"
+          ? "mining"
+          : resource.skillRequired === "fishing"
+            ? "fishing"
+            : "gathering";
     const resourceName = resource.name || resource.type.replace("_", " ");
 
     // Create tick-based session
