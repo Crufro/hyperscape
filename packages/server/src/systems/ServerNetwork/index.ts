@@ -80,6 +80,7 @@ import { PositionValidator } from "./position-validator";
 import { EventBridge } from "./event-bridge";
 import { InitializationManager } from "./initialization";
 import { ConnectionHandler } from "./connection-handler";
+import { InteractionSessionManager } from "./InteractionSessionManager";
 import { handleChatAdded } from "./handlers/chat";
 import { handleAttackMob, handleChangeAttackStyle } from "./handlers/combat";
 import {
@@ -109,6 +110,10 @@ import {
   handleStoreSell,
   handleStoreClose,
 } from "./handlers/store";
+import {
+  handleDialogueResponse,
+  handleDialogueClose,
+} from "./handlers/dialogue";
 
 const defaultSpawn = '{ "position": [0, 50, 0], "quaternion": [0, 0, 0, 1] }';
 
@@ -182,6 +187,7 @@ export class ServerNetwork extends System implements NetworkWithSocket {
   private eventBridge!: EventBridge;
   private initializationManager!: InitializationManager;
   private connectionHandler!: ConnectionHandler;
+  private interactionSessionManager!: InteractionSessionManager;
 
   constructor(world: World) {
     super(world);
@@ -447,6 +453,24 @@ export class ServerNetwork extends System implements NetworkWithSocket {
     // Event bridge
     this.eventBridge = new EventBridge(this.world, this.broadcastManager);
 
+    // Interaction session manager (server-authoritative UI sessions)
+    this.interactionSessionManager = new InteractionSessionManager(
+      this.world,
+      this.broadcastManager,
+    );
+    this.interactionSessionManager.initialize(this.tickSystem);
+
+    // Store session manager on world so handlers can access it (Phase 6: single source of truth)
+    // This replaces the previous pattern of storing entity IDs on socket properties
+    (
+      this.world as { interactionSessionManager?: InteractionSessionManager }
+    ).interactionSessionManager = this.interactionSessionManager;
+
+    // Clean up interaction sessions when player disconnects
+    this.world.on(EventType.PLAYER_LEFT, (event: { playerId: string }) => {
+      this.interactionSessionManager.onPlayerDisconnect(event.playerId);
+    });
+
     // Initialization manager
     this.initializationManager = new InitializationManager(this.world, this.db);
 
@@ -688,36 +712,16 @@ export class ServerNetwork extends System implements NetworkWithSocket {
       });
     };
 
-    // Dialogue handlers
-    this.handlers["onDialogueResponse"] = (socket, data) => {
-      const playerEntity = socket.player;
-      if (!playerEntity) return;
-      const payload = data as {
-        npcId: string;
-        responseIndex: number;
-        nextNodeId: string;
-        effect?: string;
-      };
-      // Emit event for DialogueSystem to handle
-      this.world.emit(EventType.DIALOGUE_RESPONSE, {
-        playerId: playerEntity.id,
-        npcId: payload.npcId,
-        responseIndex: payload.responseIndex,
-        nextNodeId: payload.nextNodeId,
-        effect: payload.effect,
-      });
-    };
+    // Dialogue handlers (with input validation)
+    this.handlers["onDialogueResponse"] = (socket, data) =>
+      handleDialogueResponse(
+        socket,
+        data as { npcId: string; responseIndex: number },
+        this.world,
+      );
 
-    this.handlers["onDialogueClose"] = (socket, data) => {
-      const playerEntity = socket.player;
-      if (!playerEntity) return;
-      const payload = data as { npcId: string };
-      // Emit event for DialogueSystem to handle cleanup
-      this.world.emit(EventType.DIALOGUE_END, {
-        playerId: playerEntity.id,
-        npcId: payload.npcId,
-      });
-    };
+    this.handlers["onDialogueClose"] = (socket, data) =>
+      handleDialogueClose(socket, data as { npcId: string }, this.world);
 
     // Store handlers
     this.handlers["onStoreOpen"] = (socket, data) =>
@@ -793,6 +797,7 @@ export class ServerNetwork extends System implements NetworkWithSocket {
   override destroy(): void {
     this.socketManager.destroy();
     this.saveManager.destroy();
+    this.interactionSessionManager.destroy();
     this.tickSystem.stop();
 
     for (const [_id, socket] of this.sockets) {
