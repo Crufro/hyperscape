@@ -116,6 +116,7 @@ export class PlayerEntity extends CombatantEntity {
         constitution: { level: 10, xp: 1154 },
         ranged: { level: 1, xp: 0 },
         woodcutting: { level: 1, xp: 0 },
+        mining: { level: 1, xp: 0 },
         fishing: { level: 1, xp: 0 },
         firemaking: { level: 1, xp: 0 },
         cooking: { level: 1, xp: 0 },
@@ -346,6 +347,7 @@ export class PlayerEntity extends CombatantEntity {
         constitution: { level: 10, xp: 0 }, // Higher starting constitution
         ranged: defaultSkill,
         woodcutting: defaultSkill,
+        mining: defaultSkill,
         fishing: defaultSkill,
         firemaking: defaultSkill,
         cooking: defaultSkill,
@@ -484,6 +486,7 @@ export class PlayerEntity extends CombatantEntity {
       ranged: playerData.skills.ranged,
       // Non-combat skills
       woodcutting: playerData.skills.woodcutting,
+      mining: playerData.skills.mining,
       fishing: playerData.skills.fishing,
       firemaking: playerData.skills.firemaking,
       cooking: playerData.skills.cooking,

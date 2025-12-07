@@ -7,7 +7,6 @@
 import { Entity } from "../../entities/Entity";
 import { PlayerLocal } from "../../entities/player/PlayerLocal";
 import { Skills, InventoryItem, Position3D } from "../core/core";
-import type { Resource } from "../core/core";
 import type { Item } from "../core/core";
 import type { EntitySpawnedEvent } from "../systems/system-interfaces";
 import { EventType } from "./event-types";
@@ -274,6 +273,12 @@ export interface PlayerDeathEvent {
   cause: string;
 }
 
+export interface PlayerSetDeadEvent {
+  playerId: string;
+  isDead: boolean;
+  deathPosition?: { x: number; y: number; z: number };
+}
+
 export interface PlayerRespawnRequestEvent {
   playerId: string;
   requestTime: number;
@@ -486,6 +491,7 @@ export interface EventMap {
     health: number;
     maxHealth: number;
   };
+  [EventType.PLAYER_SET_DEAD]: PlayerSetDeadEvent;
   [EventType.PLAYER_TELEPORT_REQUEST]: {
     playerId: string;
     position: { x: number; y: number; z: number };
