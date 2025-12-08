@@ -105,7 +105,7 @@ export function handleStoreOpen(
   world.emit(EventType.STORE_OPEN_REQUEST, {
     playerId,
     npcId: data.npcId,
-    npcEntityId: data.npcEntityId,
+    inventory: [], // Inventory required by event type (not used for store open)
   });
 }
 

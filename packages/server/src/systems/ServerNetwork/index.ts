@@ -496,7 +496,6 @@ export class ServerNetwork extends System implements NetworkWithSocket {
       handleCharacterSelected(
         socket,
         data,
-        this.world,
         this.broadcastManager.sendToSocket.bind(this.broadcastManager),
       );
 
