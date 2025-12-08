@@ -125,7 +125,7 @@ function setupSpectatorCamera(
     // The camera system reads target.position every frame, and we need
     // TileInterpolator's position updates to be reflected automatically
     world.emit(EventType.CAMERA_SET_TARGET, {
-      target: entity,
+      target: entity as { position: { x: number; y: number; z: number } },
     });
 
     // Ensure controls are still disabled (belt and suspenders)
