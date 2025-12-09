@@ -122,6 +122,7 @@ const names = [
   'pickupItem',
   // Inventory action packets
   'dropItem',
+  'moveItem',
   // Equipment packets
   'equipItem',
   'unequipItem',
@@ -167,6 +168,8 @@ const names = [
   'bankDeposit',
   'bankDepositAll',
   'bankWithdraw',
+  'bankDepositCoins',
+  'bankWithdrawCoins',
   'bankClose',
   // Store packets
   'storeOpen',

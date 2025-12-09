@@ -297,19 +297,15 @@ describe("Bank Handler Integration - Input Validation", () => {
 
   it("validates slot index is within bounds", () => {
     const maxSlots = INPUT_LIMITS.MAX_INVENTORY_SLOTS;
+    const isValidSlotIndex = (slot: number) => slot >= 0 && slot < maxSlots;
 
     // Valid slots
-    // eslint-disable-next-line no-constant-binary-expression
-    expect(0 >= 0 && 0 < maxSlots).toBe(true);
-    // eslint-disable-next-line no-constant-binary-expression
-    expect(27 >= 0 && 27 < maxSlots).toBe(true);
+    expect(isValidSlotIndex(0)).toBe(true);
+    expect(isValidSlotIndex(27)).toBe(true);
 
     // Invalid slots
-    // eslint-disable-next-line no-constant-binary-expression
-    expect(-1 >= 0 && -1 < maxSlots).toBe(false);
-    // eslint-disable-next-line no-constant-binary-expression
-    expect(28 >= 0 && 28 < maxSlots).toBe(false);
-    // eslint-disable-next-line no-constant-binary-expression
-    expect(100 >= 0 && 100 < maxSlots).toBe(false);
+    expect(isValidSlotIndex(-1)).toBe(false);
+    expect(isValidSlotIndex(28)).toBe(false);
+    expect(isValidSlotIndex(100)).toBe(false);
   });
 });
