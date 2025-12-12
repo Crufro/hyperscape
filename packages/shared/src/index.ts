@@ -147,7 +147,16 @@ export {
 } from "./utils/index";
 
 // Export item helpers used by server network snapshot
-export { getItem } from "./data/items";
+export {
+  getItem,
+  getBaseItem,
+  getNotedItem,
+  canBeNoted,
+  isNotedItemId,
+  getBaseItemId,
+  getNotedItemId,
+  NOTE_SUFFIX,
+} from "./data/items";
 
 // Export store helpers used by server store handler
 export { getStoreById } from "./data/banks-stores";
@@ -469,7 +478,10 @@ export type { Entities as EntitiesInterface } from "./types/index";
 export type { SystemLogger } from "./utils/Logger";
 
 // Export network/system interface types
-export type { NetworkSystem } from "./types/systems/system-interfaces";
+export type {
+  NetworkSystem,
+  EquipmentSystem,
+} from "./types/systems/system-interfaces";
 export type { IEventsInterface } from "./systems/shared";
 
 // Export Client Interface types
@@ -719,3 +731,22 @@ export type {
   ValidationResult,
   SessionCloseReason,
 } from "./types/interaction";
+
+// Bank equipment type guards, types, and constants
+export {
+  isValidPlayerEquipmentData,
+  isValidPlayerEquipmentStructure,
+  MVP_EQUIPMENT_SLOTS,
+} from "./types/bank-equipment";
+export { VALID_EQUIPMENT_SLOT_KEYS } from "./constants/BankEquipmentConstants";
+export type {
+  PlayerEquipmentData,
+  EquipmentSlotItem,
+  BankEquipmentError,
+  BankRightPanelMode,
+  WithdrawTarget,
+  BankWithdrawToEquipmentRequest,
+  BankWithdrawToEquipmentResponse,
+  BankDepositEquipmentRequest,
+  BankDepositEquipmentResponse,
+} from "./types/bank-equipment";

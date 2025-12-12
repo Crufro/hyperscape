@@ -171,6 +171,21 @@ const names = [
   'bankDepositCoins',
   'bankWithdrawCoins',
   'bankClose',
+  'bankMove',
+  // Bank tab packets (Phase 2)
+  'bankCreateTab',     // Create new tab with first item
+  'bankDeleteTab',     // Delete tab (items move to main tab)
+  'bankMoveToTab',     // Move item between tabs
+  'bankSelectTab',     // Client selected a different tab
+  // Bank placeholder packets (Phase 3 - RS3 style: qty=0 in bank_storage)
+  'bankWithdrawPlaceholder',      // Withdraw all and leave qty=0 placeholder (RS3 style)
+  'bankReleasePlaceholder',       // Release single placeholder (delete qty=0 row)
+  'bankReleaseAllPlaceholders',   // Clear all placeholders (delete all qty=0 rows)
+  'bankToggleAlwaysPlaceholder',  // Toggle auto-placeholder setting
+  // Bank equipment tab packets (RS3-style equipment view in bank)
+  'bankWithdrawToEquipment',      // Withdraw item directly to equipment slot
+  'bankDepositEquipment',         // Deposit single equipment slot to bank
+  'bankDepositAllEquipment',      // Deposit all worn equipment to bank
   // Store packets
   'storeOpen',
   'storeState',

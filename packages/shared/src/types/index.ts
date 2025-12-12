@@ -6,6 +6,8 @@ import type { Node as NodeClass } from "../nodes/Node";
 import { System } from "../systems/shared";
 import { World } from "../core/World";
 import type { EntityData, Position2D, Position3D } from "./core/base-types";
+// Import banking constants - single source of truth for MAX_BANK_SLOTS
+import { BANKING_CONSTANTS } from "../constants/BankingConstants";
 
 // Re-enable core imports - circular dependency should be resolved
 import type {
@@ -132,6 +134,7 @@ export type Player = PlayerEntity;
 export type {
   ClientInterfaceSystem,
   ItemRegistrySystem,
+  EquipmentSystem,
 } from "./systems/system-interfaces";
 
 // Re-export data types (specific exports to avoid conflicts)
@@ -202,7 +205,7 @@ export type EventCallback<T extends BaseEventData = BaseEventData> = (
 // Constants
 export const CONSTANTS = {
   MAX_INVENTORY_SLOTS: 28,
-  MAX_BANK_SLOTS: 500,
+  MAX_BANK_SLOTS: BANKING_CONSTANTS.MAX_BANK_SLOTS, // Single source: BankingConstants.ts
   DEFAULT_HEALTH: 100,
   DEFAULT_STAMINA: 100,
   COMBAT_TIMEOUT_MS: 10000,
@@ -1356,3 +1359,5 @@ export interface RaycastHit {
 export * from "./game";
 export * from "./systems";
 export * from "./entities";
+export * from "./bank-equipment";
+export * from "./bank-operations";
