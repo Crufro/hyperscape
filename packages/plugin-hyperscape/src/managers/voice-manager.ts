@@ -231,7 +231,7 @@ export class VoiceManager {
       name,
       source: "hyperscape",
       channelId,
-      serverId: "hyperscape",
+
       type: ChannelType.WORLD,
       worldId: _currentWorldId,
       userId: playerId,

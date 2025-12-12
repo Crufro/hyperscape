@@ -14,7 +14,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { ClientWorld, InventorySlotItem } from "../../types";
 import { COLORS } from "../../constants";
-import { getItem } from "@hyperscape/shared";
 
 interface StoreItem {
   id: string;
@@ -285,7 +284,7 @@ export function StorePanel({
   world,
   inventory,
   coins,
-  npcEntityId,
+  // npcEntityId,
   onClose,
 }: StorePanelProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({

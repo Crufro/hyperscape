@@ -125,7 +125,7 @@ function setupSpectatorCamera(
     // The camera system reads target.position every frame, and we need
     // TileInterpolator's position updates to be reflected automatically
     world.emit(EventType.CAMERA_SET_TARGET, {
-      target: entity,
+      target: entity as { position: { x: number; y: number; z: number } },
     });
 
     // Ensure controls are still disabled (belt and suspenders)
@@ -256,7 +256,7 @@ function setupSpectatorCamera(
 /**
  * Apply quality presets based on embedded config
  */
-function applyQualityPresets(world: World, config: EmbeddedViewportConfig) {
+function applyQualityPresets(world: World) {
   const quality = getQualityPreset();
 
   // Apply render scale
@@ -328,7 +328,7 @@ export function EmbeddedGameClient() {
       cleanupRef.current = setupSpectatorCamera(world, config);
 
       // Apply quality presets
-      applyQualityPresets(world, config);
+      applyQualityPresets(world);
     },
     [config],
   );
