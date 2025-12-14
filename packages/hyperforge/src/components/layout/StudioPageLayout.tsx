@@ -1,0 +1,251 @@
+"use client";
+
+import { ReactNode, useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Library,
+  UserCog,
+  Shield,
+  Hand,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  MessageSquare,
+  Plus,
+  ArrowLeft,
+  type LucideIcon,
+} from "lucide-react";
+
+interface StudioPageLayoutProps {
+  children: ReactNode;
+  title: string;
+  description?: string;
+  /** Optional sidebar content for tool options */
+  toolsSidebar?: ReactNode;
+  /** Optional asset selection sidebar */
+  assetSidebar?: ReactNode;
+  /** Show vault by default */
+  showVault?: boolean;
+}
+
+// Studio pages that link to separate routes
+const studioPages: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/studio/equipment", label: "Equipment Fitting", icon: UserCog },
+  { href: "/studio/armor", label: "Armor Fitting", icon: Shield },
+  { href: "/studio/hands", label: "Hand Rigging", icon: Hand },
+  { href: "/studio/retarget", label: "Retarget & Animate", icon: RefreshCw },
+];
+
+export function StudioPageLayout({
+  children,
+  title,
+  description,
+  toolsSidebar,
+  assetSidebar,
+  showVault = true,
+}: StudioPageLayoutProps) {
+  const pathname = usePathname();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [vaultOpen, setVaultOpen] = useState(showVault);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure consistent rendering between server and client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Show a minimal skeleton during SSR to avoid hydration mismatch with icons
+  if (!mounted) {
+    return (
+      <div className="flex h-screen bg-background overflow-hidden">
+        <aside className="w-56 border-r border-glass-border bg-glass-bg/30 flex flex-col flex-shrink-0" />
+        <main className="flex-1 relative overflow-hidden">{children}</main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* === LEFT SIDEBAR: NAVIGATION === */}
+      <aside
+        className={`
+          ${sidebarCollapsed ? "w-16" : "w-56"} 
+          border-r border-glass-border bg-glass-bg/30 flex flex-col flex-shrink-0
+          transition-all duration-300 ease-in-out
+        `}
+      >
+        {/* Logo */}
+        <div className="p-4 border-b border-glass-border">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            {!sidebarCollapsed && (
+              <span className="font-bold text-lg tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 whitespace-nowrap">
+                HYPERFORGE
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Back to Library */}
+        <div className="p-3 border-b border-glass-border">
+          <Link
+            href="/"
+            className={`
+              w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+              text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
+              ${sidebarCollapsed ? "justify-center" : ""}
+            `}
+          >
+            <ArrowLeft className="w-4 h-4 flex-shrink-0" />
+            {!sidebarCollapsed && <span>Back to Library</span>}
+          </Link>
+        </div>
+
+        {/* Generate New Button */}
+        <div className="p-3 border-b border-glass-border">
+          <Link
+            href="/generate"
+            className={`
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+              bg-gradient-to-r from-cyan-500 to-blue-600 text-white
+              hover:from-cyan-400 hover:to-blue-500
+              transition-all duration-200 shadow-lg shadow-cyan-500/20
+              ${sidebarCollapsed ? "justify-center" : ""}
+            `}
+          >
+            <Plus className="w-4 h-4 flex-shrink-0" />
+            {!sidebarCollapsed && <span>Generate New</span>}
+          </Link>
+        </div>
+
+        {/* Studio Pages */}
+        <div className="flex-1 p-3 overflow-hidden">
+          {!sidebarCollapsed && (
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+              Studio
+            </div>
+          )}
+          <nav className="space-y-1">
+            {studioPages.map((page) => {
+              const isActive = pathname === page.href;
+              return (
+                <Link
+                  key={page.href}
+                  href={page.href}
+                  title={sidebarCollapsed ? page.label : undefined}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                    transition-all duration-200
+                    ${sidebarCollapsed ? "justify-center" : ""}
+                    ${
+                      isActive
+                        ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                        : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                    }
+                  `}
+                >
+                  <page.icon
+                    className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-cyan-400" : ""}`}
+                  />
+                  {!sidebarCollapsed && (
+                    <span className="truncate">{page.label}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Content Link */}
+          <div
+            className={`mt-6 pt-4 border-t border-glass-border ${sidebarCollapsed ? "px-0" : ""}`}
+          >
+            {!sidebarCollapsed && (
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+                Content
+              </div>
+            )}
+            <Link
+              href="/content"
+              title={sidebarCollapsed ? "NPC Dialogue" : undefined}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
+                ${sidebarCollapsed ? "justify-center" : ""}
+              `}
+            >
+              <MessageSquare className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>NPC Dialogue</span>}
+            </Link>
+          </div>
+        </div>
+
+        {/* Vault Toggle & Collapse */}
+        <div className="p-3 border-t border-glass-border space-y-2">
+          {assetSidebar && (
+            <button
+              onClick={() => setVaultOpen(!vaultOpen)}
+              title={sidebarCollapsed ? "Assets" : undefined}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                transition-all duration-200
+                ${sidebarCollapsed ? "justify-center" : ""}
+                ${
+                  vaultOpen
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                }
+              `}
+            >
+              <Library className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Assets</span>}
+            </button>
+          )}
+
+          {/* Collapse Toggle */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200"
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <>
+                <ChevronLeft className="w-4 h-4" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+
+      {/* === ASSET SELECTION SIDEBAR === */}
+      {vaultOpen && assetSidebar && (
+        <div className="w-72 border-r border-glass-border bg-glass-bg/20 flex flex-col flex-shrink-0">
+          {assetSidebar}
+        </div>
+      )}
+
+      {/* === TOOLS SIDEBAR (Right side) === */}
+      {toolsSidebar && (
+        <div className="w-80 border-r border-glass-border bg-glass-bg/20 flex flex-col flex-shrink-0 order-last">
+          <div className="p-4 border-b border-glass-border">
+            <h2 className="font-semibold">{title}</h2>
+            {description && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {description}
+              </p>
+            )}
+          </div>
+          <div className="flex-1 overflow-y-auto">{toolsSidebar}</div>
+        </div>
+      )}
+
+      {/* === MAIN VIEWPORT === */}
+      <main className="flex-1 relative overflow-hidden">{children}</main>
+    </div>
+  );
+}

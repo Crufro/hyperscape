@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode: "Clean Room" - Industrial Constructivist */
+    /* Sterile engineering lab with Safety Orange accents */
+    --background: 98% 0.01 240; /* Ceramic White */
+    --foreground: 15% 0.02 260; /* Very Dark Slate - HIGH CONTRAST */
+
+    --glass-bg: 85% 0.01 240; /* Much darker grey for clear contrast */
+    --glass-border: 65% 0 0; /* Dark border for definition */
+
+    --neon-blue: 40% 0.15 240; /* Darker Technical Blueprint Blue */
+    --neon-purple: 45% 0.25 45; /* Darker Safety Orange for better contrast */
+    --neon-green: 40% 0.18 150; /* Darker Success Green */
+
+    --radius: 0.25rem; /* Sharp 4px corners - machined look */
+  }
+
+  .dark {
+    /* Dark Mode: "Molten Core" - High-heat foundry */
+    /* Matte charcoal with glowing molten gold accents */
+    --background: 12% 0.05 260; /* Obsidian / Matte Black */
+    --foreground: 95% 0.01 240; /* White / Light Grey (high contrast) */
+
+    --glass-bg: 18% 0.05 260; /* Gunmetal Grey */
+    --glass-border: 30% 0 0; /* Dark Iron */
+
+    --neon-blue: 65% 0.15 200; /* Coolant Teal */
+    --neon-purple: 75% 0.2 70; /* Molten Gold / Heat Warning */
+    --neon-green: 60% 0.18 150; /* Success indicator */
+  }
+}
+
+body {
+  @apply bg-background text-foreground font-mono;
+  overflow: hidden;
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-[oklch(var(--glass-bg))] backdrop-blur-sm border border-[oklch(var(--glass-border))];
+  }
+
+  .industrial-border {
+    border: 1px solid oklch(var(--glass-border));
+  }
+
+  .molten-glow {
+    box-shadow: 0 0 8px oklch(var(--neon-purple) / 0.4);
+  }
+
+  .technical-grid {
+    background-image:
+      linear-gradient(oklch(var(--glass-border) / 0.3) 1px, transparent 1px),
+      linear-gradient(
+        90deg,
+        oklch(var(--glass-border) / 0.3) 1px,
+        transparent 1px
+      );
+    background-size: 20px 20px;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(var(--neon-blue), 0.5);
+  }
+
+  .neon-blue-glow {
+    box-shadow:
+      0 0 10px hsl(var(--neon-blue)),
+      0 0 20px hsl(var(--neon-blue) / 0.5);
+  }
+}
+

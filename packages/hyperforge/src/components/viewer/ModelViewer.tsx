@@ -1,0 +1,184 @@
+"use client";
+
+import { useGLTF, Center, Html } from "@react-three/drei";
+import { Suspense, useMemo, useEffect, useState } from "react";
+import * as THREE from "three";
+
+interface ModelViewerProps {
+  modelUrl?: string;
+  onModelLoad?: (info: ModelInfo) => void;
+}
+
+export interface ModelInfo {
+  vertices: number;
+  faces: number;
+  materials: number;
+  animations: number;
+  hasRig: boolean;
+}
+
+/**
+ * Placeholder box shown when no model is loaded
+ */
+function PlaceholderBox() {
+  return (
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#444" wireframe />
+    </mesh>
+  );
+}
+
+/**
+ * Loading indicator while model is being fetched
+ */
+function LoadingIndicator() {
+  return (
+    <Html center>
+      <div className="flex flex-col items-center gap-2 text-white">
+        <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm">Loading model...</span>
+      </div>
+    </Html>
+  );
+}
+
+/**
+ * Error display when model fails to load
+ */
+function ErrorDisplay({ error }: { error: string }) {
+  return (
+    <Html center>
+      <div className="bg-red-500/80 text-white px-4 py-2 rounded-md text-sm max-w-xs text-center">
+        Failed to load model: {error}
+      </div>
+    </Html>
+  );
+}
+
+/**
+ * The actual model component that loads and displays GLB/GLTF
+ */
+function LoadedModel({
+  modelUrl,
+  onModelLoad,
+}: {
+  modelUrl: string;
+  onModelLoad?: (info: ModelInfo) => void;
+}) {
+  const gltf = useGLTF(modelUrl);
+  const [error, setError] = useState<string | null>(null);
+
+  // Calculate model info
+  const modelInfo = useMemo(() => {
+    let vertices = 0;
+    let faces = 0;
+    const materials = new Set<THREE.Material>();
+    let hasRig = false;
+
+    gltf.scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const geometry = child.geometry;
+        if (geometry.attributes.position) {
+          vertices += geometry.attributes.position.count;
+        }
+        if (geometry.index) {
+          faces += geometry.index.count / 3;
+        } else if (geometry.attributes.position) {
+          faces += geometry.attributes.position.count / 3;
+        }
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => materials.add(m));
+        } else if (child.material) {
+          materials.add(child.material);
+        }
+      }
+      if (child instanceof THREE.SkinnedMesh) {
+        hasRig = true;
+      }
+    });
+
+    return {
+      vertices,
+      faces: Math.floor(faces),
+      materials: materials.size,
+      animations: gltf.animations?.length || 0,
+      hasRig,
+    };
+  }, [gltf]);
+
+  // Notify parent of model info
+  useEffect(() => {
+    onModelLoad?.(modelInfo);
+  }, [modelInfo, onModelLoad]);
+
+  // Auto-scale and center the model
+  const scaledScene = useMemo(() => {
+    const scene = gltf.scene.clone();
+
+    // Calculate bounding box
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    // Calculate scale to fit in unit cube
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = maxDim > 0 ? 2 / maxDim : 1;
+
+    scene.scale.setScalar(scale);
+
+    // Center the model
+    scene.position.sub(center.multiplyScalar(scale));
+
+    return scene;
+  }, [gltf]);
+
+  if (error) {
+    return <ErrorDisplay error={error} />;
+  }
+
+  return (
+    <Center>
+      <primitive object={scaledScene} />
+    </Center>
+  );
+}
+
+/**
+ * Main ModelViewer component
+ * Loads and displays GLB/GLTF models from URLs
+ */
+export function ModelViewer({ modelUrl, onModelLoad }: ModelViewerProps) {
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Reset error when URL changes
+  useEffect(() => {
+    setLoadError(null);
+  }, [modelUrl]);
+
+  // Show placeholder if no URL
+  if (!modelUrl) {
+    return <PlaceholderBox />;
+  }
+
+  // Handle loading errors
+  if (loadError) {
+    return (
+      <>
+        <PlaceholderBox />
+        <ErrorDisplay error={loadError} />
+      </>
+    );
+  }
+
+  return (
+    <Suspense fallback={<LoadingIndicator />}>
+      <LoadedModel modelUrl={modelUrl} onModelLoad={onModelLoad} />
+    </Suspense>
+  );
+}
+
+// Preload function for optimizing load times
+ModelViewer.preload = (url: string) => {
+  useGLTF.preload(url);
+};

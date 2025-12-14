@@ -1,0 +1,51 @@
+/**
+ * Asset Types
+ * Unified types for all assets (CDN, Local, Base)
+ */
+
+import type {
+  AssetSource,
+  AssetRarity,
+  AssetCategory,
+} from "@/lib-core/cdn/types";
+
+export interface BaseAssetData {
+  id: string;
+  name: string;
+  source: AssetSource;
+  category: AssetCategory;
+  description?: string;
+  thumbnailUrl?: string;
+  modelUrl?: string;
+  rarity?: AssetRarity;
+  /** Whether this asset has a VRM version */
+  hasVRM?: boolean;
+  /** URL to the VRM model (if available) */
+  vrmUrl?: string;
+  /** Path to the VRM model (if available) */
+  vrmPath?: string;
+  /** Whether this asset has hand bones added */
+  hasHandRigging?: boolean;
+}
+
+export interface CDNAssetData extends BaseAssetData {
+  source: "CDN";
+  modelPath: string;
+}
+
+export interface LocalAssetData extends BaseAssetData {
+  source: "LOCAL";
+  status: "draft" | "processing" | "completed" | "failed";
+  localPath: string;
+  createdAt: Date;
+  updatedAt: Date;
+  prompt?: string;
+  generationParams?: Record<string, unknown>;
+}
+
+export interface BaseTemplateAssetData extends BaseAssetData {
+  source: "BASE";
+  modelPath: string;
+}
+
+export type AssetData = CDNAssetData | LocalAssetData | BaseTemplateAssetData;
