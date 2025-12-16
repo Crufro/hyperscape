@@ -101,6 +101,16 @@ interface ItemGameData {
   requirements?: { level: number; skills: Record<string, number> };
 }
 
+interface DropSource {
+  npcId: string;
+  npcName: string;
+  npcLevel: number;
+  dropRarity: string;
+  chance: number;
+  minQuantity: number;
+  maxQuantity: number;
+}
+
 interface PropertiesPanelProps {
   asset: AssetData | null;
   isOpen: boolean;
@@ -179,6 +189,7 @@ export function PropertiesPanel({
   const [npcData, setNpcData] = useState<NPCGameData | null>(null);
   const [toolData, setToolData] = useState<ItemGameData | null>(null);
   const [relatedItems, setRelatedItems] = useState<ItemGameData[]>([]);
+  const [dropSources, setDropSources] = useState<DropSource[]>([]);
   const [isLoadingGameData, setIsLoadingGameData] = useState(false);
 
   // Fetch game data when asset changes
@@ -191,6 +202,7 @@ export function PropertiesPanel({
       setNpcData(null);
       setToolData(null);
       setRelatedItems([]);
+      setDropSources([]);
 
       try {
         // Determine what type of game data to fetch based on asset properties
@@ -204,6 +216,14 @@ export function PropertiesPanel({
           asset.category === "mob" ||
           asset.type === "mob" ||
           asset.id?.includes("goblin");
+        const isItem =
+          asset.category === "weapon" ||
+          asset.category === "armor" ||
+          asset.category === "tool" ||
+          asset.category === "item" ||
+          asset.type === "weapon" ||
+          asset.type === "armor" ||
+          asset.type === "tool";
 
         if (isResource) {
           // Try to find matching resource
@@ -225,6 +245,16 @@ export function PropertiesPanel({
             const data = await res.json();
             setNpcData(data.data);
             if (data.relatedItems) setRelatedItems(data.relatedItems);
+          }
+        } else if (isItem) {
+          // Fetch item data to see which monsters drop it
+          const itemId = asset.id;
+          if (itemId) {
+            const res = await fetch(`/api/game/data?type=item&id=${itemId}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.dropSources) setDropSources(data.dropSources);
+            }
           }
         }
       } catch (error) {
@@ -803,6 +833,86 @@ export function PropertiesPanel({
                     s
                   </span>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Item Drop Sources */}
+          {dropSources.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-glass-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Skull className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-semibold">Dropped By</span>
+                <Badge variant="outline" className="text-[10px] ml-auto">
+                  {dropSources.length} source
+                  {dropSources.length !== 1 ? "s" : ""}
+                </Badge>
+              </div>
+
+              <div className="space-y-1 max-h-48 overflow-y-auto themed-scrollbar">
+                {dropSources.map((source, idx) => {
+                  const quantityText =
+                    source.minQuantity === source.maxQuantity
+                      ? `×${source.minQuantity}`
+                      : `×${source.minQuantity}-${source.maxQuantity}`;
+
+                  const chanceText =
+                    source.chance >= 1
+                      ? "Always"
+                      : source.chance >= 0.1
+                        ? `${(source.chance * 100).toFixed(0)}%`
+                        : source.chance >= 0.01
+                          ? `${(source.chance * 100).toFixed(1)}%`
+                          : `1/${Math.round(1 / source.chance)}`;
+
+                  return (
+                    <div
+                      key={`${source.npcId}-${idx}`}
+                      className="flex items-center justify-between p-2 rounded bg-glass-bg/50 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Skull className="w-3 h-3 text-purple-400" />
+                        <div>
+                          <span className="font-medium">{source.npcName}</span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            (Lv. {source.npcLevel})
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {quantityText}
+                        </span>
+                        <Badge
+                          variant={
+                            source.dropRarity === "always"
+                              ? "default"
+                              : "outline"
+                          }
+                          className={cn(
+                            "text-[10px]",
+                            source.dropRarity === "always" &&
+                              "bg-green-500/20 text-green-400",
+                            source.dropRarity === "common" && "text-gray-400",
+                            source.dropRarity === "uncommon" &&
+                              "text-green-400",
+                            source.dropRarity === "rare" && "text-blue-400",
+                            source.dropRarity === "very_rare" &&
+                              "text-purple-400",
+                          )}
+                        >
+                          {chanceText}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {dropSources.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  This item is not dropped by any monsters
+                </p>
               )}
             </div>
           )}
