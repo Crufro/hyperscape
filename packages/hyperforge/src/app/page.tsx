@@ -21,10 +21,12 @@ import {
   Loader2,
   Mic,
   Volume2,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 import { Viewport3D } from "@/components/viewer/Viewport3D";
 import { AssetLibrary } from "@/components/vault/AssetLibrary";
+import { AssetUploadModal } from "@/components/vault/AssetUploadModal";
 import { WorldView } from "@/components/world/WorldView";
 import { useAppStore, type ModuleView } from "@/stores/app-store";
 import type { AssetData } from "@/types/asset";
@@ -83,6 +85,8 @@ export default function HomePage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [mounted, setMounted] = useState(false);
   const [worldViewOpen, setWorldViewOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [assetRefreshKey, setAssetRefreshKey] = useState(0);
 
   // Ensure consistent rendering between server and client for icons
   useEffect(() => {
@@ -92,6 +96,11 @@ export default function HomePage() {
   const handleAssetSelect = (asset: AssetData) => {
     setSelectedAsset(asset);
     // Properties panel opens automatically via store
+  };
+
+  const handleUploadComplete = () => {
+    // Refresh the asset library by changing the key
+    setAssetRefreshKey((prev) => prev + 1);
   };
 
   // Show a minimal skeleton during SSR to avoid hydration mismatch with Lucide icons
@@ -356,16 +365,32 @@ export default function HomePage() {
         </div>
       </aside>
 
+      {/* === UPLOAD MODAL === */}
+      <AssetUploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onUploadComplete={handleUploadComplete}
+      />
+
       {/* === VAULT PANEL: ASSET LIBRARY === */}
       {vaultOpen && (
         <div className="w-72 border-r border-glass-border bg-glass-bg/20 flex flex-col flex-shrink-0">
           {/* Vault Header */}
           <div className="p-4 border-b border-glass-border">
-            <div className="flex items-center gap-2 mb-3">
-              <Library className="w-4 h-4 text-cyan-400" />
-              <span className="font-semibold text-sm uppercase tracking-wider">
-                Vault
-              </span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Library className="w-4 h-4 text-cyan-400" />
+                <span className="font-semibold text-sm uppercase tracking-wider">
+                  Vault
+                </span>
+              </div>
+              <button
+                onClick={() => setUploadModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-cyan-500/20"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload
+              </button>
             </div>
 
             {/* Search */}
@@ -394,7 +419,10 @@ export default function HomePage() {
 
           {/* Asset List */}
           <div className="flex-1 overflow-y-auto">
-            <AssetLibrary onAssetSelect={handleAssetSelect} />
+            <AssetLibrary
+              key={assetRefreshKey}
+              onAssetSelect={handleAssetSelect}
+            />
           </div>
         </div>
       )}
