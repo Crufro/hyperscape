@@ -1,13 +1,105 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { X, Download, Upload, Copy, Trash2, Loader2, Play } from "lucide-react";
+import {
+  X,
+  Download,
+  Upload,
+  Copy,
+  Trash2,
+  Loader2,
+  Play,
+  Axe,
+  TreeDeciduous,
+  Sword,
+  Shield,
+  Heart,
+  Skull,
+  Coins,
+  Package,
+  Clock,
+  Target,
+  Zap,
+  AlertTriangle,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import type { AssetData } from "@/types/asset";
+
+// Game data types
+interface ResourceGameData {
+  id: string;
+  name: string;
+  type: string;
+  examine?: string;
+  harvestSkill: string;
+  toolRequired: string;
+  levelRequired: number;
+  baseCycleTicks: number;
+  depleteChance: number;
+  respawnTicks: number;
+  harvestYield: Array<{
+    itemId: string;
+    itemName: string;
+    quantity: number;
+    chance: number;
+    xpAmount: number;
+  }>;
+}
+
+interface NPCGameData {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  faction?: string;
+  stats?: {
+    level: number;
+    health: number;
+    attack: number;
+    strength: number;
+    defense: number;
+    ranged?: number;
+    magic?: number;
+  };
+  combat?: {
+    attackable: boolean;
+    aggressive?: boolean;
+    retaliates?: boolean;
+    aggroRange?: number;
+    combatRange?: number;
+    attackSpeedTicks?: number;
+    respawnTicks?: number;
+  };
+  drops?: {
+    defaultDrop?: { enabled: boolean; itemId: string; quantity: number };
+    always?: DropItem[];
+    common?: DropItem[];
+    uncommon?: DropItem[];
+    rare?: DropItem[];
+    veryRare?: DropItem[];
+  };
+}
+
+interface DropItem {
+  itemId: string;
+  minQuantity: number;
+  maxQuantity: number;
+  chance: number;
+  rarity: string;
+}
+
+interface ItemGameData {
+  id: string;
+  name: string;
+  type: string;
+  value?: number;
+  requirements?: { level: number; skills: Record<string, number> };
+}
 
 interface PropertiesPanelProps {
   asset: AssetData | null;
@@ -17,6 +109,52 @@ interface PropertiesPanelProps {
   onAssetDuplicated?: (newAsset: { id: string; name: string }) => void;
   /** When true, renders without container styling (used inside viewport overlay) */
   isViewportOverlay?: boolean;
+}
+
+// Rarity colors for drop table
+const rarityColors: Record<string, string> = {
+  common: "text-gray-400",
+  uncommon: "text-green-400",
+  rare: "text-blue-400",
+  very_rare: "text-purple-400",
+  veryRare: "text-purple-400",
+  legendary: "text-orange-400",
+};
+
+// Helper component for drop table rows
+function DropTableRow({ drop }: { drop: DropItem }) {
+  const quantityText =
+    drop.minQuantity === drop.maxQuantity
+      ? `×${drop.minQuantity}`
+      : `×${drop.minQuantity}-${drop.maxQuantity}`;
+
+  const chanceText =
+    drop.chance >= 1
+      ? "100%"
+      : drop.chance >= 0.1
+        ? `${(drop.chance * 100).toFixed(0)}%`
+        : drop.chance >= 0.01
+          ? `${(drop.chance * 100).toFixed(1)}%`
+          : `1/${Math.round(1 / drop.chance)}`;
+
+  return (
+    <div className="flex items-center justify-between p-2 rounded bg-glass-bg/50 text-sm">
+      <div className="flex items-center gap-2">
+        <Coins className="w-3 h-3 text-amber-400" />
+        <span className="capitalize">{drop.itemId.replace(/_/g, " ")}</span>
+        <span className="text-xs text-muted-foreground">{quantityText}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{chanceText}</span>
+        <Badge
+          variant="outline"
+          className={cn("text-[10px] capitalize", rarityColors[drop.rarity])}
+        >
+          {drop.rarity.replace("_", " ")}
+        </Badge>
+      </div>
+    </div>
+  );
 }
 
 export function PropertiesPanel({
@@ -33,6 +171,71 @@ export function PropertiesPanel({
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Game data states
+  const [resourceData, setResourceData] = useState<ResourceGameData | null>(
+    null,
+  );
+  const [npcData, setNpcData] = useState<NPCGameData | null>(null);
+  const [toolData, setToolData] = useState<ItemGameData | null>(null);
+  const [relatedItems, setRelatedItems] = useState<ItemGameData[]>([]);
+  const [isLoadingGameData, setIsLoadingGameData] = useState(false);
+
+  // Fetch game data when asset changes
+  useEffect(() => {
+    if (!asset) return;
+
+    const fetchGameData = async () => {
+      setIsLoadingGameData(true);
+      setResourceData(null);
+      setNpcData(null);
+      setToolData(null);
+      setRelatedItems([]);
+
+      try {
+        // Determine what type of game data to fetch based on asset properties
+        const isResource =
+          asset.category === "resource" ||
+          asset.type === "tree" ||
+          asset.type === "fishing_spot" ||
+          asset.id?.includes("tree");
+        const isNPC =
+          asset.category === "npc" ||
+          asset.category === "mob" ||
+          asset.type === "mob" ||
+          asset.id?.includes("goblin");
+
+        if (isResource) {
+          // Try to find matching resource
+          const resourceId =
+            asset.id === "tree" ? "tree_normal" : asset.id || "tree_normal";
+          const res = await fetch(
+            `/api/game/data?type=resource&id=${resourceId}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setResourceData(data.data);
+            if (data.toolData) setToolData(data.toolData);
+            if (data.relatedItems) setRelatedItems(data.relatedItems);
+          }
+        } else if (isNPC) {
+          const npcId = asset.id || "goblin";
+          const res = await fetch(`/api/game/data?type=npc&id=${npcId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setNpcData(data.data);
+            if (data.relatedItems) setRelatedItems(data.relatedItems);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch game data:", error);
+      } finally {
+        setIsLoadingGameData(false);
+      }
+    };
+
+    fetchGameData();
+  }, [asset?.id, asset?.category, asset?.type]);
 
   if (!isOpen || !asset) return null;
 
@@ -329,6 +532,280 @@ export function PropertiesPanel({
               </div>
             )}
           </div>
+
+          {/* Resource Game Data */}
+          {isLoadingGameData && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+              <span className="ml-2 text-sm text-muted-foreground">
+                Loading game data...
+              </span>
+            </div>
+          )}
+
+          {resourceData && (
+            <div className="mt-4 pt-4 border-t border-glass-border space-y-3">
+              <div className="flex items-center gap-2">
+                <TreeDeciduous className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-semibold">
+                  Harvesting Requirements
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                  <Target className="w-4 h-4 text-cyan-400" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Level Required
+                    </p>
+                    <p className="font-semibold">
+                      {resourceData.levelRequired}{" "}
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {resourceData.harvestSkill}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                  <Axe className="w-4 h-4 text-amber-400" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Tool Required
+                    </p>
+                    <p className="font-semibold">
+                      {toolData?.name || resourceData.toolRequired}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                  <Clock className="w-4 h-4 text-blue-400" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Harvest Time
+                    </p>
+                    <p className="font-semibold">
+                      {(resourceData.baseCycleTicks * 0.6).toFixed(1)}s
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Deplete Chance
+                    </p>
+                    <p className="font-semibold">
+                      {(resourceData.depleteChance * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Harvest Yields */}
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Package className="w-3 h-3" /> Harvest Yields
+                </p>
+                <div className="space-y-1">
+                  {resourceData.harvestYield.map((yield_item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 rounded bg-glass-bg/50 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Package className="w-3 h-3 text-amber-400" />
+                        <span>{yield_item.itemName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ×{yield_item.quantity}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-green-400"
+                        >
+                          +{yield_item.xpAmount} XP
+                        </Badge>
+                        {yield_item.chance < 1 && (
+                          <span className="text-xs text-muted-foreground">
+                            {(yield_item.chance * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Respawn Time */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                <span>
+                  Respawns in {(resourceData.respawnTicks * 0.6).toFixed(0)}s
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* NPC/Mob Game Data */}
+          {npcData && (
+            <div className="mt-4 pt-4 border-t border-glass-border space-y-3">
+              {/* Combat Stats */}
+              {npcData.stats && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Sword className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-semibold">Combat Stats</span>
+                    {npcData.combat?.aggressive && (
+                      <Badge
+                        variant="destructive"
+                        className="text-[10px] ml-auto"
+                      >
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Aggressive
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="flex flex-col items-center p-2 rounded bg-glass-bg/50">
+                      <Skull className="w-4 h-4 text-purple-400 mb-1" />
+                      <p className="text-xs text-muted-foreground">Level</p>
+                      <p className="font-bold text-lg">{npcData.stats.level}</p>
+                    </div>
+
+                    <div className="flex flex-col items-center p-2 rounded bg-glass-bg/50">
+                      <Heart className="w-4 h-4 text-red-400 mb-1" />
+                      <p className="text-xs text-muted-foreground">Health</p>
+                      <p className="font-bold text-lg">
+                        {npcData.stats.health}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center p-2 rounded bg-glass-bg/50">
+                      <Sword className="w-4 h-4 text-orange-400 mb-1" />
+                      <p className="text-xs text-muted-foreground">Attack</p>
+                      <p className="font-bold text-lg">
+                        {npcData.stats.attack}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center p-2 rounded bg-glass-bg/50">
+                      <Zap className="w-4 h-4 text-amber-400 mb-1" />
+                      <p className="text-xs text-muted-foreground">Strength</p>
+                      <p className="font-bold text-lg">
+                        {npcData.stats.strength}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center p-2 rounded bg-glass-bg/50">
+                      <Shield className="w-4 h-4 text-blue-400 mb-1" />
+                      <p className="text-xs text-muted-foreground">Defense</p>
+                      <p className="font-bold text-lg">
+                        {npcData.stats.defense}
+                      </p>
+                    </div>
+
+                    {npcData.combat?.attackSpeedTicks && (
+                      <div className="flex flex-col items-center p-2 rounded bg-glass-bg/50">
+                        <Clock className="w-4 h-4 text-cyan-400 mb-1" />
+                        <p className="text-xs text-muted-foreground">
+                          Atk Speed
+                        </p>
+                        <p className="font-bold text-lg">
+                          {(npcData.combat.attackSpeedTicks * 0.6).toFixed(1)}s
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Combat behavior */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {npcData.combat?.retaliates && (
+                      <Badge variant="outline" className="text-orange-400">
+                        Retaliates
+                      </Badge>
+                    )}
+                    {npcData.combat?.aggroRange && (
+                      <Badge variant="outline" className="text-red-400">
+                        Aggro Range: {npcData.combat.aggroRange}m
+                      </Badge>
+                    )}
+                    {npcData.combat?.combatRange && (
+                      <Badge variant="outline" className="text-blue-400">
+                        Combat Range: {npcData.combat.combatRange}m
+                      </Badge>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Drop Table */}
+              {npcData.drops && (
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <Package className="w-3 h-3" /> Drop Table
+                  </p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto themed-scrollbar">
+                    {/* Default drop (bones) */}
+                    {npcData.drops.defaultDrop?.enabled && (
+                      <div className="flex items-center justify-between p-2 rounded bg-glass-bg/50 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-3 h-3 text-gray-400" />
+                          <span className="capitalize">
+                            {npcData.drops.defaultDrop.itemId.replace("_", " ")}
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          Always
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Always drops */}
+                    {npcData.drops.always?.map((drop, idx) => (
+                      <DropTableRow key={`always-${idx}`} drop={drop} />
+                    ))}
+
+                    {/* Common drops */}
+                    {npcData.drops.common?.map((drop, idx) => (
+                      <DropTableRow key={`common-${idx}`} drop={drop} />
+                    ))}
+
+                    {/* Uncommon drops */}
+                    {npcData.drops.uncommon?.map((drop, idx) => (
+                      <DropTableRow key={`uncommon-${idx}`} drop={drop} />
+                    ))}
+
+                    {/* Rare drops */}
+                    {npcData.drops.rare?.map((drop, idx) => (
+                      <DropTableRow key={`rare-${idx}`} drop={drop} />
+                    ))}
+
+                    {/* Very rare drops */}
+                    {npcData.drops.veryRare?.map((drop, idx) => (
+                      <DropTableRow key={`veryRare-${idx}`} drop={drop} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Respawn time */}
+              {npcData.combat?.respawnTicks && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    Respawns in {(npcData.combat.respawnTicks * 0.6).toFixed(0)}
+                    s
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="metadata" className="mt-4 space-y-3">
