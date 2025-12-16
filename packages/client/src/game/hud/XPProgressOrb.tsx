@@ -84,6 +84,23 @@ interface XPDropData {
   newLevel: number;
 }
 
+// Type guard for runtime validation of XP drop data from server
+function isValidXPDropData(data: unknown): data is XPDropData {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.skill === "string" &&
+    obj.skill.length > 0 &&
+    typeof obj.xpGained === "number" &&
+    typeof obj.newXp === "number" &&
+    typeof obj.newLevel === "number" &&
+    obj.xpGained >= 0 &&
+    obj.newXp >= 0 &&
+    obj.newLevel >= 1 &&
+    obj.newLevel <= 99
+  );
+}
+
 // Grouped XP drop - multiple skills combined into one floating element
 interface GroupedXPDrop {
   id: number;
@@ -386,21 +403,25 @@ export function XPProgressOrb({ world }: XPProgressOrbProps) {
     let levelUpTimeout: ReturnType<typeof setTimeout>;
 
     const handleXPDrop = (data: unknown) => {
-      const xpData = data as XPDropData;
+      // Validate data shape before processing
+      if (!isValidXPDropData(data)) {
+        console.warn("[XPProgressOrb] Invalid XP drop data received:", data);
+        return;
+      }
       const now = Date.now();
       // Normalize skill name (hitpoints → constitution, defense → defence)
-      const skillKey = normalizeSkillName(xpData.skill);
+      const skillKey = normalizeSkillName(data.skill);
 
       // Check for level up - track which specific skill leveled
       const prevLevel = previousLevelsRef.current[skillKey];
-      if (prevLevel !== undefined && xpData.newLevel > prevLevel) {
+      if (prevLevel !== undefined && data.newLevel > prevLevel) {
         setLevelUpSkill(skillKey);
         clearTimeout(levelUpTimeout);
         levelUpTimeout = setTimeout(() => {
           setLevelUpSkill(null);
         }, 600);
       }
-      previousLevelsRef.current[skillKey] = xpData.newLevel;
+      previousLevelsRef.current[skillKey] = data.newLevel;
 
       // Update active skills for orb display
       // Use normalized skill key for matching but display original name
@@ -409,9 +430,9 @@ export function XPProgressOrb({ world }: XPProgressOrbProps) {
           (s) => normalizeSkillName(s.skill) === skillKey,
         );
         const newSkill: ActiveSkill = {
-          skill: xpData.skill,
-          level: xpData.newLevel,
-          xp: xpData.newXp,
+          skill: data.skill,
+          level: data.newLevel,
+          xp: data.newXp,
           lastGainTime: now,
           isFading: false, // Reset fading state when receiving new XP
         };
@@ -435,10 +456,10 @@ export function XPProgressOrb({ world }: XPProgressOrbProps) {
       ) {
         // Add to existing pending drop
         pendingDropRef.current.skills.push({
-          skill: xpData.skill,
-          amount: xpData.xpGained,
+          skill: data.skill,
+          amount: data.xpGained,
         });
-        pendingDropRef.current.totalAmount += xpData.xpGained;
+        pendingDropRef.current.totalAmount += data.xpGained;
       } else {
         // Finalize any existing pending drop
         if (pendingDropRef.current) {
@@ -451,8 +472,8 @@ export function XPProgressOrb({ world }: XPProgressOrbProps) {
         // Create new pending drop
         pendingDropRef.current = {
           id: ++dropIdRef.current,
-          skills: [{ skill: xpData.skill, amount: xpData.xpGained }],
-          totalAmount: xpData.xpGained,
+          skills: [{ skill: data.skill, amount: data.xpGained }],
+          totalAmount: data.xpGained,
           startTime: now,
         };
 
