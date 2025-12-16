@@ -1880,6 +1880,17 @@ export class ClientNetwork extends SystemBase {
     this.world.emit(EventType.COMBAT_DAMAGE_DEALT, data);
   };
 
+  onXpDrop = (data: {
+    skill: string;
+    xpGained: number;
+    newXp: number;
+    newLevel: number;
+    position: { x: number; y: number; z: number };
+  }) => {
+    // Forward to local event system so XPDropSystem and XPProgressOrb can show visual feedback
+    this.world.emit(EventType.XP_DROP_RECEIVED, data);
+  };
+
   onPlayerUpdated = (data: {
     health: number;
     maxHealth: number;

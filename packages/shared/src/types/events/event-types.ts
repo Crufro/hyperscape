@@ -345,6 +345,7 @@ export enum EventType {
   SKILLS_ACTION = "skills:action",
   SKILLS_RESET = "skills:reset",
   SKILLS_MILESTONE = "skills:milestone",
+  XP_DROP_RECEIVED = "xp:drop_received",
   TOTAL_LEVEL_CHANGED = "total:level:changed",
 
   // Chat System
