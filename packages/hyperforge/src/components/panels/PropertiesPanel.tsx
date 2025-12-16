@@ -22,6 +22,8 @@ import {
   Target,
   Zap,
   AlertTriangle,
+  Globe,
+  RefreshCw,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -181,6 +183,7 @@ export function PropertiesPanel({
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isAddingToWorld, setIsAddingToWorld] = useState(false);
 
   // Game data states
   const [resourceData, setResourceData] = useState<ResourceGameData | null>(
@@ -469,6 +472,133 @@ export function PropertiesPanel({
 
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
+  };
+
+  const handleAddToWorld = async () => {
+    setIsAddingToWorld(true);
+
+    try {
+      // Step 1: Export asset to game server (if local)
+      if (asset.source === "LOCAL") {
+        toast({
+          variant: "default",
+          title: "Exporting Asset",
+          description: "Copying files to game server...",
+          duration: 2000,
+        });
+
+        const exportResponse = await fetch("/api/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assetId: asset.id,
+            targetType:
+              asset.category === "npc" || asset.category === "mob"
+                ? "npc"
+                : asset.category === "resource"
+                  ? "resource"
+                  : "item",
+            isDraft: false,
+            manifestEntry: {
+              id: asset.id,
+              name: asset.name,
+              type: asset.type || asset.category,
+              description: asset.description,
+              rarity: asset.rarity,
+            },
+          }),
+        });
+
+        if (!exportResponse.ok) {
+          const error = await exportResponse.json();
+          throw new Error(error.error || "Export failed");
+        }
+      }
+
+      // Step 2: Add entity to world.json
+      toast({
+        variant: "default",
+        title: "Adding to World",
+        description: "Creating world entity...",
+        duration: 2000,
+      });
+
+      // Determine model path based on source
+      const modelPath =
+        asset.source === "CDN" && "modelPath" in asset
+          ? `asset://world${asset.modelPath}`
+          : `asset://models/${asset.id}/${asset.id}.glb`;
+
+      const entityResponse = await fetch("/api/world/entities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: `${asset.id}_${Date.now()}`,
+          name: asset.name,
+          type:
+            asset.category === "npc" || asset.category === "mob"
+              ? "npc"
+              : asset.category === "resource"
+                ? "resource"
+                : "app",
+          blueprint: modelPath,
+          position: { x: 0, y: 0, z: 0 }, // Default spawn position
+          data: {
+            assetId: asset.id,
+            category: asset.category,
+            spawnArea: "central_haven", // Default area
+          },
+        }),
+      });
+
+      if (!entityResponse.ok) {
+        const error = await entityResponse.json();
+        throw new Error(error.error || "Failed to add entity");
+      }
+
+      // Step 3: Trigger server hot reload
+      toast({
+        variant: "default",
+        title: "Reloading Server",
+        description: "Triggering hot reload...",
+        duration: 2000,
+      });
+
+      const reloadResponse = await fetch("/api/server/reload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      const reloadResult = await reloadResponse.json();
+
+      if (reloadResponse.ok && reloadResult.success) {
+        toast({
+          variant: "success",
+          title: "Added to World!",
+          description: `${asset.name} is now in the game world. Server reloaded.`,
+          duration: 5000,
+        });
+      } else {
+        // Entity added but reload failed (maybe server not running)
+        toast({
+          variant: "default",
+          title: "Added to World",
+          description: `${asset.name} added to world.json. Restart server to see changes.`,
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error("Add to world failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Add to World",
+        description: error instanceof Error ? error.message : "Unknown error",
+        duration: 5000,
+      });
+    } finally {
+      setIsAddingToWorld(false);
+    }
   };
 
   // Content that's shared between viewport overlay and standalone modes
@@ -1034,6 +1164,27 @@ export function PropertiesPanel({
               </>
             )}
           </SpectacularButton>
+
+          {/* Add to World - exports, adds to world.json, and reloads server */}
+          <SpectacularButton
+            className="w-full"
+            variant="primary"
+            onClick={handleAddToWorld}
+            disabled={isAddingToWorld}
+          >
+            {isAddingToWorld ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Adding to World...
+              </>
+            ) : (
+              <>
+                <Globe className="w-4 h-4 mr-2" />
+                Add to World
+              </>
+            )}
+          </SpectacularButton>
+
           <SpectacularButton
             className="w-full"
             variant="outline"

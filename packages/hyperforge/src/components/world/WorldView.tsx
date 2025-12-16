@@ -244,7 +244,7 @@ export function WorldView({ isOpen, onClose }: WorldViewProps) {
     position: { x: 0, y: 0, z: 0 },
   });
 
-  // Fetch world data
+  // Fetch world data from real API
   const fetchWorldData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -254,63 +254,15 @@ export function WorldView({ isOpen, onClose }: WorldViewProps) {
         setEntities(data.entities || []);
         setAreas(data.areas || []);
       } else {
-        // Mock data for demonstration
-        setEntities([
-          {
-            id: "player_1",
-            name: "Local Player",
-            type: "player",
-            position: { x: 0, y: 0, z: 0 },
-            isActive: true,
-            loadedAt: new Date().toISOString(),
-            metadata: { health: 100, level: 1 },
-          },
-          {
-            id: "bank_central",
-            name: "Central Bank",
-            type: "building",
-            position: { x: 0, y: 17, z: -25 },
-            modelPath: "/models/bank.glb",
-            spawnArea: "central_haven",
-            isActive: true,
-            loadedAt: new Date().toISOString(),
-          },
-          {
-            id: "tree_15_-10",
-            name: "Oak Tree",
-            type: "resource",
-            position: { x: 15, y: 0, z: -10 },
-            modelPath: "/models/tree_normal.glb",
-            spawnArea: "central_haven",
-            isActive: true,
-            metadata: { resourceType: "woodcutting", level: 1 },
-          },
-          {
-            id: "tree_28_-18",
-            name: "Oak Tree",
-            type: "resource",
-            position: { x: 28, y: 0, z: -18 },
-            modelPath: "/models/tree_normal.glb",
-            spawnArea: "central_haven",
-            isActive: true,
-          },
-          {
-            id: "tree_36_-28",
-            name: "Oak Tree",
-            type: "resource",
-            position: { x: 36, y: 0, z: -28 },
-            modelPath: "/models/tree_normal.glb",
-            spawnArea: "central_haven",
-            isActive: true,
-          },
-        ]);
-        setAreas([
-          { id: "starter_area", name: "Starter Area", entities: [] },
-          { id: "central_haven", name: "Central Haven", entities: [] },
-        ]);
+        // API returned error - show empty state
+        console.warn("World API returned error:", res.status);
+        setEntities([]);
+        setAreas([]);
       }
     } catch (error) {
       console.error("Failed to fetch world data:", error);
+      setEntities([]);
+      setAreas([]);
     } finally {
       setIsLoading(false);
     }
@@ -343,13 +295,22 @@ export function WorldView({ isOpen, onClose }: WorldViewProps) {
 
   const handleRemoveEntity = async (id: string) => {
     // Optimistically remove from UI
+    const previousEntities = [...entities];
     setEntities((prev) => prev.filter((e) => e.id !== id));
 
     try {
-      await fetch(`/api/world/entities/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/world/entities/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        // Restore on failure
+        setEntities(previousEntities);
+        console.error("Failed to remove entity:", await res.text());
+      }
     } catch (error) {
+      // Restore on failure
+      setEntities(previousEntities);
       console.error("Failed to remove entity:", error);
-      // Could restore entity here on failure
     }
   };
 
