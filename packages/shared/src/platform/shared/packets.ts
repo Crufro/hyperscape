@@ -133,6 +133,8 @@ const names = [
   'equipmentUpdated',
   // Skills sync packets
   'skillsUpdated',
+  // XP drop visual feedback packets (RS3-style)
+  'xpDrop',
   // UI feedback packets
   'showToast',
   // Death screen packets

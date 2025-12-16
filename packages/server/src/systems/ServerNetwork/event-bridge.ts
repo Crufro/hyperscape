@@ -235,6 +235,45 @@ export class EventBridge {
           this.broadcast.sendToAll("skillsUpdated", payload);
         }
       });
+
+      // Forward XP gains to clients for visual XP drop feedback (RS3-style)
+      this.world.on(EventType.SKILLS_XP_GAINED, (payload: unknown) => {
+        const data = payload as {
+          playerId: string;
+          skill: string;
+          amount: number;
+        };
+
+        if (!data?.playerId) return;
+
+        // Get player entity for position
+        const player = this.world.entities.get(data.playerId);
+        const position = player?.position || { x: 0, y: 0, z: 0 };
+
+        // Get updated skill data (SkillsSystem has already processed the XP gain)
+        const skillsSystem = this.world.getSystem("skills") as {
+          getSkillData?: (
+            entityId: string,
+            skill: string,
+          ) => { level: number; xp: number } | undefined;
+        };
+
+        const skillData = skillsSystem?.getSkillData?.(
+          data.playerId,
+          data.skill,
+        );
+        const newLevel = skillData?.level ?? 1;
+        const newXp = skillData?.xp ?? 0;
+
+        // Send XP drop to the player for visual feedback
+        this.broadcast.sendToPlayer(data.playerId, "xpDrop", {
+          skill: data.skill,
+          xpGained: data.amount,
+          newXp,
+          newLevel,
+          position: { x: position.x, y: position.y, z: position.z },
+        });
+      });
     } catch (_err) {
       console.error("[EventBridge] Error setting up skill events:", _err);
     }

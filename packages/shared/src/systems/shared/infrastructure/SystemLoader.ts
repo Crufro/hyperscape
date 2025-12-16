@@ -341,6 +341,10 @@ export async function registerSystems(world: World): Promise<void> {
         err,
       );
     }
+
+    // XP Drop System - 3D version disabled, using 2D screen-space drops in XPProgressOrb
+    // The 2D approach is more like RS3 where XP floats up the screen toward the orb
+    // Keep XPDropSystem.ts for potential future use or alternative mode
   }
 
   // Ground Item System - shared across loot and death systems
