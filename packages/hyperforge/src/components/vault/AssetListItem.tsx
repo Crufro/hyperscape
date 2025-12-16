@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Star,
   Globe,
@@ -12,10 +13,20 @@ import {
   Wrench,
   TreeDeciduous,
   Coins,
+  Store,
+  Package,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CDNAsset } from "@/lib-core/cdn/types";
 import { cn } from "@/lib/utils";
+
+interface ItemStoreInfo {
+  storeId: string;
+  storeName: string;
+  price: number;
+  stock: number | "unlimited";
+  buybackRate?: number;
+}
 
 interface AssetWithSource extends CDNAsset {
   source?: "CDN" | "LOCAL";
@@ -61,12 +72,42 @@ export function AssetListItem({
   onSelect,
   onFavorite,
 }: AssetListItemProps) {
+  const [storeInfo, setStoreInfo] = useState<ItemStoreInfo[] | null>(null);
+  const [showStoreInfo, setShowStoreInfo] = useState(false);
+
   const isLocal = asset.source === "LOCAL";
   const hasVRM =
     asset.hasVRM ||
     asset.vrmPath?.endsWith(".vrm") ||
     asset.modelPath?.endsWith(".vrm");
   const CategoryIcon = getCategoryIcon(asset.category, asset.type);
+
+  // Check if this is an item that could be in stores
+  const isGameItem =
+    asset.category === "weapon" ||
+    asset.category === "armor" ||
+    asset.category === "tool" ||
+    asset.category === "resource" ||
+    asset.category === "consumable" ||
+    asset.type === "weapon" ||
+    asset.type === "armor" ||
+    asset.type === "tool";
+
+  // Fetch store info when item is selected and has a value
+  useEffect(() => {
+    if (isSelected && isGameItem && asset.value && asset.value > 0) {
+      fetch(`/api/game/stores?itemId=${asset.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.stores && data.stores.length > 0) {
+            setStoreInfo(data.stores);
+          } else {
+            setStoreInfo(null);
+          }
+        })
+        .catch(() => setStoreInfo(null));
+    }
+  }, [isSelected, asset.id, asset.value, isGameItem]);
 
   // Determine icon background color based on category
   const iconBgClass = hasVRM
@@ -102,7 +143,7 @@ export function AssetListItem({
       role="button"
       tabIndex={0}
       className={cn(
-        "w-full flex items-center gap-3 p-3 mb-1 rounded-lg cursor-pointer",
+        "w-full flex items-center gap-3 p-3 mb-1 rounded-lg cursor-pointer relative",
         "transition-all duration-200 hover:bg-glass-bg/50",
         isSelected
           ? "bg-neon-blue/10 border border-neon-blue/20"
@@ -208,15 +249,35 @@ export function AssetListItem({
         </div>
       </div>
 
-      {/* Value indicator */}
-      {asset.value && asset.value > 0 && (
-        <div className="text-[10px] text-amber-400 flex items-center gap-0.5 flex-shrink-0">
-          <Coins className="w-3 h-3" />
-          {asset.value >= 1000
-            ? `${(asset.value / 1000).toFixed(0)}k`
-            : asset.value}
-        </div>
-      )}
+      {/* Value & Store indicator */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {asset.value && asset.value > 0 && (
+          <div className="text-[10px] text-amber-400 flex items-center gap-0.5">
+            <Coins className="w-3 h-3" />
+            {asset.value >= 1000
+              ? `${(asset.value / 1000).toFixed(0)}k`
+              : asset.value}
+          </div>
+        )}
+
+        {/* Store indicator - shows when item is in stores */}
+        {storeInfo && storeInfo.length > 0 && (
+          <button
+            type="button"
+            className="relative p-1 rounded hover:bg-glass-bg transition-colors group"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowStoreInfo(!showStoreInfo);
+            }}
+            title={`Sold in ${storeInfo.length} store(s)`}
+          >
+            <Store className="w-3 h-3 text-green-400" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 text-[8px] text-white rounded-full flex items-center justify-center">
+              {storeInfo.length}
+            </span>
+          </button>
+        )}
+      </div>
 
       {/* Favorite */}
       <button
@@ -229,6 +290,56 @@ export function AssetListItem({
       >
         <Star className="w-4 h-4 text-muted-foreground" />
       </button>
+
+      {/* Store Info Popup */}
+      {showStoreInfo && storeInfo && storeInfo.length > 0 && (
+        <div
+          className="absolute right-0 top-full mt-1 z-50 w-64 p-3 rounded-lg bg-glass-bg/95 border border-glass-border backdrop-blur-sm shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-glass-border">
+            <Store className="w-4 h-4 text-green-400" />
+            <span className="text-xs font-semibold">Available In Stores</span>
+          </div>
+          <div className="space-y-2">
+            {storeInfo.map((store) => (
+              <div
+                key={store.storeId}
+                className="flex items-center justify-between text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <Package className="w-3 h-3 text-muted-foreground" />
+                  <span className="truncate">{store.storeName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-400 flex items-center gap-0.5">
+                    <Coins className="w-3 h-3" />
+                    {store.price}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px]",
+                      store.stock === "unlimited"
+                        ? "text-green-400"
+                        : typeof store.stock === "number" && store.stock > 0
+                          ? "text-blue-400"
+                          : "text-red-400",
+                    )}
+                  >
+                    {store.stock === "unlimited" ? "∞" : `×${store.stock}`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {storeInfo[0]?.buybackRate && (
+            <div className="mt-2 pt-2 border-t border-glass-border text-[10px] text-muted-foreground">
+              Buyback: {Math.round((storeInfo[0].buybackRate || 0) * 100)}% of
+              value
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
