@@ -124,6 +124,8 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
     const animationClipsRef = useRef<THREE.AnimationClip[]>([]);
     const isAnimatingRef = useRef(false);
     const isDraggingRef = useRef(false);
+    const animationTimeRef = useRef(0);
+    const proceduralAnimationRef = useRef<number | null>(null);
 
     const {
       avatarUrl,
@@ -782,48 +784,185 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       }
     }, [transformMode, interactiveMode]);
 
-    // Handle animation state
+    // Procedural animation function for VRM humanoid
+    const applyProceduralAnimation = useCallback(
+      (vrm: VRM, time: number, type: "walking" | "running") => {
+        const humanoid = vrm.humanoid;
+        if (!humanoid) return;
+
+        // Animation parameters
+        const speed = type === "running" ? 8 : 4; // Cycle speed
+        const t = time * speed;
+
+        // Amplitude modifiers
+        const legSwing = type === "running" ? 0.6 : 0.4;
+        const armSwing = type === "running" ? 0.5 : 0.3;
+        const hipBob = type === "running" ? 0.03 : 0.015;
+
+        // Get bone nodes
+        const leftUpperLeg = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.LeftUpperLeg,
+        );
+        const rightUpperLeg = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.RightUpperLeg,
+        );
+        const leftLowerLeg = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.LeftLowerLeg,
+        );
+        const rightLowerLeg = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.RightLowerLeg,
+        );
+        const leftUpperArm = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.LeftUpperArm,
+        );
+        const rightUpperArm = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.RightUpperArm,
+        );
+        const leftLowerArm = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.LeftLowerArm,
+        );
+        const rightLowerArm = humanoid.getNormalizedBoneNode(
+          VRMHumanBoneName.RightLowerArm,
+        );
+        const spine = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Spine);
+        const hips = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Hips);
+
+        // Leg animation (opposite phase)
+        if (leftUpperLeg) {
+          leftUpperLeg.rotation.x = Math.sin(t) * legSwing;
+        }
+        if (rightUpperLeg) {
+          rightUpperLeg.rotation.x = Math.sin(t + Math.PI) * legSwing;
+        }
+
+        // Lower leg (knee bend during back swing)
+        if (leftLowerLeg) {
+          const kneePhase = Math.sin(t);
+          leftLowerLeg.rotation.x = kneePhase < 0 ? -kneePhase * 0.5 : 0;
+        }
+        if (rightLowerLeg) {
+          const kneePhase = Math.sin(t + Math.PI);
+          rightLowerLeg.rotation.x = kneePhase < 0 ? -kneePhase * 0.5 : 0;
+        }
+
+        // Arm swing (opposite to legs)
+        if (leftUpperArm) {
+          leftUpperArm.rotation.x = Math.sin(t + Math.PI) * armSwing;
+        }
+        if (rightUpperArm) {
+          rightUpperArm.rotation.x = Math.sin(t) * armSwing;
+        }
+
+        // Forearm slight bend
+        if (leftLowerArm) {
+          leftLowerArm.rotation.x = 0.2;
+        }
+        if (rightLowerArm) {
+          rightLowerArm.rotation.x = 0.2;
+        }
+
+        // Subtle spine rotation for natural movement
+        if (spine) {
+          spine.rotation.y = Math.sin(t) * 0.05;
+        }
+
+        // Hip bob (vertical movement illusion)
+        if (hips) {
+          hips.position.y = Math.abs(Math.sin(t * 2)) * hipBob;
+        }
+      },
+      [],
+    );
+
+    // Reset VRM to T-pose
+    const resetToTPose = useCallback((vrm: VRM) => {
+      const humanoid = vrm.humanoid;
+      if (!humanoid) return;
+
+      // Reset all bones to default rotation
+      const bonesToReset = [
+        VRMHumanBoneName.LeftUpperLeg,
+        VRMHumanBoneName.RightUpperLeg,
+        VRMHumanBoneName.LeftLowerLeg,
+        VRMHumanBoneName.RightLowerLeg,
+        VRMHumanBoneName.LeftUpperArm,
+        VRMHumanBoneName.RightUpperArm,
+        VRMHumanBoneName.LeftLowerArm,
+        VRMHumanBoneName.RightLowerArm,
+        VRMHumanBoneName.Spine,
+      ];
+
+      for (const boneName of bonesToReset) {
+        const bone = humanoid.getNormalizedBoneNode(boneName);
+        if (bone) {
+          bone.rotation.set(0, 0, 0);
+        }
+      }
+
+      // Reset hip position
+      const hips = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Hips);
+      if (hips) {
+        hips.position.y = 0;
+      }
+    }, []);
+
+    // Handle animation state with procedural animations
     useEffect(() => {
       isAnimatingRef.current = isAnimating;
 
-      if (!animationMixerRef.current) return;
+      // Stop any previous procedural animation
+      if (proceduralAnimationRef.current !== null) {
+        cancelAnimationFrame(proceduralAnimationRef.current);
+        proceduralAnimationRef.current = null;
+      }
 
-      // Stop current animation
+      // Stop any mixer-based animation
       if (currentActionRef.current) {
         currentActionRef.current.stop();
         currentActionRef.current = null;
       }
 
-      if (isAnimating && animationType !== "tpose") {
-        let clipToPlay: THREE.AnimationClip | null = null;
-
-        // Find appropriate clip
-        if (animationType === "walking") {
-          clipToPlay =
-            animationClipsRef.current.find((clip) =>
-              clip.name.toLowerCase().includes("walk"),
-            ) ?? null;
-        } else if (animationType === "running") {
-          clipToPlay =
-            animationClipsRef.current.find((clip) =>
-              clip.name.toLowerCase().includes("run"),
-            ) ?? null;
-        }
-
-        // Fallback to first animation
-        if (!clipToPlay && animationClipsRef.current.length > 0) {
-          clipToPlay = animationClipsRef.current[0];
-        }
-
-        if (clipToPlay) {
-          currentActionRef.current =
-            animationMixerRef.current.clipAction(clipToPlay);
-          currentActionRef.current.setLoop(THREE.LoopRepeat, Infinity);
-          currentActionRef.current.play();
-          console.log("[EquipmentViewer] Playing animation:", clipToPlay.name);
-        }
+      // Reset to T-pose when stopping or switching to T-pose
+      if (vrmRef.current && (!isAnimating || animationType === "tpose")) {
+        resetToTPose(vrmRef.current);
+        return;
       }
-    }, [isAnimating, animationType]);
+
+      // Start procedural animation for VRM
+      if (isAnimating && animationType !== "tpose" && vrmRef.current) {
+        console.log(
+          `[EquipmentViewer] Starting procedural ${animationType} animation`,
+        );
+
+        animationTimeRef.current = 0;
+        const startTime = performance.now();
+
+        const animateFrame = () => {
+          if (!isAnimatingRef.current || !vrmRef.current) return;
+
+          const elapsed = (performance.now() - startTime) / 1000;
+          animationTimeRef.current = elapsed;
+
+          applyProceduralAnimation(
+            vrmRef.current,
+            elapsed,
+            animationType as "walking" | "running",
+          );
+
+          proceduralAnimationRef.current = requestAnimationFrame(animateFrame);
+        };
+
+        proceduralAnimationRef.current = requestAnimationFrame(animateFrame);
+      }
+
+      // Cleanup
+      return () => {
+        if (proceduralAnimationRef.current !== null) {
+          cancelAnimationFrame(proceduralAnimationRef.current);
+          proceduralAnimationRef.current = null;
+        }
+      };
+    }, [isAnimating, animationType, applyProceduralAnimation, resetToTPose]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({

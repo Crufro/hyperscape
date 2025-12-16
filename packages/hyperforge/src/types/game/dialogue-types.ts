@@ -1,7 +1,25 @@
 /**
  * Dialogue Types for HyperForge
  * Matches the game's NPC dialogue system exactly
+ * Includes audio generation support via ElevenLabs
  */
+
+/**
+ * Audio metadata for dialogue nodes
+ * Generated via ElevenLabs Text-to-Speech
+ */
+export interface DialogueAudio {
+  url: string; // URL to the audio file (relative to assets)
+  voiceId: string; // ElevenLabs voice ID used
+  duration: number; // Duration in seconds
+  generatedAt: string; // ISO timestamp
+  timestamps?: Array<{
+    // Character-level timestamps for lip-sync
+    character: string;
+    start: number;
+    end: number;
+  }>;
+}
 
 /**
  * NPC Dialogue Response - A single response option in a dialogue node
@@ -40,6 +58,7 @@ export interface DialogueNode {
   text: string; // NPC's dialogue text (what they say)
   responses?: DialogueResponse[]; // Player response options (if empty, dialogue ends)
   speakerOverride?: string; // Override speaker name (for cutscenes)
+  audio?: DialogueAudio; // Generated voice audio for this node
 }
 
 /**
@@ -48,6 +67,13 @@ export interface DialogueNode {
 export interface DialogueTree {
   entryNodeId: string; // Starting node ID
   nodes: DialogueNode[]; // All dialogue nodes
+  voiceConfig?: {
+    // Default voice configuration for this NPC
+    voiceId: string; // ElevenLabs voice ID
+    voicePreset?: string; // Preset name (e.g., "male-warrior", "old-sage")
+    modelId?: string; // TTS model (e.g., "eleven_multilingual_v2")
+  };
+  hasAudio?: boolean; // Whether audio has been generated for all nodes
 }
 
 /**

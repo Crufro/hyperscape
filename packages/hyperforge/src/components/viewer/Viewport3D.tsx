@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, Grid } from "@react-three/drei";
 import { Suspense } from "react";
 import { X } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 import { ModelViewer } from "./ModelViewer";
 import { ViewportControls } from "./ViewportControls";
 import { EnvironmentControls } from "./EnvironmentControls";
@@ -28,8 +29,11 @@ interface Viewport3DProps {
 
 export function Viewport3D({ selectedAsset }: Viewport3DProps) {
   const { viewportPanel, closeViewportPanel, setViewportPanel } = useAppStore();
+  const { theme, setTheme } = useTheme();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [environment, setEnvironment] = useState("studio");
   const [showGrid, setShowGrid] = useState(true);
+  const [showModel, setShowModel] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const environmentPresets = {
@@ -72,14 +76,48 @@ export function Viewport3D({ selectedAsset }: Viewport3DProps) {
 
   // Handle sprites generation
   const handleSprites = useCallback(async () => {
-    if (!selectedAsset?.id) return;
+    if (!selectedAsset?.id || !selectedAsset?.name) return;
 
-    // For now, sprites generation opens the enhancement panel
-    // TODO: Add dedicated sprites API endpoint
-    console.log("[Viewport] Sprites requested for asset:", selectedAsset.id);
-    alert(
-      "Sprites generation coming soon! Select the asset and use the Sprites tab in the enhancement panel.",
-    );
+    setIsProcessing(true);
+    console.log("[Viewport] Generating sprites for asset:", selectedAsset.id);
+
+    try {
+      const response = await fetch("/api/sprites/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetId: selectedAsset.id,
+          assetName: selectedAsset.name,
+          assetDescription: selectedAsset.description,
+          assetCategory: selectedAsset.category,
+          views: ["front", "side", "back", "isometric"],
+          style: "clean",
+          updateThumbnail: true,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log(
+          `[Viewport] Generated ${result.sprites.length} sprites`,
+          result.thumbnailUrl ? `Thumbnail: ${result.thumbnailUrl}` : "",
+        );
+        alert(
+          `Successfully generated ${result.sprites.length} sprites!${result.thumbnailUrl ? " Thumbnail updated." : ""}`,
+        );
+      } else {
+        console.error("[Viewport] Sprite generation failed:", result.error);
+        alert(`Sprite generation failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("[Viewport] Sprite generation error:", error);
+      alert(
+        `Sprite generation error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   }, [selectedAsset]);
 
   // Handle edit - open properties panel
@@ -89,11 +127,37 @@ export function Viewport3D({ selectedAsset }: Viewport3DProps) {
     }
   }, [selectedAsset, setViewportPanel]);
 
+  // Handle toggle visibility
+  const handleToggleVisibility = useCallback(() => {
+    setShowModel(!showModel);
+  }, [showModel]);
+
+  // Handle toggle theme
+  const handleToggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
+
+  // Handle capture screenshot
+  const handleCapture = useCallback(() => {
+    // Get canvas element from the DOM
+    const canvas = document.querySelector("canvas");
+    if (!canvas) {
+      console.warn("No canvas found for capture");
+      return;
+    }
+
+    // Create download link
+    const link = document.createElement("a");
+    link.download = `${selectedAsset?.name || "capture"}_${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }, [selectedAsset]);
+
   return (
     <div className="relative h-full w-full bg-gradient-to-b from-zinc-900 to-zinc-950">
       <Canvas
         camera={{ position: [3, 2, 3], fov: 50 }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
       >
         <Suspense fallback={null}>
           <ambientLight intensity={0.4} />
@@ -107,7 +171,7 @@ export function Viewport3D({ selectedAsset }: Viewport3DProps) {
           />
 
           {/* Model */}
-          <ModelViewer modelUrl={selectedAsset?.modelUrl} />
+          {showModel && <ModelViewer modelUrl={selectedAsset?.modelUrl} />}
 
           {/* Grid */}
           {showGrid && (
@@ -145,11 +209,11 @@ export function Viewport3D({ selectedAsset }: Viewport3DProps) {
         onRegenerate={handleRegenerate}
         onSprites={handleSprites}
         onEdit={handleEdit}
-        onToggleVisibility={() => console.log("Toggle visibility")}
+        onToggleVisibility={handleToggleVisibility}
         onToggleGrid={() => setShowGrid(!showGrid)}
-        onToggleTheme={() => console.log("Toggle theme")}
+        onToggleTheme={handleToggleTheme}
         onRefresh={() => window.location.reload()}
-        onCapture={() => console.log("Capture")}
+        onCapture={handleCapture}
         onSettings={() => setViewportPanel("properties")}
       />
 

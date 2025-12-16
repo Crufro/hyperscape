@@ -1,7 +1,6 @@
 "use client";
 
 import { Select } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 
 interface EnvironmentControlsProps {
   environment: string;
@@ -21,17 +20,13 @@ export function EnvironmentControls({
   onEnvironmentChange,
 }: EnvironmentControlsProps) {
   return (
-    <div className="absolute bottom-4 right-4 glass-panel p-3 rounded-lg z-10">
-      <div className="flex items-center gap-2">
-        <Label className="text-xs text-muted-foreground whitespace-nowrap">
-          Environment:
-        </Label>
-        <Select
-          value={environment}
-          onChange={onEnvironmentChange}
-          options={environmentOptions}
-        />
-      </div>
+    <div className="absolute bottom-4 right-4 z-10 w-32">
+      <Select
+        value={environment}
+        onChange={onEnvironmentChange}
+        options={environmentOptions}
+        openUp
+      />
     </div>
   );
 }

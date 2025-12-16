@@ -20,6 +20,8 @@ import {
   Plus,
   ExternalLink,
   Loader2,
+  Mic,
+  Volume2,
   type LucideIcon,
 } from "lucide-react";
 import { Viewport3D } from "@/components/viewer/Viewport3D";
@@ -237,6 +239,78 @@ export default function HomePage() {
               <MessageSquare className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && <span>NPC Dialogue</span>}
             </Link>
+          </div>
+
+          {/* Audio Section */}
+          <div
+            className={`mt-4 pt-4 border-t border-glass-border ${sidebarCollapsed ? "px-0" : ""}`}
+          >
+            {!sidebarCollapsed && (
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+                Audio
+              </div>
+            )}
+            <nav className="space-y-1">
+              <Link
+                href="/audio"
+                title={
+                  sidebarCollapsed
+                    ? "Audio Studio"
+                    : "Generate voice, SFX, and music"
+                }
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
+                  ${sidebarCollapsed ? "justify-center" : ""}
+                `}
+              >
+                <Music className="w-4 h-4 flex-shrink-0" />
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="truncate flex-1">Audio Studio</span>
+                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
+                  </>
+                )}
+              </Link>
+              <Link
+                href="/audio/voice"
+                title={
+                  sidebarCollapsed
+                    ? "Voice Generator"
+                    : "Generate NPC dialogue audio"
+                }
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
+                  ${sidebarCollapsed ? "justify-center" : ""}
+                `}
+              >
+                <Mic className="w-4 h-4 flex-shrink-0" />
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="truncate flex-1">Voice Generator</span>
+                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
+                  </>
+                )}
+              </Link>
+              <Link
+                href="/audio/sfx"
+                title={sidebarCollapsed ? "Sound Effects" : "Generate game SFX"}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
+                  ${sidebarCollapsed ? "justify-center" : ""}
+                `}
+              >
+                <Volume2 className="w-4 h-4 flex-shrink-0" />
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="truncate flex-1">Sound Effects</span>
+                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
+                  </>
+                )}
+              </Link>
+            </nav>
           </div>
         </div>
 

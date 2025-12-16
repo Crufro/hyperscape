@@ -53,17 +53,20 @@ export async function startTextTo3DPreview(
 /**
  * Start Text-to-3D Refine stage
  * Adds texture to completed preview mesh
+ *
+ * Per Meshy docs, the refine stage uses texture_prompt to guide texturing.
+ * If no texture_prompt is provided, Meshy will use the original preview prompt.
  */
 export async function startTextTo3DRefine(
   previewTaskId: string,
   options?: Partial<TextTo3DOptions>,
 ): Promise<{ refineTaskId: string }> {
   const refineTaskId = await createTextTo3DRefineTask(previewTaskId, {
-    prompt: "", // Not used in refine stage
+    prompt: "", // Not used in refine stage (texture_prompt is used instead)
     enable_pbr: options?.enable_pbr ?? true,
-    texture_resolution: options?.texture_resolution ?? 2048,
-    texture_prompt: options?.texture_prompt,
+    texture_prompt: options?.texture_prompt, // Guides texture generation
     texture_image_url: options?.texture_image_url,
+    ai_model: options?.ai_model, // Must match preview model for meshy-5/latest
   });
 
   if (!refineTaskId) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -21,19 +21,39 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { NeonInput } from "@/components/ui/neon-input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
-import { Plus, Trash2, Save, Wand2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Save,
+  Wand2,
+  Mic,
+  Play,
+  Pause,
+  Volume2,
+  Loader2,
+} from "lucide-react";
 import type {
   DialogueTree,
   DialogueNode,
   DialogueResponse,
+  DialogueAudio,
 } from "@/types/game/dialogue-types";
 
 interface DialogueTreeEditorProps {
   initialTree?: DialogueTree;
   npcName: string;
+  npcId?: string;
   onSave: (tree: DialogueTree) => void;
   onGenerate?: () => void;
+}
+
+interface VoicePreset {
+  id: string;
+  voiceId: string;
+  name: string;
+  description: string;
 }
 
 // Custom node component for dialogue nodes
@@ -46,6 +66,7 @@ function DialogueNodeComponent({
     text: string;
     responses: DialogueResponse[];
     isEntry: boolean;
+    hasAudio: boolean;
     onEdit: () => void;
   };
   selected: boolean;
@@ -69,11 +90,18 @@ function DialogueNodeComponent({
         <span className="text-xs font-mono text-muted-foreground">
           {data.label}
         </span>
-        {data.isEntry && (
-          <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
-            ENTRY
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {data.hasAudio && (
+            <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <Volume2 className="w-3 h-3" />
+            </span>
+          )}
+          {data.isEntry && (
+            <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
+              ENTRY
+            </span>
+          )}
+        </div>
       </div>
 
       <p className="text-sm mb-2 text-foreground">{data.text}</p>
@@ -110,12 +138,187 @@ const nodeTypes = {
 export function DialogueTreeEditor({
   initialTree,
   npcName,
+  npcId,
   onSave,
   onGenerate,
 }: DialogueTreeEditorProps) {
   const { toast } = useToast();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [editingNode, setEditingNode] = useState<DialogueNode | null>(null);
+
+  // Audio state
+  const [voicePresets, setVoicePresets] = useState<VoicePreset[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [nodeAudio, setNodeAudio] = useState<Map<string, DialogueAudio>>(
+    new Map(),
+  );
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [isGeneratingAllAudio, setIsGeneratingAllAudio] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Load voice presets on mount
+  useState(() => {
+    async function loadVoicePresets() {
+      try {
+        const res = await fetch("/api/audio/voices?type=presets");
+        if (res.ok) {
+          const data = await res.json();
+          setVoicePresets(data.voices || []);
+          if (data.voices?.length > 0) {
+            setSelectedVoice(data.voices[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load voice presets:", err);
+      }
+    }
+    loadVoicePresets();
+  });
+
+  // Generate audio for a single node
+  const generateNodeAudio = useCallback(
+    async (node: DialogueNode) => {
+      if (!selectedVoice || !node.text) return;
+
+      setIsGeneratingAudio(true);
+      try {
+        const res = await fetch("/api/audio/voice/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: node.text,
+            voicePreset: selectedVoice,
+            npcId,
+            dialogueNodeId: node.id,
+            withTimestamps: true,
+            saveToAsset: true,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to generate audio");
+        }
+
+        const data = await res.json();
+        const audio: DialogueAudio = {
+          url: data.asset.url,
+          voiceId: data.asset.voiceId,
+          duration: data.asset.duration,
+          generatedAt: data.asset.generatedAt,
+          timestamps: data.asset.timestamps,
+        };
+
+        setNodeAudio((prev) => new Map(prev).set(node.id, audio));
+
+        // Update editing node
+        if (editingNode?.id === node.id) {
+          setEditingNode({ ...editingNode, audio });
+        }
+
+        toast({
+          variant: "success",
+          title: "Audio Generated",
+          description: `Generated voice for "${node.id}"`,
+        });
+
+        // Play the generated audio
+        setCurrentAudioUrl(data.audio);
+        if (audioRef.current) {
+          audioRef.current.src = data.audio;
+          audioRef.current.play();
+          setIsPlayingAudio(true);
+        }
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: "Audio Generation Failed",
+          description: err instanceof Error ? err.message : "Unknown error",
+        });
+      } finally {
+        setIsGeneratingAudio(false);
+      }
+    },
+    [selectedVoice, npcId, editingNode, toast],
+  );
+
+  // Generate audio for all nodes
+  const generateAllNodeAudio = useCallback(async () => {
+    if (!selectedVoice || !initialTree?.nodes) return;
+
+    setIsGeneratingAllAudio(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const node of initialTree.nodes) {
+      try {
+        const res = await fetch("/api/audio/voice/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: node.text,
+            voicePreset: selectedVoice,
+            npcId,
+            dialogueNodeId: node.id,
+            withTimestamps: true,
+            saveToAsset: true,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const audio: DialogueAudio = {
+            url: data.asset.url,
+            voiceId: data.asset.voiceId,
+            duration: data.asset.duration,
+            generatedAt: data.asset.generatedAt,
+            timestamps: data.asset.timestamps,
+          };
+          setNodeAudio((prev) => new Map(prev).set(node.id, audio));
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch {
+        errorCount++;
+      }
+    }
+
+    toast({
+      variant: successCount > 0 ? "success" : "destructive",
+      title: "Audio Generation Complete",
+      description: `Generated ${successCount} clips, ${errorCount} failed`,
+    });
+
+    setIsGeneratingAllAudio(false);
+  }, [selectedVoice, npcId, initialTree, toast]);
+
+  // Play/pause audio
+  const toggleAudioPlayback = useCallback(() => {
+    if (!audioRef.current) return;
+    if (isPlayingAudio) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlayingAudio(!isPlayingAudio);
+  }, [isPlayingAudio]);
+
+  // Play node audio
+  const playNodeAudio = useCallback(
+    (nodeId: string) => {
+      const audio = nodeAudio.get(nodeId);
+      if (audio && audioRef.current) {
+        setCurrentAudioUrl(audio.url);
+        audioRef.current.src = audio.url;
+        audioRef.current.play();
+        setIsPlayingAudio(true);
+      }
+    },
+    [nodeAudio],
+  );
 
   // Convert dialogue tree to React Flow nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -135,6 +338,7 @@ export function DialogueTreeEditor({
         text: node.text,
         responses: node.responses || [],
         isEntry: node.id === initialTree.entryNodeId,
+        hasAudio: !!node.audio || nodeAudio.has(node.id),
         onEdit: () => setEditingNode(node),
       },
     }));
@@ -311,8 +515,11 @@ export function DialogueTreeEditor({
 
   return (
     <div className="flex h-full">
+      {/* Hidden audio element */}
+      <audio ref={audioRef} onEnded={() => setIsPlayingAudio(false)} />
+
       {/* Flow Canvas */}
-      <div className="flex-1 h-full">
+      <div className="flex-1 h-full relative">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -358,6 +565,33 @@ export function DialogueTreeEditor({
               Generate
             </SpectacularButton>
           )}
+        </div>
+
+        {/* Voice Controls (bottom left) */}
+        <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-glass-bg/90 backdrop-blur-sm p-2 rounded-lg border border-glass-border">
+          <Mic className="w-4 h-4 text-cyan-400" />
+          <Select
+            value={selectedVoice}
+            onChange={(value) => setSelectedVoice(value)}
+            options={voicePresets.map((p) => ({
+              value: p.id,
+              label: p.name,
+            }))}
+            placeholder="Voice..."
+            className="w-32"
+          />
+          <SpectacularButton
+            size="sm"
+            onClick={generateAllNodeAudio}
+            disabled={!selectedVoice || isGeneratingAllAudio}
+          >
+            {isGeneratingAllAudio ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Mic className="w-4 h-4" />
+            )}
+            <span className="ml-1">All</span>
+          </SpectacularButton>
         </div>
       </div>
 
@@ -450,6 +684,73 @@ export function DialogueTreeEditor({
             <SpectacularButton className="w-full" onClick={handleUpdateNode}>
               Update Node
             </SpectacularButton>
+
+            {/* Audio Section */}
+            <div className="border-t border-glass-border pt-4 mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-cyan-400" />
+                  Voice Audio
+                </Label>
+                {(editingNode.audio || nodeAudio.has(editingNode.id)) && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+                    Generated
+                  </span>
+                )}
+              </div>
+
+              {(editingNode.audio || nodeAudio.has(editingNode.id)) && (
+                <div className="flex items-center gap-2">
+                  <SpectacularButton
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (isPlayingAudio) {
+                        audioRef.current?.pause();
+                        setIsPlayingAudio(false);
+                      } else {
+                        playNodeAudio(editingNode.id);
+                      }
+                    }}
+                  >
+                    {isPlayingAudio ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                  </SpectacularButton>
+                  <span className="text-xs text-muted-foreground">
+                    {(
+                      editingNode.audio?.duration ||
+                      nodeAudio.get(editingNode.id)?.duration ||
+                      0
+                    ).toFixed(1)}
+                    s
+                  </span>
+                </div>
+              )}
+
+              <SpectacularButton
+                size="sm"
+                className="w-full"
+                onClick={() => generateNodeAudio(editingNode)}
+                disabled={!selectedVoice || isGeneratingAudio}
+              >
+                {isGeneratingAudio ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4 mr-1" />
+                    {editingNode.audio || nodeAudio.has(editingNode.id)
+                      ? "Regenerate Voice"
+                      : "Generate Voice"}
+                  </>
+                )}
+              </SpectacularButton>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">

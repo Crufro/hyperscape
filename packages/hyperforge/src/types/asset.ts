@@ -9,6 +9,11 @@ import type {
   AssetCategory,
 } from "@/lib-core/cdn/types";
 
+export interface SpriteData {
+  angle: string;
+  imageUrl: string;
+}
+
 export interface BaseAssetData {
   id: string;
   name: string;
@@ -26,6 +31,10 @@ export interface BaseAssetData {
   vrmPath?: string;
   /** Whether this asset has hand bones added */
   hasHandRigging?: boolean;
+  /** Whether this asset has generated sprites */
+  hasSprites?: boolean;
+  /** Array of sprite images for this asset */
+  sprites?: SpriteData[];
 }
 
 export interface CDNAssetData extends BaseAssetData {

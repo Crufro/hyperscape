@@ -17,6 +17,7 @@ interface SelectProps {
   options: Option[];
   placeholder?: string;
   label?: string;
+  openUp?: boolean; // Open dropdown upward instead of downward
 }
 
 export function Select({
@@ -25,6 +26,7 @@ export function Select({
   options,
   placeholder = "Select option...",
   label,
+  openUp = false,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,7 +81,12 @@ export function Select({
 
         <AnimatePresence>
           {isOpen && (
-            <div className="absolute z-50 w-full mt-1">
+            <div
+              className={cn(
+                "absolute z-50 w-full",
+                openUp ? "bottom-full mb-1" : "top-full mt-1",
+              )}
+            >
               <GlassPanel
                 intensity="high"
                 className="py-1 max-h-60 overflow-auto custom-scrollbar"

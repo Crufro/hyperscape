@@ -21,6 +21,7 @@ import {
   downloadFile,
 } from "@/lib/storage/asset-storage";
 import { enhancePromptWithGPT4 } from "@/lib/ai/openai-service";
+import { generateConceptArt } from "@/lib/ai/concept-art-service";
 
 export interface GenerationResult {
   taskId: string;
@@ -83,6 +84,7 @@ export async function generate3DModel(
     if (config.useGPT4Enhancement !== false) {
       onProgress?.({
         status: "generating",
+        stage: "Prompt Enhancement",
         progress: 0,
         currentStep: "Enhancing prompt with AI...",
       });
@@ -102,9 +104,44 @@ export async function generate3DModel(
       }
     }
 
-    // Stage 1: Start 3D generation
+    // Stage 1: Generate concept art (optional but recommended for better textures)
+    let conceptArtDataUrl: string | undefined;
+    const shouldGenerateConceptArt = config.generateConceptArt !== false; // Default to true
+
+    if (shouldGenerateConceptArt && pipeline === "text-to-3d") {
+      onProgress?.({
+        status: "generating",
+        stage: "Concept Art",
+        progress: 3,
+        currentStep: "Generating concept art with AI...",
+      });
+
+      try {
+        const conceptArt = await generateConceptArt(effectivePrompt, {
+          style: "realistic",
+          viewAngle: "isometric",
+          background: "simple",
+          assetType: config.category || "item",
+        });
+
+        if (conceptArt) {
+          conceptArtDataUrl = conceptArt.imageUrl;
+          console.log("[Generation] Concept art generated successfully");
+        } else {
+          console.warn(
+            "[Generation] Concept art generation failed, continuing without",
+          );
+        }
+      } catch (error) {
+        console.warn("[Generation] Concept art error:", error);
+        // Continue without concept art
+      }
+    }
+
+    // Stage 2: Start 3D generation
     onProgress?.({
       status: "generating",
+      stage: "Text-to-3D Preview",
       progress: 5,
       currentStep: "Starting 3D generation...",
     });
@@ -115,7 +152,8 @@ export async function generate3DModel(
       // Two-stage text-to-3D workflow
       onProgress?.({
         status: "generating",
-        progress: 5,
+        stage: "Text-to-3D Preview",
+        progress: 8,
         currentStep: "Starting preview stage...",
       });
 
@@ -129,6 +167,7 @@ export async function generate3DModel(
 
       onProgress?.({
         status: "generating",
+        stage: "Text-to-3D Preview",
         progress: 10,
         currentStep: "Generating preview mesh...",
       });
@@ -144,26 +183,37 @@ export async function generate3DModel(
               : "";
           onProgress?.({
             status: "generating",
+            stage: "Text-to-3D Preview",
             progress: 10 + Math.floor(progress * 0.35), // 10-45%
             currentStep: `Preview stage: ${progress}%${queueInfo}`,
           });
         },
       });
 
-      // Stage 2: Refine
+      // Stage 3: Refine (adds textures based on prompt and/or concept art)
       onProgress?.({
         status: "generating",
+        stage: "Text-to-3D Refine",
         progress: 45,
-        currentStep: "Starting refine stage...",
+        currentStep: conceptArtDataUrl
+          ? "Starting refine stage with concept art..."
+          : "Starting refine stage (texturing)...",
       });
 
+      // Use concept art as texture reference if available, otherwise use text prompt
+      // Per Meshy docs: texture_image_url OR texture_prompt can guide texturing
       const { refineTaskId } = await startTextTo3DRefine(previewTaskId, {
         enable_pbr: options.enablePBR,
-        texture_resolution: options.textureResolution,
+        // If we have concept art, use it as texture reference for better colors
+        texture_image_url: conceptArtDataUrl,
+        // Also pass the prompt in case image texturing needs guidance
+        texture_prompt: effectivePrompt,
+        ai_model: options.aiModel, // Use same model for consistent results
       });
 
       onProgress?.({
         status: "generating",
+        stage: "Text-to-3D Refine",
         progress: 50,
         currentStep: "Adding textures...",
       });
@@ -179,6 +229,7 @@ export async function generate3DModel(
               : "";
           onProgress?.({
             status: "generating",
+            stage: "Text-to-3D Refine",
             progress: 50 + Math.floor(progress * 0.45), // 50-95%
             currentStep: `Refine stage: ${progress}%${queueInfo}`,
           });
@@ -193,6 +244,7 @@ export async function generate3DModel(
       if (needsRigging && isCharacter && refineResult.modelUrl) {
         onProgress?.({
           status: "generating",
+          stage: "Meshy Auto-Rigging",
           progress: 70,
           currentStep: "Sending to Meshy for auto-rigging...",
         });
@@ -228,6 +280,7 @@ export async function generate3DModel(
               Math.floor((riggingAttempts / maxRiggingAttempts) * 100);
             onProgress?.({
               status: "generating",
+              stage: "Meshy Auto-Rigging",
               progress: 70 + Math.floor(progress * 0.15), // 70-85%
               currentStep: `Meshy rigging: ${progress}%`,
             });
@@ -325,6 +378,7 @@ export async function generate3DModel(
     // Download and save the GLB model
     onProgress?.({
       status: "generating",
+      stage: "Saving",
       progress: 90,
       currentStep: "Saving 3D model locally...",
     });
@@ -354,6 +408,7 @@ export async function generate3DModel(
       try {
         onProgress?.({
           status: "generating",
+          stage: "Hand Rigging",
           progress: 92,
           currentStep: "Adding hand bones to model...",
         });
@@ -416,6 +471,7 @@ export async function generate3DModel(
       try {
         onProgress?.({
           status: "generating",
+          stage: "VRM Conversion",
           progress: 95,
           currentStep: "Converting to VRM format...",
         });
@@ -466,6 +522,7 @@ export async function generate3DModel(
 
     onProgress?.({
       status: "generating",
+      stage: "Saving",
       progress: 97,
       currentStep: "Saving assets to library...",
     });
@@ -495,6 +552,7 @@ export async function generate3DModel(
 
     onProgress?.({
       status: "completed",
+      stage: "Complete",
       progress: 100,
       currentStep: "Generation complete!",
     });

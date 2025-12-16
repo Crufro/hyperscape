@@ -10,7 +10,9 @@ import type { GenerationConfig } from "@/components/generation/GenerationFormRou
 
 export interface GenerationProgress {
   status: "idle" | "generating" | "completed" | "failed";
+  stage?: string; // Current pipeline stage name
   progress: number; // 0-100
+  percent?: number; // Alias for progress (SSE compatibility)
   currentStep?: string;
   error?: string;
 }

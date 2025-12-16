@@ -156,9 +156,20 @@ export function ModelViewer({ modelUrl, onModelLoad }: ModelViewerProps) {
     setLoadError(null);
   }, [modelUrl]);
 
-  // Show placeholder if no URL
-  if (!modelUrl) {
+  // Show placeholder if no URL or invalid URL (just base CDN URL with no path)
+  if (!modelUrl || modelUrl.trim() === "") {
     return <PlaceholderBox />;
+  }
+
+  // Check if URL is just a base URL without a file path (e.g., "http://localhost:8080/")
+  try {
+    const url = new URL(modelUrl);
+    if (url.pathname === "/" || url.pathname === "") {
+      console.warn("[ModelViewer] Invalid model URL (no path):", modelUrl);
+      return <PlaceholderBox />;
+    }
+  } catch {
+    // If URL parsing fails, let it try to load anyway
   }
 
   // Handle loading errors

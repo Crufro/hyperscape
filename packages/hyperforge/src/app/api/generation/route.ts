@@ -5,10 +5,13 @@ import {
 } from "@/lib/generation/generation-service";
 import type { GenerationConfig } from "@/components/generation/GenerationFormRouter";
 
+// Enable streaming responses
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, config, count } = body;
+    const { action, config, count, stream } = body;
 
     if (action === "generate") {
       if (!config) {
@@ -18,8 +21,53 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // For now, return task ID immediately
-      // In production, this would start async generation and return task ID
+      // If streaming requested, use SSE
+      if (stream) {
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              const result = await generate3DModel(
+                config as GenerationConfig,
+                (progress) => {
+                  // Send progress update via SSE
+                  const data = JSON.stringify({
+                    type: "progress",
+                    ...progress,
+                  });
+                  controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                },
+              );
+
+              // Send final result
+              const finalData = JSON.stringify({
+                type: "complete",
+                result,
+              });
+              controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+              controller.close();
+            } catch (error) {
+              const errorData = JSON.stringify({
+                type: "error",
+                error:
+                  error instanceof Error ? error.message : "Generation failed",
+              });
+              controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(readable, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
+
+      // Non-streaming: wait for completion and return result
       const result = await generate3DModel(config as GenerationConfig);
       return NextResponse.json(result);
     }

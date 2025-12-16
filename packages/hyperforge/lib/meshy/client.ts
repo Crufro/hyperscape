@@ -114,22 +114,40 @@ export async function createTextTo3DPreviewTask(
 /**
  * Create Text-to-3D Refine task (v2 API - Stage 2)
  * Requires a completed preview task ID
+ *
+ * Per Meshy docs: https://docs.meshy.ai/en/api/text-to-3d
+ * Valid params: mode, preview_task_id, enable_pbr, texture_prompt, texture_image_url, ai_model, moderation
+ * Note: texture_resolution is NOT valid for refine - texturing happens at original resolution
  */
 export async function createTextTo3DRefineTask(
   previewTaskId: string,
   options: TextTo3DOptions,
 ): Promise<string> {
+  const body: Record<string, unknown> = {
+    mode: "refine",
+    preview_task_id: previewTaskId,
+    enable_pbr: options.enable_pbr ?? true,
+  };
+
+  // Add texture_prompt if provided (guides texture generation)
+  if (options.texture_prompt) {
+    body.texture_prompt = options.texture_prompt;
+  }
+
+  // Add texture_image_url if provided (alternative to texture_prompt)
+  if (options.texture_image_url) {
+    body.texture_image_url = options.texture_image_url;
+  }
+
+  // Pass ai_model if specified (must match preview task's model for meshy-5/latest)
+  if (options.ai_model) {
+    body.ai_model = options.ai_model;
+  }
+
   const response = await meshyRequest<MeshyTaskResponse>("/text-to-3d", {
     method: "POST",
     baseUrl: MESHY_API_BASE_V2,
-    body: JSON.stringify({
-      mode: "refine",
-      preview_task_id: previewTaskId,
-      enable_pbr: options.enable_pbr ?? true,
-      texture_prompt: options.texture_prompt,
-      texture_image_url: options.texture_image_url,
-      texture_resolution: options.texture_resolution ?? 2048,
-    }),
+    body: JSON.stringify(body),
   });
 
   return response.result || response.task_id || response.id || "";

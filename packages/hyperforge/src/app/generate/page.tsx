@@ -100,6 +100,12 @@ export default function GeneratePage() {
   const [hasVRM, setHasVRM] = useState(false);
   const [hasHandRigging, setHasHandRigging] = useState(false);
 
+  // Progress state
+  const [currentStage, setCurrentStage] = useState<string>("");
+  const [currentStep, setCurrentStep] = useState<string>("");
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [completedStages, setCompletedStages] = useState<string[]>([]);
+
   // Material state
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([
     "bronze",
@@ -179,7 +185,7 @@ export default function GeneratePage() {
     );
   };
 
-  // Handle generation
+  // Handle generation with streaming progress
   const handleStartGeneration = async () => {
     if (!assetName || !description) {
       alert("Please fill in all required fields");
@@ -191,6 +197,10 @@ export default function GeneratePage() {
     setGeneratedAssetId(null);
     setHasVRM(false);
     setHasHandRigging(false);
+    setCurrentStage("");
+    setCurrentStep("");
+    setProgressPercent(0);
+    setCompletedStages([]);
 
     try {
       const response = await fetch("/api/generation", {
@@ -198,6 +208,7 @@ export default function GeneratePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "generate",
+          stream: true, // Enable streaming
           config: {
             prompt: description,
             category: generationType === "avatar" ? "npc" : assetType,
@@ -232,26 +243,77 @@ export default function GeneratePage() {
         throw new Error("Generation failed");
       }
 
-      const result = await response.json();
-      console.log("Generation complete:", result);
+      // Handle SSE streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      // Store result info for navigation
-      if (result.metadata?.assetId) {
-        setGeneratedAssetId(result.metadata.assetId);
-      }
-      if (result.hasVRM) {
-        setHasVRM(true);
-      }
-      if (result.hasHandRigging) {
-        setHasHandRigging(true);
-      }
+      if (reader) {
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      setIsGenerating(false);
-      setActiveView("results");
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.type === "progress") {
+                  // Update progress UI
+                  if (data.stage) {
+                    // Mark previous stage as complete when moving to new stage
+                    if (currentStage && data.stage !== currentStage) {
+                      setCompletedStages((prev) =>
+                        prev.includes(currentStage)
+                          ? prev
+                          : [...prev, currentStage],
+                      );
+                    }
+                    setCurrentStage(data.stage);
+                  }
+                  if (data.currentStep) setCurrentStep(data.currentStep);
+                  // Check for both progress and percent (generation service uses progress)
+                  const progressValue = data.progress ?? data.percent;
+                  if (progressValue !== undefined)
+                    setProgressPercent(progressValue);
+                } else if (data.type === "complete") {
+                  const result = data.result;
+                  console.log("Generation complete:", result);
+
+                  // Store result info for navigation
+                  if (result.metadata?.assetId) {
+                    setGeneratedAssetId(result.metadata.assetId);
+                  }
+                  if (result.hasVRM) {
+                    setHasVRM(true);
+                  }
+                  if (result.hasHandRigging) {
+                    setHasHandRigging(true);
+                  }
+
+                  setIsGenerating(false);
+                  setActiveView("results");
+                } else if (data.type === "error") {
+                  throw new Error(data.error);
+                }
+              } catch (e) {
+                console.warn("Failed to parse SSE data:", line, e);
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error("Generation failed:", error);
       setIsGenerating(false);
       setActiveView("config");
+      alert(
+        `Generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   };
 
@@ -719,54 +781,114 @@ export default function GeneratePage() {
               <h2 className="text-xl font-semibold mb-2">
                 Generating Your Asset
               </h2>
-              <p className="text-muted-foreground mb-6">
-                This may take a few minutes depending on complexity and quality
-                settings
+              <p className="text-muted-foreground mb-2">
+                {currentStep || "Starting generation pipeline..."}
               </p>
+
+              {/* Overall Progress Bar */}
+              <div className="w-full bg-glass-bg rounded-full h-2 mb-6">
+                <div
+                  className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
 
               {/* Pipeline Stages */}
               <div className="space-y-3 text-left">
                 {[
-                  { id: "prompt", label: "Prompt Enhancement", icon: Wand2 },
-                  { id: "image", label: "Image Generation", icon: Camera },
-                  { id: "model", label: "3D Model Creation", icon: Box },
-                  ...(enableRetexturing && generationType === "item"
-                    ? [
-                        {
-                          id: "retexture",
-                          label: "Material Variants",
-                          icon: Layers,
-                        },
-                      ]
-                    : []),
-                  ...(enableSprites && generationType === "item"
-                    ? [
-                        {
-                          id: "sprites",
-                          label: "Sprite Generation",
-                          icon: Grid3X3,
-                        },
-                      ]
-                    : []),
+                  {
+                    id: "Prompt Enhancement",
+                    label: "Prompt Enhancement",
+                    icon: Wand2,
+                  },
+                  {
+                    id: "Text-to-3D Preview",
+                    label: "3D Preview Generation",
+                    icon: Box,
+                  },
+                  {
+                    id: "Text-to-3D Refine",
+                    label: "3D Model Refinement",
+                    icon: Box,
+                  },
                   ...(enableRigging && generationType === "avatar"
-                    ? [{ id: "rigging", label: "Auto-Rigging", icon: User }]
+                    ? [
+                        {
+                          id: "Meshy Auto-Rigging",
+                          label: "Auto-Rigging (Meshy)",
+                          icon: User,
+                        },
+                      ]
                     : []),
-                ].map((stage, index) => (
-                  <div
-                    key={stage.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-glass-bg/50"
-                  >
-                    <stage.icon className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-sm">{stage.label}</span>
-                    <div className="ml-auto">
-                      {index === 0 ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full bg-glass-border" />
+                  ...(enableHandRigging && generationType === "avatar"
+                    ? [
+                        {
+                          id: "Hand Rigging",
+                          label: "Hand Rigging",
+                          icon: Hand,
+                        },
+                      ]
+                    : []),
+                  ...(enableVRMConversion && generationType === "avatar"
+                    ? [
+                        {
+                          id: "VRM Conversion",
+                          label: "VRM Conversion",
+                          icon: User,
+                        },
+                      ]
+                    : []),
+                  { id: "Saving", label: "Saving Asset", icon: Package },
+                ].map((stage) => {
+                  const isCompleted = completedStages.includes(stage.id);
+                  const isActive = currentStage === stage.id;
+
+                  return (
+                    <div
+                      key={stage.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg transition-all",
+                        isActive
+                          ? "bg-cyan-500/20 border border-cyan-500/30"
+                          : isCompleted
+                            ? "bg-green-500/10"
+                            : "bg-glass-bg/50",
                       )}
+                    >
+                      <stage.icon
+                        className={cn(
+                          "w-5 h-5",
+                          isActive
+                            ? "text-cyan-400"
+                            : isCompleted
+                              ? "text-green-400"
+                              : "text-muted-foreground",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "text-sm",
+                          isActive
+                            ? "text-cyan-400 font-medium"
+                            : isCompleted
+                              ? "text-green-400"
+                              : "",
+                        )}
+                      >
+                        {stage.label}
+                      </span>
+                      <div className="ml-auto">
+                        {isActive ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                        ) : isCompleted ? (
+                          <Check className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-glass-border" />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </GlassPanel>
           </div>

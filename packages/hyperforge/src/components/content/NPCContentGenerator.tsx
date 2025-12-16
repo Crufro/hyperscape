@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { NeonInput } from "@/components/ui/neon-input";
@@ -8,13 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
-import { Wand2, Loader2, Save, Eye } from "lucide-react";
+import { Wand2, Loader2, Save, Eye, Mic, Volume2 } from "lucide-react";
 import { DialogueTreeEditor } from "./DialogueTreeEditor";
 import type {
   DialogueTree,
+  DialogueNode,
+  DialogueAudio,
   DialogueGenerationContext,
   GeneratedNPCContent,
 } from "@/types/game/dialogue-types";
+
+type VoicePreset = {
+  id: string;
+  name: string;
+  description: string;
+};
 
 interface NPCContentGeneratorProps {
   onContentGenerated?: (content: GeneratedNPCContent) => void;
@@ -52,6 +60,180 @@ export function NPCContentGenerator({
   const [generatedContent, setGeneratedContent] =
     useState<GeneratedNPCContent | null>(null);
   const [dialogueTree, setDialogueTree] = useState<DialogueTree | null>(null);
+
+  // Voice generation state
+  const [voicePresets, setVoicePresets] = useState<VoicePreset[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [isGeneratingVoices, setIsGeneratingVoices] = useState(false);
+  const [voiceProgress, setVoiceProgress] = useState({ current: 0, total: 0 });
+  const [generatedVoiceCount, setGeneratedVoiceCount] = useState(0);
+
+  // Load voice presets
+  useEffect(() => {
+    async function loadPresets() {
+      try {
+        const res = await fetch("/api/audio/voices?type=presets");
+        if (res.ok) {
+          const data = await res.json();
+          setVoicePresets(data.voices || []);
+        }
+      } catch (error) {
+        console.error("Failed to load voice presets:", error);
+      }
+    }
+    loadPresets();
+  }, []);
+
+  // Auto-select voice preset based on NPC category/role
+  const getRecommendedVoice = useCallback(() => {
+    const roleLower = npcRole.toLowerCase();
+    const categoryLower = npcCategory.toLowerCase();
+    const personalityLower = npcPersonality.toLowerCase();
+
+    // Map NPC characteristics to voice presets
+    if (roleLower.includes("guard") || roleLower.includes("soldier")) {
+      return "guard";
+    }
+    if (
+      roleLower.includes("mage") ||
+      roleLower.includes("wizard") ||
+      roleLower.includes("witch")
+    ) {
+      return "female-mage";
+    }
+    if (
+      roleLower.includes("merchant") ||
+      roleLower.includes("shop") ||
+      roleLower.includes("trader")
+    ) {
+      return "merchant";
+    }
+    if (
+      roleLower.includes("inn") ||
+      roleLower.includes("bartend") ||
+      roleLower.includes("tavern")
+    ) {
+      return "innkeeper";
+    }
+    if (
+      roleLower.includes("sage") ||
+      roleLower.includes("elder") ||
+      personalityLower.includes("wise")
+    ) {
+      return "old-sage";
+    }
+    if (
+      categoryLower === "boss" ||
+      categoryLower === "mob" ||
+      personalityLower.includes("evil")
+    ) {
+      return "villain";
+    }
+    if (
+      personalityLower.includes("young") ||
+      personalityLower.includes("energetic")
+    ) {
+      return "young-hero";
+    }
+    // Default based on category
+    if (categoryLower === "quest") {
+      return "young-hero";
+    }
+    return "merchant"; // Friendly default
+  }, [npcRole, npcCategory, npcPersonality]);
+
+  // Auto-select voice when content is generated
+  useEffect(() => {
+    if (generatedContent && voicePresets.length > 0 && !selectedVoice) {
+      const recommended = getRecommendedVoice();
+      setSelectedVoice(recommended);
+    }
+  }, [generatedContent, voicePresets, selectedVoice, getRecommendedVoice]);
+
+  // Generate voices for all dialogue nodes
+  const handleGenerateAllVoices = useCallback(async () => {
+    if (!dialogueTree?.nodes || !selectedVoice) return;
+
+    const nodes = dialogueTree.nodes;
+    setIsGeneratingVoices(true);
+    setVoiceProgress({ current: 0, total: nodes.length });
+
+    let successCount = 0;
+    const updatedNodes: DialogueNode[] = [];
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      setVoiceProgress({ current: i + 1, total: nodes.length });
+
+      // Skip if no text or already has audio
+      if (!node.text || node.audio) {
+        updatedNodes.push(node);
+        continue;
+      }
+
+      try {
+        const res = await fetch("/api/audio/voice/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: node.text,
+            voicePreset: selectedVoice,
+            npcId: generatedContent?.id,
+            dialogueNodeId: node.id,
+            withTimestamps: true,
+            saveToAsset: true,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const audio: DialogueAudio = {
+            url: data.asset.url,
+            voiceId: data.asset.voiceId,
+            duration: data.asset.duration,
+            generatedAt: data.asset.generatedAt,
+            timestamps: data.asset.timestamps,
+          };
+          updatedNodes.push({ ...node, audio });
+          successCount++;
+        } else {
+          updatedNodes.push(node);
+        }
+      } catch (error) {
+        console.error(`Failed to generate voice for node ${node.id}:`, error);
+        updatedNodes.push(node);
+      }
+    }
+
+    // Update the dialogue tree with audio
+    const updatedTree: DialogueTree = {
+      ...dialogueTree,
+      nodes: updatedNodes,
+      hasAudio: successCount > 0,
+      voiceConfig: {
+        voiceId: selectedVoice,
+        voicePreset: selectedVoice,
+      },
+    };
+
+    setDialogueTree(updatedTree);
+    setGeneratedVoiceCount(successCount);
+
+    if (generatedContent) {
+      setGeneratedContent({
+        ...generatedContent,
+        dialogue: updatedTree,
+      });
+    }
+
+    setIsGeneratingVoices(false);
+
+    toast({
+      variant: successCount > 0 ? "success" : "destructive",
+      title: successCount > 0 ? "Voices Generated" : "Voice Generation Failed",
+      description: `Generated ${successCount} of ${nodes.length} voice clips`,
+    });
+  }, [dialogueTree, selectedVoice, generatedContent, toast]);
 
   const categoryOptions = [
     { value: "neutral", label: "Neutral (Shopkeeper, Banker, etc.)" },
@@ -249,6 +431,7 @@ export function NPCContentGenerator({
           <DialogueTreeEditor
             initialTree={dialogueTree}
             npcName={npcName}
+            npcId={generatedContent?.id}
             onSave={handleSaveDialogue}
             onGenerate={handleGenerate}
           />
@@ -465,6 +648,15 @@ export function NPCContentGenerator({
               <span className="text-muted-foreground">Dialogue Nodes</span>
               <span>{generatedContent.dialogue.nodes.length}</span>
             </div>
+            {generatedVoiceCount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Voice Clips</span>
+                <span className="text-green-400 flex items-center gap-1">
+                  <Volume2 className="w-3 h-3" />
+                  {generatedVoiceCount}
+                </span>
+              </div>
+            )}
           </div>
 
           {generatedContent.backstory && (
@@ -475,6 +667,72 @@ export function NPCContentGenerator({
               </p>
             </div>
           )}
+
+          {/* Voice Generation Section */}
+          <div className="border-t border-glass-border pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Mic className="w-4 h-4" />
+                Generate Voice Audio
+              </Label>
+              {dialogueTree?.hasAudio && (
+                <span className="text-xs text-green-400">✓ Has Audio</span>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Select
+                value={selectedVoice}
+                onChange={(v) => setSelectedVoice(v)}
+                options={voicePresets.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+                placeholder="Select voice..."
+                className="flex-1"
+              />
+              <SpectacularButton
+                onClick={handleGenerateAllVoices}
+                disabled={!selectedVoice || isGeneratingVoices}
+              >
+                {isGeneratingVoices ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {voiceProgress.current}/{voiceProgress.total}
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4 mr-2" />
+                    Generate All Voices
+                  </>
+                )}
+              </SpectacularButton>
+            </div>
+
+            {selectedVoice && voicePresets.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {voicePresets.find((p) => p.id === selectedVoice)
+                  ?.description || ""}
+              </p>
+            )}
+
+            {isGeneratingVoices && (
+              <div className="space-y-1">
+                <div className="h-2 bg-glass-bg rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-300"
+                    style={{
+                      width: `${(voiceProgress.current / voiceProgress.total) * 100}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Generating voice {voiceProgress.current} of{" "}
+                  {voiceProgress.total}...
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-2">
             <SpectacularButton

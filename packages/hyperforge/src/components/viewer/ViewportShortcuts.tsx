@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Info } from "lucide-react";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { Modal } from "@/components/ui/modal";
@@ -13,16 +14,24 @@ const shortcuts = [
 ];
 
 export function ViewportShortcuts() {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div className="absolute bottom-4 left-4 glass-panel p-2 rounded-lg z-10">
+    <div className="absolute bottom-4 left-4 z-10">
+      <SpectacularButton
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsOpen(true)}
+      >
+        <Info className="w-4 h-4 mr-2" />
+        Shortcuts
+      </SpectacularButton>
+
       <Modal
-        trigger={
-          <SpectacularButton variant="ghost" size="sm" className="w-full">
-            <Info className="w-4 h-4 mr-2" />
-            Shortcuts
-          </SpectacularButton>
-        }
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
         title="Keyboard Shortcuts"
+        size="small"
       >
         <div className="space-y-2">
           {shortcuts.map((shortcut) => (

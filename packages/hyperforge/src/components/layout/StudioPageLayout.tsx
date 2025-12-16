@@ -15,6 +15,9 @@ import {
   MessageSquare,
   Plus,
   ArrowLeft,
+  Music,
+  Volume2,
+  Mic,
   type LucideIcon,
 } from "lucide-react";
 
@@ -173,13 +176,82 @@ export function StudioPageLayout({
               title={sidebarCollapsed ? "NPC Dialogue" : undefined}
               className={`
                 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
+                transition-all duration-200
                 ${sidebarCollapsed ? "justify-center" : ""}
+                ${
+                  pathname === "/content"
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                }
               `}
             >
               <MessageSquare className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && <span>NPC Dialogue</span>}
             </Link>
+          </div>
+
+          {/* Audio Section */}
+          <div
+            className={`mt-4 pt-4 border-t border-glass-border ${sidebarCollapsed ? "px-0" : ""}`}
+          >
+            {!sidebarCollapsed && (
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+                Audio
+              </div>
+            )}
+            <nav className="space-y-1">
+              <Link
+                href="/audio"
+                title={sidebarCollapsed ? "Audio Studio" : undefined}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                  transition-all duration-200
+                  ${sidebarCollapsed ? "justify-center" : ""}
+                  ${
+                    pathname === "/audio"
+                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                  }
+                `}
+              >
+                <Music className="w-4 h-4 flex-shrink-0" />
+                {!sidebarCollapsed && <span>Audio Studio</span>}
+              </Link>
+              <Link
+                href="/audio/voice"
+                title={sidebarCollapsed ? "Voice Generator" : undefined}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                  transition-all duration-200
+                  ${sidebarCollapsed ? "justify-center" : ""}
+                  ${
+                    pathname === "/audio/voice"
+                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                  }
+                `}
+              >
+                <Mic className="w-4 h-4 flex-shrink-0" />
+                {!sidebarCollapsed && <span>Voice Generator</span>}
+              </Link>
+              <Link
+                href="/audio/sfx"
+                title={sidebarCollapsed ? "Sound Effects" : undefined}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                  transition-all duration-200
+                  ${sidebarCollapsed ? "justify-center" : ""}
+                  ${
+                    pathname === "/audio/sfx"
+                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                  }
+                `}
+              >
+                <Volume2 className="w-4 h-4 flex-shrink-0" />
+                {!sidebarCollapsed && <span>Sound Effects</span>}
+              </Link>
+            </nav>
           </div>
         </div>
 

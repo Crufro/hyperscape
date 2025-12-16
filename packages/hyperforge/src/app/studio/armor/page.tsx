@@ -597,7 +597,8 @@ export default function ArmorFittingPage() {
     if (!asset) return null;
     // Try modelUrl first, then modelPath
     const url = asset.modelUrl || asset.modelPath;
-    if (!url) return null;
+    // Don't return just the CDN base URL if path is empty
+    if (!url || url === "" || url === "http://localhost:8080/") return null;
     if (url.startsWith("http")) return url;
     if (url.startsWith("/")) return url; // Local API paths start with /
     if (url.startsWith("asset://"))

@@ -201,6 +201,8 @@
       "name": "@hyperscape/hyperforge",
       "version": "0.1.0",
       "dependencies": {
+        "@ai-sdk/gateway": "^2.0.21",
+        "@elevenlabs/elevenlabs-js": "^2.28.0",
         "@mediapipe/hands": "^0.4.1675469240",
         "@pixiv/three-vrm": "^3.4.3",
         "@react-three/drei": "^10.0.6",
@@ -946,6 +948,8 @@
     "@ecies/ciphers": ["@ecies/ciphers@0.2.5", "", { "peerDependencies": { "@noble/ciphers": "^1.0.0" } }, "sha512-GalEZH4JgOMHYYcYmVqnFirFsjZHeoGMDt9IxEnM9F7GRUUyUksJ7Ou53L83WHJq3RWKD3AcBpo0iQh0oMpf8A=="],
 
     "@electric-sql/pglite": ["@electric-sql/pglite@0.3.14", "", {}, "sha512-3DB258dhqdsArOI1fIt7cb9RpUOgcDg5hXWVgVHAeqVQ/qxtFy605QKs4gx6mFq3jWsSPqDN8TgSEsqC3OfV9Q=="],
+
+    "@elevenlabs/elevenlabs-js": ["@elevenlabs/elevenlabs-js@2.28.0", "", { "dependencies": { "command-exists": "^1.2.9", "node-fetch": "^2.7.0", "ws": "^8.18.3" } }, "sha512-58Qt61zZYa1jBDdkAFqEYBAIDQUVlj1OLkha27yr7RIxg+cwS6+gOsKNhBMy7U5nQ4Ue9H4Kpgz6trdg94xumw=="],
 
     "@elizaos/api-client": ["@elizaos/api-client@1.6.4", "", { "dependencies": { "@elizaos/core": "1.6.4" } }, "sha512-YFYsocY+tGAAx+/DPoa1HCUdkgCTJZUtSE26X0wk/4bL7hqKGho1ZYqBohjGa01RMzDqtVDloG343CZs+x2qrg=="],
 
@@ -5915,6 +5919,8 @@
 
     "@docusaurus/utils-validation/js-yaml": ["js-yaml@4.1.1", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA=="],
 
+    "@elevenlabs/elevenlabs-js/node-fetch": ["node-fetch@2.7.0", "", { "dependencies": { "whatwg-url": "^5.0.0" }, "peerDependencies": { "encoding": "^0.1.0" }, "optionalPeers": ["encoding"] }, "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A=="],
+
     "@elizaos/cli/@elizaos/plugin-openai": ["@elizaos/plugin-openai@1.5.15", "", { "dependencies": { "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.6.0-alpha.4", "ai": "^5.0.47", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-x2HHR3EDl+wqKLl6rnFIQuy5trNxYsf+rPJNaTVEV+hkbf5/zBPDdwVKRlsoEvbO0BilAAT4FuvNvT7C0p2d1g=="],
 
     "@elizaos/cli/chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
@@ -7163,6 +7169,8 @@
 
     "@docusaurus/utils/js-yaml/argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
+    "@elevenlabs/elevenlabs-js/node-fetch/whatwg-url": ["whatwg-url@5.0.0", "", { "dependencies": { "tr46": "~0.0.3", "webidl-conversions": "^3.0.0" } }, "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw=="],
+
     "@elizaos/cli/@elizaos/plugin-openai/ai": ["ai@5.0.95", "", { "dependencies": { "@ai-sdk/gateway": "2.0.11", "@ai-sdk/provider": "2.0.0", "@ai-sdk/provider-utils": "3.0.17", "@opentelemetry/api": "1.9.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-dsvFdYMeGP08zuUQkhKO1UMMXMCb+nro9ZmDdwaAkkTlCGkP3u1S+xaRUDNayu/c0KVkiTtfEroPG//U+kvXzg=="],
 
     "@elizaos/cli/execa/get-stream": ["get-stream@9.0.1", "", { "dependencies": { "@sec-ant/readable-stream": "^0.4.1", "is-stream": "^4.0.1" } }, "sha512-kVCxPF3vQM/N0B1PmoqVUqgHP+EeVjmZSQn+1oCRPxd2P21P2F19lIgbR3HBosbB1PUhOAoctJnfEn2GbN2eZA=="],
@@ -8120,6 +8128,10 @@
     "@coinbase/cdp-sdk/@solana/kit/@solana/transactions/@solana/nominal-types": ["@solana/nominal-types@3.0.3", "", { "peerDependencies": { "typescript": ">=5.3.3" } }, "sha512-aZavCiexeUAoMHRQg4s1AHkH3wscbOb70diyfjhwZVgFz1uUsFez7csPp9tNFkNolnadVb2gky7yBk3IImQJ6A=="],
 
     "@docsearch/react/ai/@ai-sdk/gateway/@vercel/oidc": ["@vercel/oidc@3.0.3", "", {}, "sha512-yNEQvPcVrK9sIe637+I0jD6leluPxzwJKx/Haw6F4H77CdDsszUn5V3o96LPziXkSNE2B83+Z3mjqGKBK/R6Gg=="],
+
+    "@elevenlabs/elevenlabs-js/node-fetch/whatwg-url/tr46": ["tr46@0.0.3", "", {}, "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="],
+
+    "@elevenlabs/elevenlabs-js/node-fetch/whatwg-url/webidl-conversions": ["webidl-conversions@3.0.1", "", {}, "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="],
 
     "@elizaos/cli/@elizaos/plugin-openai/ai/@ai-sdk/gateway": ["@ai-sdk/gateway@2.0.11", "", { "dependencies": { "@ai-sdk/provider": "2.0.0", "@ai-sdk/provider-utils": "3.0.17", "@vercel/oidc": "3.0.3" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-B0Vt2Xv88Lo9rg861Oyzq/SdTmT4LiqdjkpOxpSPpNk8Ih5TXTgyDAsV/qW14N6asPdK1YI5PosFLnVzfK5LrA=="],
 

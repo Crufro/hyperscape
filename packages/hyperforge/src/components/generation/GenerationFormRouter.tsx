@@ -24,6 +24,7 @@ export interface GenerationConfig {
   convertToVRM?: boolean; // Automatically convert to VRM format after generation
   enableHandRigging?: boolean; // Add hand bones for proper finger animation (requires VRM)
   useGPT4Enhancement?: boolean; // Enhance prompt with GPT-4 via Vercel AI Gateway
+  generateConceptArt?: boolean; // Generate concept art image before 3D (improves texturing)
 }
 
 export function GenerationFormRouter({

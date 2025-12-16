@@ -134,11 +134,23 @@ function RetargetContent() {
             ) {
               const vrmPath = preSelected.vrmPath || preSelected.modelPath;
               if (vrmPath) {
-                setVrmUrl(
-                  vrmPath.startsWith("asset://")
-                    ? vrmPath.replace("asset://", `${CDN_URL}/`)
-                    : `${CDN_URL}/${vrmPath}`,
-                );
+                // Determine the correct URL based on path type
+                let vrmUrlToSet: string;
+                if (vrmPath.startsWith("/api/")) {
+                  // Local API path - use directly
+                  vrmUrlToSet = vrmPath;
+                } else if (vrmPath.startsWith("asset://")) {
+                  // Asset CDN path
+                  vrmUrlToSet = vrmPath.replace("asset://", `${CDN_URL}/`);
+                } else if (vrmPath.startsWith("http")) {
+                  // Full URL
+                  vrmUrlToSet = vrmPath;
+                } else {
+                  // Relative path - prepend CDN
+                  vrmUrlToSet = `${CDN_URL}/${vrmPath}`;
+                }
+                console.log("[Retarget] Pre-selecting VRM:", vrmUrlToSet);
+                setVrmUrl(vrmUrlToSet);
                 setVrmConverted(true);
               }
             }
