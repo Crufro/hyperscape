@@ -24,6 +24,8 @@ import {
   AlertTriangle,
   Globe,
   RefreshCw,
+  Store,
+  ShoppingCart,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +115,14 @@ interface DropSource {
   maxQuantity: number;
 }
 
+interface ItemStoreInfo {
+  storeId: string;
+  storeName: string;
+  price: number;
+  stock: number | "unlimited";
+  buybackRate?: number;
+}
+
 interface PropertiesPanelProps {
   asset: AssetData | null;
   isOpen: boolean;
@@ -193,6 +203,7 @@ export function PropertiesPanel({
   const [toolData, setToolData] = useState<ItemGameData | null>(null);
   const [relatedItems, setRelatedItems] = useState<ItemGameData[]>([]);
   const [dropSources, setDropSources] = useState<DropSource[]>([]);
+  const [storeInfo, setStoreInfo] = useState<ItemStoreInfo[]>([]);
   const [isLoadingGameData, setIsLoadingGameData] = useState(false);
 
   // Fetch game data when asset changes
@@ -206,6 +217,7 @@ export function PropertiesPanel({
       setToolData(null);
       setRelatedItems([]);
       setDropSources([]);
+      setStoreInfo([]);
 
       try {
         // Determine what type of game data to fetch based on asset properties
@@ -257,6 +269,15 @@ export function PropertiesPanel({
             if (res.ok) {
               const data = await res.json();
               if (data.dropSources) setDropSources(data.dropSources);
+            }
+
+            // Fetch store availability for this item
+            const storeRes = await fetch(`/api/game/stores?itemId=${itemId}`);
+            if (storeRes.ok) {
+              const storeData = await storeRes.json();
+              if (storeData.stores && storeData.stores.length > 0) {
+                setStoreInfo(storeData.stores);
+              }
             }
           }
         }
@@ -1044,6 +1065,71 @@ export function PropertiesPanel({
                   This item is not dropped by any monsters
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Store Availability */}
+          {storeInfo.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-glass-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-green-400" />
+                <span className="text-sm font-semibold">
+                  Available in Stores
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] ml-auto text-green-400"
+                >
+                  {storeInfo.length} store{storeInfo.length !== 1 ? "s" : ""}
+                </Badge>
+              </div>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto themed-scrollbar">
+                {storeInfo.map((store) => (
+                  <div
+                    key={store.storeId}
+                    className="p-2 rounded bg-glass-bg/50"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="w-3 h-3 text-green-400" />
+                        <span className="text-sm font-medium">
+                          {store.storeName}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="text-amber-400 flex items-center gap-1">
+                          <Coins className="w-3 h-3" />
+                          {store.price.toLocaleString()} gp
+                        </span>
+                        <span
+                          className={cn(
+                            "flex items-center gap-1",
+                            store.stock === "unlimited"
+                              ? "text-green-400"
+                              : typeof store.stock === "number" &&
+                                  store.stock > 10
+                                ? "text-blue-400"
+                                : "text-orange-400",
+                          )}
+                        >
+                          <Package className="w-3 h-3" />
+                          {store.stock === "unlimited"
+                            ? "Unlimited stock"
+                            : `${store.stock} in stock`}
+                        </span>
+                      </div>
+                      {store.buybackRate && (
+                        <span className="text-muted-foreground">
+                          Buyback: {Math.round(store.buybackRate * 100)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </TabsContent>
