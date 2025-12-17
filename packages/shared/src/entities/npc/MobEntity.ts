@@ -112,6 +112,7 @@ import { AggroManager } from "../managers/AggroManager";
 import {
   worldToTile,
   TICK_DURATION_MS,
+  tileChebyshevDistance,
 } from "../../systems/shared/movement/TileSystem";
 import { attackSpeedSecondsToTicks } from "../../utils/game/CombatCalculations";
 
@@ -1041,7 +1042,7 @@ export class MobEntity extends CombatantEntity {
       // CRITICAL: Return mob's current spawn point (changes on respawn)
       // NOT the spawn area center (which is fixed)
       getSpawnPoint: () => this._currentSpawnPoint,
-      getDistanceFromSpawn: () => this.getDistance2D(this._currentSpawnPoint),
+      getDistanceFromSpawn: () => this.getSpawnDistanceTiles(), // OSRS Chebyshev tiles
       getWanderRadius: () => this.respawnManager.getSpawnAreaRadius(),
       getLeashRange: () => this.config.leashRange ?? 10, // OSRS two-tier range: leash > wander
       getCombatRange: () => this.config.combatRange,
@@ -1681,13 +1682,29 @@ export class MobEntity extends CombatantEntity {
 
   /**
    * Calculate 2D horizontal distance (XZ plane only, ignoring Y)
-   * Used for spawn/wander radius checks to avoid Y-axis terrain height issues
+   * @deprecated Use getSpawnDistanceTiles() for leash/spawn checks - OSRS uses Chebyshev distance
    */
   private getDistance2D(point: Position3D): number {
     const pos = this.getPosition();
     const dx = pos.x - point.x;
     const dz = pos.z - point.z;
     return Math.sqrt(dx * dx + dz * dz);
+  }
+
+  /**
+   * Calculate tile-based Chebyshev distance from spawn point (OSRS-accurate)
+   *
+   * OSRS uses Chebyshev distance (max of dx, dz) for tile-based checks.
+   * This is critical for diagonal positions:
+   * - Euclidean: (6,6) from (0,0) = 8.49 tiles (WRONG)
+   * - Chebyshev: (6,6) from (0,0) = 6 tiles (CORRECT)
+   */
+  private getSpawnDistanceTiles(): number {
+    const pos = this.getPosition();
+    const spawn = this._currentSpawnPoint;
+    const currentTile = worldToTile(pos.x, pos.z);
+    const spawnTile = worldToTile(spawn.x, spawn.z);
+    return tileChebyshevDistance(currentTile, spawnTile);
   }
 
   takeDamage(damage: number, attackerId?: string): boolean {
