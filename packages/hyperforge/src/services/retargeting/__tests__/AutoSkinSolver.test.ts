@@ -268,7 +268,7 @@ describe("AutoSkinSolver", () => {
 
     it("uses bones that are physically close to vertices", () => {
       const solver = new DistanceSolver(geometry, bones);
-      const { skinIndices } = solver.calculateWeights();
+      solver.calculateWeights();
 
       // Create a vertex at head position and check it gets head-related bone
       const headGeometry = new THREE.BufferGeometry();

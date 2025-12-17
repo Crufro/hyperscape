@@ -12,10 +12,10 @@
  * - Rest pose transfer breaking animations
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import * as THREE from "three";
 
-import { SkeletonRetargeter, SolverType } from "../SkeletonRetargeter";
+import { SkeletonRetargeter } from "../SkeletonRetargeter";
 
 // Import polyfills for server-side Three.js
 import "@/lib/server/three-polyfills";

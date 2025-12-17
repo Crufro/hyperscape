@@ -19,7 +19,6 @@ import {
   countFaces,
   countVertices,
   createTestMesh,
-  createTestSkeleton,
   getMeshDimensions,
 } from "@/__tests__/utils/test-helpers";
 
@@ -653,7 +652,7 @@ describe("MeshFittingService", () => {
           method: "auto",
           sizeMultiplier: 1.0,
           fitTightness: 0.9,
-          onProgress: (progress, message) => {
+          onProgress: (progress, _message) => {
             progressCalled = true;
             expect(progress).toBeGreaterThanOrEqual(0);
             expect(progress).toBeLessThanOrEqual(1);
@@ -1096,7 +1095,7 @@ describe("MeshFittingService", () => {
       sourceMesh.updateMatrixWorld(true);
 
       const originalBounds = new THREE.Box3().setFromObject(sourceMesh);
-      const originalSize = originalBounds.getSize(new THREE.Vector3());
+      const _originalSize = originalBounds.getSize(new THREE.Vector3());
 
       fittingService.fitMeshToTarget(sourceMesh, targetMesh, {
         iterations: 2,
@@ -1665,7 +1664,7 @@ describe("MeshFittingService", () => {
       armorMesh.updateMatrixWorld(true);
 
       // Store original top and bottom ring positions (openings)
-      const originalPositions = new Float32Array(
+      const _originalPositions = new Float32Array(
         (armorMesh.geometry as THREE.BufferGeometry).attributes.position.array,
       );
 
@@ -1703,7 +1702,7 @@ describe("MeshFittingService", () => {
 
       // Store original bounds
       const originalBounds = new THREE.Box3().setFromObject(sourceMesh);
-      const originalSize = originalBounds.getSize(new THREE.Vector3());
+      const _originalSize = originalBounds.getSize(new THREE.Vector3());
 
       fittingService.fitMeshToTarget(sourceMesh, targetMesh, {
         iterations: 3,
@@ -2225,7 +2224,7 @@ describe("MeshFittingService", () => {
 
       // Store original size
       const originalBounds = new THREE.Box3().setFromObject(sourceMesh);
-      const originalSize = originalBounds.getSize(new THREE.Vector3());
+      const _originalSize = originalBounds.getSize(new THREE.Vector3());
 
       fittingService.fitMeshToTarget(sourceMesh, targetMesh, {
         iterations: 20,

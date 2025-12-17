@@ -7,7 +7,7 @@
  * NO MOCKS - all tests use real BufferGeometry and real mesh operations.
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import * as THREE from "three";
 import {
   MeshFittingService,
@@ -563,7 +563,7 @@ describe("MeshFittingService Integration Tests", () => {
 
       // Get bounds before reset
       geometry.computeBoundingBox();
-      const scaledBounds = geometry.boundingBox!.clone();
+      const _scaledBounds = geometry.boundingBox!.clone();
 
       // Reset scale and positions
       mesh.scale.set(1, 1, 1);
@@ -782,7 +782,7 @@ describe("MeshFittingService Integration Tests", () => {
       const target = createSphereMesh(1.0, 12);
 
       const geometry = mesh.geometry as THREE.BufferGeometry;
-      const originalPositions = new Float32Array(
+      const _originalPositions = new Float32Array(
         geometry.attributes.position.array,
       );
 

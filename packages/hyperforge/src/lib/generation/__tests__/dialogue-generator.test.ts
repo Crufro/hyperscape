@@ -11,7 +11,7 @@
  * - Missing required fields
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock the AI gateway BEFORE importing the module
 vi.mock("@/lib/ai/gateway", () => ({

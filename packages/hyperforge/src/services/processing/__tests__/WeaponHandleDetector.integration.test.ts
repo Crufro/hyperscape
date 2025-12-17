@@ -485,7 +485,7 @@ class TestableWeaponHandleDetector {
   /**
    * Render model to canvas - mock version for testing
    */
-  renderToCanvas(model: THREE.Object3D): HTMLCanvasElement {
+  renderToCanvas(_model: THREE.Object3D): HTMLCanvasElement {
     const canvas = createMockCanvas();
 
     // Actual render call (mocked)
@@ -1482,7 +1482,7 @@ describe("WeaponHandleDetector Integration Tests", () => {
       const cameraResult = detector.setupOrthographicCamera(staff);
       expect(cameraResult.orientationCorrected).toBe(false);
 
-      const canvas = detector.renderToCanvas(staff);
+      detector.renderToCanvas(staff);
 
       // Staff is tall, handle area is in middle-bottom
       const handleBounds = {

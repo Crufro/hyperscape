@@ -83,7 +83,7 @@ function createTestHandLandmarks(
 
   // Create world landmarks (normalized 3D coordinates)
   const worldLandmarks: Point3D[] | undefined = includeWorld
-    ? landmarks.map((l, i) => ({
+    ? landmarks.map((l, _i) => ({
         x: ((l.x - centerX) / imageWidth) * 0.2,
         y: ((centerY - l.y) / imageHeight) * 0.2,
         z: l.z,
@@ -222,7 +222,7 @@ describe("HandPoseDetectionService", () => {
     });
 
     it("joint indices are sequential within each finger", () => {
-      for (const [finger, joints] of Object.entries(FINGER_JOINTS)) {
+      for (const [_finger, joints] of Object.entries(FINGER_JOINTS)) {
         for (let i = 1; i < joints.length; i++) {
           expect(joints[i]).toBe(joints[i - 1] + 1);
         }
@@ -283,8 +283,11 @@ describe("HandPoseDetectionService", () => {
     });
 
     it("projects 3D point to camera space and back", () => {
-      const { camera, cameraMatrix, projectionMatrix } =
-        createTestCameraMatrices();
+      const {
+        camera,
+        cameraMatrix: _cameraMatrix,
+        projectionMatrix: _projectionMatrix,
+      } = createTestCameraMatrices();
 
       // Original 3D point
       const original = new THREE.Vector3(0.5, 0.3, 0);
@@ -411,9 +414,9 @@ describe("HandPoseDetectionService", () => {
         little: FINGER_JOINTS.little.map((idx) => hand.landmarks[idx]),
       };
 
-      Object.entries(fingers).forEach(([name, points]) => {
+      Object.entries(fingers).forEach(([_name, points]) => {
         expect(points).toHaveLength(4);
-        points.forEach((point, i) => {
+        points.forEach((point, _i) => {
           expect(point).toBeDefined();
           expect(Number.isFinite(point.x)).toBe(true);
           expect(Number.isFinite(point.y)).toBe(true);
@@ -810,6 +813,372 @@ describe("HandPoseDetectionService", () => {
         expect(landmark.x).toBeLessThanOrEqual(4096);
         expect(landmark.y).toBeLessThanOrEqual(4096);
       }
+    });
+  });
+});
+
+// =============================================================================
+// ACTUAL SERVICE TESTS - Testing HandPoseDetectionService class methods
+// =============================================================================
+import { HandPoseDetectionService } from "../HandPoseDetectionService";
+
+describe("HandPoseDetectionService - Service Instance Tests", () => {
+  let service: HandPoseDetectionService;
+
+  beforeAll(() => {
+    // Create service instance - does NOT require TensorFlow until initialize() is called
+    service = new HandPoseDetectionService();
+  });
+
+  describe("Constructor and Initialization State", () => {
+    it("creates service instance without errors", () => {
+      const newService = new HandPoseDetectionService();
+      expect(newService).toBeDefined();
+      expect(newService).toBeInstanceOf(HandPoseDetectionService);
+    });
+
+    it("service is not initialized until initialize() is called", () => {
+      const newService = new HandPoseDetectionService();
+      // The service should exist but detector should be null
+      expect(newService).toBeDefined();
+    });
+  });
+
+  describe("getNormalizedLandmarks() - Actual Service Method", () => {
+    it("normalizes landmarks to 0-1 range", () => {
+      const hand = createTestHandLandmarks("left", {
+        imageWidth: 512,
+        imageHeight: 512,
+      });
+
+      const normalized = service.getNormalizedLandmarks(hand, 512, 512);
+
+      expect(normalized).toHaveLength(21);
+      for (const point of normalized) {
+        expect(point.x).toBeGreaterThanOrEqual(0);
+        expect(point.x).toBeLessThanOrEqual(1);
+        expect(point.y).toBeGreaterThanOrEqual(0);
+        expect(point.y).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it("preserves z coordinate", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const normalized = service.getNormalizedLandmarks(hand, 512, 512);
+
+      for (let i = 0; i < 21; i++) {
+        expect(normalized[i].z).toBe(hand.landmarks[i].z);
+      }
+    });
+
+    it("handles different image dimensions", () => {
+      const hand = createTestHandLandmarks("left", {
+        imageWidth: 1024,
+        imageHeight: 768,
+      });
+
+      const normalized = service.getNormalizedLandmarks(hand, 1024, 768);
+
+      expect(normalized).toHaveLength(21);
+      // Verify normalization uses correct dimensions
+      for (const point of normalized) {
+        expect(Number.isFinite(point.x)).toBe(true);
+        expect(Number.isFinite(point.y)).toBe(true);
+      }
+    });
+  });
+
+  describe("getFingerSegments() - Actual Service Method", () => {
+    it("extracts all finger segments correctly", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const segments = service.getFingerSegments(hand);
+
+      expect(segments).toHaveProperty("palm");
+      expect(segments).toHaveProperty("thumb");
+      expect(segments).toHaveProperty("index");
+      expect(segments).toHaveProperty("middle");
+      expect(segments).toHaveProperty("ring");
+      expect(segments).toHaveProperty("pinky");
+    });
+
+    it("palm segment includes wrist and MCPs", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const segments = service.getFingerSegments(hand);
+
+      expect(segments.palm).toHaveLength(6);
+      // First point should be wrist
+      expect(segments.palm[0]).toEqual(hand.landmarks[HAND_LANDMARKS.WRIST]);
+    });
+
+    it("each finger segment has 4 joints", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const segments = service.getFingerSegments(hand);
+
+      // Note: FINGER_JOINTS uses 'little' instead of 'pinky'
+      expect(segments.thumb).toHaveLength(4);
+      expect(segments.index).toHaveLength(4);
+      expect(segments.middle).toHaveLength(4);
+      expect(segments.ring).toHaveLength(4);
+      expect(segments.little).toHaveLength(4);
+    });
+
+    it("segments contain valid 3D points", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const segments = service.getFingerSegments(hand);
+
+      for (const [_name, points] of Object.entries(segments)) {
+        for (const point of points) {
+          expect(Number.isFinite(point.x)).toBe(true);
+          expect(Number.isFinite(point.y)).toBe(true);
+          expect(Number.isFinite(point.z)).toBe(true);
+        }
+      }
+    });
+  });
+
+  describe("getHandBounds() - Actual Service Method", () => {
+    it("calculates correct min/max bounds", () => {
+      const landmarks: Point3D[] = [
+        { x: 100, y: 200, z: 0 },
+        { x: 150, y: 100, z: 0.1 },
+        { x: 200, y: 300, z: 0.2 },
+      ];
+
+      const bounds = service.getHandBounds(landmarks);
+
+      expect(bounds.min.x).toBe(100);
+      expect(bounds.max.x).toBe(200);
+      expect(bounds.min.y).toBe(100);
+      expect(bounds.max.y).toBe(300);
+      expect(bounds.min.z).toBe(0);
+      expect(bounds.max.z).toBe(0.2);
+    });
+
+    it("handles all 21 hand landmarks", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const bounds = service.getHandBounds(hand.landmarks);
+
+      // Width and height should be positive
+      const width = bounds.max.x - bounds.min.x;
+      const height = bounds.max.y - bounds.min.y;
+
+      expect(width).toBeGreaterThan(0);
+      expect(height).toBeGreaterThan(0);
+    });
+
+    it("bounds contain all landmarks", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const bounds = service.getHandBounds(hand.landmarks);
+
+      for (const landmark of hand.landmarks) {
+        expect(landmark.x).toBeGreaterThanOrEqual(bounds.min.x);
+        expect(landmark.x).toBeLessThanOrEqual(bounds.max.x);
+        expect(landmark.y).toBeGreaterThanOrEqual(bounds.min.y);
+        expect(landmark.y).toBeLessThanOrEqual(bounds.max.y);
+        expect(landmark.z).toBeGreaterThanOrEqual(bounds.min.z);
+        expect(landmark.z).toBeLessThanOrEqual(bounds.max.z);
+      }
+    });
+  });
+
+  describe("validateHandDetection() - Actual Service Method", () => {
+    it("validates high confidence detection", () => {
+      const hand = createTestHandLandmarks("left", { confidence: 0.95 });
+
+      const result = service.validateHandDetection(hand);
+
+      expect(result.isValid).toBe(true);
+      expect(result.issues).toHaveLength(0);
+    });
+
+    it("reports low confidence as issue", () => {
+      const hand = createTestHandLandmarks("left", { confidence: 0.5 });
+
+      const result = service.validateHandDetection(hand);
+
+      expect(result.isValid).toBe(false);
+      expect(result.issues.some((i) => i.includes("confidence"))).toBe(true);
+    });
+
+    it("validates landmark count", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const _result = service.validateHandDetection(hand);
+
+      // Should pass since we have 21 landmarks
+      expect(hand.landmarks.length).toBe(21);
+    });
+
+    it("handles edge case hand proportions", () => {
+      const hand = createTestHandLandmarks("left", {
+        imageWidth: 512,
+        imageHeight: 512,
+        confidence: 0.9,
+      });
+
+      const result = service.validateHandDetection(hand);
+
+      // Our test landmarks should be valid
+      expect(result).toBeDefined();
+      expect(typeof result.isValid).toBe("boolean");
+      expect(Array.isArray(result.issues)).toBe(true);
+    });
+  });
+
+  describe("calculateBonePositions() - Actual Service Method", () => {
+    it("calculates bone positions for left hand", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const positions = service.calculateBonePositions(hand, "left");
+
+      expect(positions).toHaveProperty("wrist");
+      expect(positions).toHaveProperty("thumb");
+      expect(positions).toHaveProperty("index");
+      expect(positions).toHaveProperty("middle");
+      expect(positions).toHaveProperty("ring");
+      expect(positions).toHaveProperty("little");
+    });
+
+    it("calculates bone positions for right hand", () => {
+      const hand = createTestHandLandmarks("right");
+
+      const positions = service.calculateBonePositions(hand, "right");
+
+      expect(positions).toHaveProperty("wrist");
+      expect(positions).toHaveProperty("thumb");
+      expect(positions).toHaveProperty("index");
+      expect(positions).toHaveProperty("middle");
+      expect(positions).toHaveProperty("ring");
+      expect(positions).toHaveProperty("little");
+    });
+
+    it("wrist position matches first landmark", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const positions = service.calculateBonePositions(hand, "left");
+
+      expect(positions.wrist).toHaveLength(1);
+      expect(positions.wrist[0]).toEqual(hand.landmarks[HAND_LANDMARKS.WRIST]);
+    });
+
+    it("finger positions have correct joint count", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const positions = service.calculateBonePositions(hand, "left");
+
+      // Each finger should have 5 positions (base + 4 joints)
+      expect(positions.thumb.length).toBeGreaterThanOrEqual(4);
+      expect(positions.index.length).toBeGreaterThanOrEqual(4);
+      expect(positions.middle.length).toBeGreaterThanOrEqual(4);
+      expect(positions.ring.length).toBeGreaterThanOrEqual(4);
+      expect(positions.little.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it("all positions are valid 3D points", () => {
+      const hand = createTestHandLandmarks("left");
+
+      const positions = service.calculateBonePositions(hand, "left");
+
+      for (const [_name, points] of Object.entries(positions)) {
+        for (const point of points) {
+          expect(Number.isFinite(point.x)).toBe(true);
+          expect(Number.isFinite(point.y)).toBe(true);
+          expect(Number.isFinite(point.z)).toBe(true);
+        }
+      }
+    });
+  });
+
+  describe("convertTo3DCoordinates() - Actual Service Method", () => {
+    it("converts 2D landmarks to 3D using camera matrices", () => {
+      const { cameraMatrix, projectionMatrix } = createTestCameraMatrices();
+
+      const landmarks2D: Point2D[] = [
+        { x: 0.5, y: 0.5 },
+        { x: 0.3, y: 0.4 },
+        { x: 0.7, y: 0.6 },
+      ];
+
+      const landmarks3D = service.convertTo3DCoordinates(
+        landmarks2D,
+        cameraMatrix,
+        projectionMatrix,
+      );
+
+      expect(landmarks3D).toHaveLength(3);
+      for (const point of landmarks3D) {
+        expect(Number.isFinite(point.x)).toBe(true);
+        expect(Number.isFinite(point.y)).toBe(true);
+        expect(Number.isFinite(point.z)).toBe(true);
+      }
+    });
+
+    it("uses depth estimates when provided", () => {
+      const { cameraMatrix, projectionMatrix } = createTestCameraMatrices();
+
+      const landmarks2D: Point2D[] = [
+        { x: 0.5, y: 0.5 },
+        { x: 0.5, y: 0.5 },
+      ];
+      const depthEstimates = [0.2, 0.8];
+
+      const landmarks3D = service.convertTo3DCoordinates(
+        landmarks2D,
+        cameraMatrix,
+        projectionMatrix,
+        depthEstimates,
+      );
+
+      expect(landmarks3D).toHaveLength(2);
+      // Different depths should produce different Z values
+      expect(landmarks3D[0].z).not.toBe(landmarks3D[1].z);
+    });
+
+    it("handles corner case coordinates", () => {
+      const { cameraMatrix, projectionMatrix } = createTestCameraMatrices();
+
+      const landmarks2D: Point2D[] = [
+        { x: 0, y: 0 }, // Top-left
+        { x: 1, y: 1 }, // Bottom-right
+        { x: 0.5, y: 0.5 }, // Center
+      ];
+
+      const landmarks3D = service.convertTo3DCoordinates(
+        landmarks2D,
+        cameraMatrix,
+        projectionMatrix,
+      );
+
+      expect(landmarks3D).toHaveLength(3);
+      for (const point of landmarks3D) {
+        expect(Number.isNaN(point.x)).toBe(false);
+        expect(Number.isNaN(point.y)).toBe(false);
+        expect(Number.isNaN(point.z)).toBe(false);
+      }
+    });
+  });
+
+  describe("dispose() - Actual Service Method", () => {
+    it("disposes service without errors", () => {
+      const disposableService = new HandPoseDetectionService();
+
+      expect(() => disposableService.dispose()).not.toThrow();
+    });
+
+    it("can be disposed multiple times safely", () => {
+      const disposableService = new HandPoseDetectionService();
+
+      expect(() => {
+        disposableService.dispose();
+        disposableService.dispose();
+      }).not.toThrow();
     });
   });
 });

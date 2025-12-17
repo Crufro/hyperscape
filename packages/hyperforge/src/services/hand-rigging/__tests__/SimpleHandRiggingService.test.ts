@@ -16,7 +16,6 @@ import { describe, it, expect, beforeAll } from "vitest";
 import * as THREE from "three";
 
 import { SimpleHandRiggingService } from "../SimpleHandRiggingService";
-import { createTestSkeleton } from "@/__tests__/utils/test-helpers";
 
 // Import polyfills for server-side Three.js
 import "@/lib/server/three-polyfills";
@@ -175,8 +174,12 @@ function createTestScene(): {
   const scene = new THREE.Object3D();
   scene.name = "Scene";
 
-  const { skeleton, rootBone, leftWrist, rightWrist } =
-    createSkeletonWithWrists();
+  const {
+    skeleton,
+    rootBone: _rootBone,
+    leftWrist,
+    rightWrist,
+  } = createSkeletonWithWrists();
   const mesh = createSkinnedMeshWithSkeleton(skeleton);
   mesh.name = "Body";
 
@@ -193,10 +196,10 @@ function createTestScene(): {
 }
 
 describe("SimpleHandRiggingService", () => {
-  let service: SimpleHandRiggingService;
+  let _service: SimpleHandRiggingService;
 
   beforeAll(() => {
-    service = new SimpleHandRiggingService();
+    _service = new SimpleHandRiggingService();
   });
 
   describe("Wrist Detection", () => {
@@ -371,7 +374,7 @@ describe("SimpleHandRiggingService", () => {
     });
 
     it("creates correct bone hierarchy (wrist -> palm -> fingers)", () => {
-      const { leftWrist, rightWrist } = createTestScene();
+      const { leftWrist, rightWrist: _rightWrist } = createTestScene();
 
       // Test left hand hierarchy
       const leftPalm = new THREE.Bone();
@@ -540,7 +543,7 @@ describe("SimpleHandRiggingService", () => {
 
     it("normalizes weights after redistribution", () => {
       // Simulate weight redistribution (like in applySimpleWeights)
-      const weights = [0.3, 0.5, 0.2, 0.0]; // Sum = 1.0
+      const _weights = [0.3, 0.5, 0.2, 0.0]; // Sum = 1.0
 
       // After adding new weights, they should still sum to 1.0
       const newWeights = [0.2, 0.3, 0.3, 0.2]; // Sum = 1.0
@@ -782,6 +785,352 @@ describe("SimpleHandRiggingService", () => {
       }
 
       expect(foundScene).toBe(false);
+    });
+  });
+
+  describe("Model Validation", () => {
+    it("validates model with valid skeleton structure", () => {
+      const { mesh } = createTestScene();
+
+      // Validate skeleton has bones
+      expect(mesh.skeleton).toBeDefined();
+      expect(mesh.skeleton.bones.length).toBeGreaterThan(0);
+
+      // Validate bone count matches inverse count
+      expect(mesh.skeleton.bones.length).toBe(
+        mesh.skeleton.boneInverses.length,
+      );
+
+      // Validate no null bones
+      const nullBones = mesh.skeleton.bones.filter((b) => !b);
+      expect(nullBones.length).toBe(0);
+    });
+
+    it("detects skeleton with null bones", () => {
+      // Create a skeleton with a null entry
+      const bone1 = new THREE.Bone();
+      bone1.name = "Bone1";
+      const bone2 = new THREE.Bone();
+      bone2.name = "Bone2";
+
+      // Manually create bones array with null
+      const bonesWithNull = [bone1, null as unknown as THREE.Bone, bone2];
+      const _skeleton = new THREE.Skeleton(
+        bonesWithNull.filter(Boolean) as THREE.Bone[],
+      );
+
+      // Simulating validation check
+      const issues: string[] = [];
+      [bone1, null, bone2].forEach((bone, index) => {
+        if (!bone) {
+          issues.push(`Skeleton has null bone at index ${index}`);
+        }
+      });
+
+      expect(issues.length).toBe(1);
+      expect(issues[0]).toContain("null bone at index 1");
+    });
+
+    it("detects bone count mismatch with inverses", () => {
+      const { skeleton } = createTestScene();
+
+      // Simulate a mismatched state
+      const boneCount = skeleton.bones.length;
+      const inverseCount = skeleton.boneInverses.length;
+
+      // They should match in a valid skeleton
+      expect(boneCount).toBe(inverseCount);
+
+      // Simulate validation logic
+      const issues: string[] = [];
+      if (boneCount !== inverseCount) {
+        issues.push(
+          `Bone count (${boneCount}) doesn't match inverse count (${inverseCount})`,
+        );
+      }
+      expect(issues.length).toBe(0); // Valid skeleton
+    });
+
+    it("detects bones without parent in scene", () => {
+      const { skeleton } = createTestScene();
+
+      // Create an orphaned bone
+      const orphanBone = new THREE.Bone();
+      orphanBone.name = "OrphanedBone";
+      // Don't add to any parent
+
+      const issues: string[] = [];
+      const testBones = [...skeleton.bones, orphanBone];
+
+      testBones.forEach((bone, index) => {
+        if (bone && !bone.parent) {
+          issues.push(`Bone ${bone.name} at index ${index} has no parent`);
+        }
+      });
+
+      // Should detect the orphaned bone has no parent
+      expect(issues.length).toBe(1);
+      expect(issues[0]).toContain("OrphanedBone");
+    });
+
+    it("returns validation errors for invalid model structure", () => {
+      // Simulate a validation result with errors
+      const issues = [
+        "Skeleton has null bone at index 2",
+        "Bone TestBone at index 5 has no parent",
+      ];
+
+      // Validation result structure
+      const result = { isValid: issues.length === 0, errors: issues };
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBe(2);
+    });
+
+    it("returns valid result for well-structured model", () => {
+      const { mesh } = createTestScene();
+
+      // Run through validation checks
+      const issues: string[] = [];
+
+      // Check for null bones
+      mesh.skeleton.bones.forEach((bone, index) => {
+        if (!bone) {
+          issues.push(`Skeleton has null bone at index ${index}`);
+        }
+      });
+
+      // Check bone count matches inverse count
+      if (mesh.skeleton.bones.length !== mesh.skeleton.boneInverses.length) {
+        issues.push(`Bone count doesn't match inverse count`);
+      }
+
+      const result = { isValid: issues.length === 0, errors: issues };
+      expect(result.isValid).toBe(true);
+      expect(result.errors.length).toBe(0);
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("handles model with no skinned meshes gracefully", () => {
+      const scene = new THREE.Object3D();
+      scene.name = "Scene";
+
+      // Add a regular mesh (not skinned)
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshBasicMaterial();
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = "RegularMesh";
+      scene.add(mesh);
+
+      // Search for skinned meshes
+      const skinnedMeshes: THREE.SkinnedMesh[] = [];
+      scene.traverse((child) => {
+        if (child instanceof THREE.SkinnedMesh) {
+          skinnedMeshes.push(child);
+        }
+      });
+
+      expect(skinnedMeshes.length).toBe(0);
+    });
+
+    it("handles model with no wrist bones", () => {
+      const hipsBone = new THREE.Bone();
+      hipsBone.name = "Root";
+      hipsBone.position.set(0, 100, 0);
+
+      const spineBone = new THREE.Bone();
+      spineBone.name = "Spine";
+      spineBone.position.set(0, 20, 0);
+      hipsBone.add(spineBone);
+
+      const scene = new THREE.Object3D();
+      scene.name = "Scene";
+      scene.add(hipsBone);
+
+      // Search for wrist bones
+      const wristBones: THREE.Bone[] = [];
+      scene.traverse((child) => {
+        if (child instanceof THREE.Bone) {
+          const name = child.name.toLowerCase();
+          if (name.includes("hand") || name.includes("wrist")) {
+            wristBones.push(child);
+          }
+        }
+      });
+
+      expect(wristBones.length).toBe(0);
+    });
+
+    it("handles bones with very small forearm length", () => {
+      const forearm = new THREE.Bone();
+      forearm.name = "LeftForeArm";
+      forearm.position.set(0, 0, 0);
+
+      const wrist = new THREE.Bone();
+      wrist.name = "LeftHand";
+      // Very small offset
+      wrist.position.set(0.001, 0, 0);
+      forearm.add(wrist);
+
+      forearm.updateMatrixWorld(true);
+
+      // Calculate forearm length
+      const forearmLength = wrist.position.length();
+      expect(forearmLength).toBeLessThan(0.01);
+
+      // Hand length calculation should still work
+      const handToForearmRatio = 0.65;
+      const totalHandLength = forearmLength * handToForearmRatio;
+      expect(totalHandLength).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Bone Hierarchy Depth Calculation", () => {
+    it("calculates correct depth for root bone", () => {
+      const rootBone = new THREE.Bone();
+      rootBone.name = "Root";
+
+      const getBoneDepth = (bone: THREE.Bone): number => {
+        let depth = 0;
+        let current = bone.parent;
+        while (current && current instanceof THREE.Bone) {
+          depth++;
+          current = current.parent;
+        }
+        return depth;
+      };
+
+      expect(getBoneDepth(rootBone)).toBe(0);
+    });
+
+    it("calculates correct depth for nested bones", () => {
+      const root = new THREE.Bone();
+      root.name = "Root";
+
+      const child1 = new THREE.Bone();
+      child1.name = "Child1";
+      root.add(child1);
+
+      const child2 = new THREE.Bone();
+      child2.name = "Child2";
+      child1.add(child2);
+
+      const child3 = new THREE.Bone();
+      child3.name = "Child3";
+      child2.add(child3);
+
+      const getBoneDepth = (bone: THREE.Bone): number => {
+        let depth = 0;
+        let current = bone.parent;
+        while (current && current instanceof THREE.Bone) {
+          depth++;
+          current = current.parent;
+        }
+        return depth;
+      };
+
+      expect(getBoneDepth(root)).toBe(0);
+      expect(getBoneDepth(child1)).toBe(1);
+      expect(getBoneDepth(child2)).toBe(2);
+      expect(getBoneDepth(child3)).toBe(3);
+    });
+
+    it("sorts bones by depth correctly", () => {
+      const root = new THREE.Bone();
+      root.name = "Root";
+
+      const child1 = new THREE.Bone();
+      child1.name = "Child1";
+      root.add(child1);
+
+      const child2 = new THREE.Bone();
+      child2.name = "Child2";
+      child1.add(child2);
+
+      // Unsorted order
+      const bones = [child2, root, child1];
+
+      const getBoneDepth = (bone: THREE.Bone): number => {
+        let depth = 0;
+        let current = bone.parent;
+        while (current && current instanceof THREE.Bone) {
+          depth++;
+          current = current.parent;
+        }
+        return depth;
+      };
+
+      const sorted = [...bones].sort(
+        (a, b) => getBoneDepth(a) - getBoneDepth(b),
+      );
+
+      expect(sorted[0].name).toBe("Root");
+      expect(sorted[1].name).toBe("Child1");
+      expect(sorted[2].name).toBe("Child2");
+    });
+  });
+
+  describe("Orphaned Bone Detection and Removal", () => {
+    it("identifies bones not in any skeleton", () => {
+      const { mesh } = createTestScene();
+      const bonesInSkeleton = new Set(mesh.skeleton.bones);
+
+      // Create orphaned bone
+      const orphanBone = new THREE.Bone();
+      orphanBone.name = "OrphanedBone";
+
+      // Check if orphan is in skeleton
+      expect(bonesInSkeleton.has(orphanBone)).toBe(false);
+    });
+
+    it("re-parents children when removing orphaned bone", () => {
+      const parent = new THREE.Bone();
+      parent.name = "Parent";
+
+      const orphan = new THREE.Bone();
+      orphan.name = "Orphan";
+      parent.add(orphan);
+
+      const grandchild = new THREE.Bone();
+      grandchild.name = "Grandchild";
+      orphan.add(grandchild);
+
+      // Simulate re-parenting before removal
+      const children = [...orphan.children];
+      children.forEach((child) => {
+        parent.add(child);
+      });
+
+      expect(grandchild.parent).toBe(parent);
+      expect(parent.children).toContain(grandchild);
+    });
+  });
+
+  describe("Node Index Validation", () => {
+    it("detects when bone node index exceeds limit", () => {
+      const scene = new THREE.Object3D();
+      scene.name = "Scene";
+
+      // Add many objects to push bone index high
+      for (let i = 0; i < 35; i++) {
+        const obj = new THREE.Object3D();
+        obj.name = `Object${i}`;
+        scene.add(obj);
+      }
+
+      const bone = new THREE.Bone();
+      bone.name = "TestBone";
+      scene.add(bone);
+
+      // Collect all nodes
+      const allNodes: THREE.Object3D[] = [];
+      scene.traverse((node) => allNodes.push(node));
+
+      const boneIndex = allNodes.indexOf(bone);
+
+      // With 35 objects + scene + bone, bone index should be > 30
+      expect(boneIndex).toBeGreaterThan(30);
     });
   });
 

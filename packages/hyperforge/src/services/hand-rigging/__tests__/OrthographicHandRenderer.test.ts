@@ -17,6 +17,7 @@
  * are run in browser environment only.
  */
 
+/* global ImageData */
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
 
@@ -463,7 +464,7 @@ describe("OrthographicHandRenderer", () => {
 
       // Estimate hand dimensions
       const handLength = 0.2;
-      const handWidth = 0.1;
+      const _handWidth = 0.1;
 
       // Hand extends in normal direction from wrist
       const handCenter = wristPos
@@ -474,7 +475,7 @@ describe("OrthographicHandRenderer", () => {
     });
 
     it("bounds include fingertip area", () => {
-      const wristPos = new THREE.Vector3(0, 0, 0);
+      const _wristPos = new THREE.Vector3(0, 0, 0);
       const handLength = 0.2; // 20cm from wrist to fingertips
       const padding = 0.2;
 

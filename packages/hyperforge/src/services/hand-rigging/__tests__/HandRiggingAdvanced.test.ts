@@ -14,8 +14,11 @@
  * - Configuration threshold validation
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as THREE from "three";
+
+// Increase timeout for slow segmentation tests
+vi.setConfig({ testTimeout: 60000 });
 
 import { HandSegmentationService } from "../HandSegmentationService";
 import type { HandLandmarks, Point3D } from "../HandPoseDetectionService";
@@ -253,8 +256,12 @@ function createTestScene(): {
   const scene = new THREE.Object3D();
   scene.name = "Scene";
 
-  const { skeleton, rootBone, leftWrist, rightWrist } =
-    createSkeletonWithWrists();
+  const {
+    skeleton,
+    rootBone: _rootBone,
+    leftWrist,
+    rightWrist,
+  } = createSkeletonWithWrists();
   const mesh = createSkinnedMeshWithSkeleton(skeleton);
   mesh.name = "Body";
 

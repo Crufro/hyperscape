@@ -18,12 +18,8 @@ import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import * as THREE from "three";
 
 import { ArmorFittingService } from "../ArmorFittingService";
-import type { BodyRegion, FittingConfig } from "../ArmorFittingService";
-import {
-  countFaces,
-  countVertices,
-  findUnweightedVertices,
-} from "@/__tests__/utils/test-helpers";
+import type { BodyRegion } from "../ArmorFittingService";
+import { countFaces, countVertices } from "@/__tests__/utils/test-helpers";
 
 // Import polyfills for server-side Three.js
 import "@/lib/server/three-polyfills";
@@ -376,7 +372,7 @@ function createTorsoArmorMesh(): THREE.Mesh {
   rightPadGeometry.translate(-0.22, 0.2, 0);
 
   // Merge geometries
-  let totalVertexCount =
+  const totalVertexCount =
     armorGeometry.attributes.position.count +
     leftPadGeometry.attributes.position.count +
     rightPadGeometry.attributes.position.count;
@@ -456,7 +452,7 @@ describe("ArmorFittingService Integration Tests", () => {
   let fittingService: ArmorFittingService;
   let skeleton: THREE.Skeleton;
   let rootBone: THREE.Bone;
-  let bones: THREE.Bone[];
+  let _bones: THREE.Bone[];
   let bodyMesh: THREE.SkinnedMesh;
   let scene: THREE.Scene;
 
@@ -472,7 +468,7 @@ describe("ArmorFittingService Integration Tests", () => {
     const skeletonData = createHumanoidSkeleton();
     skeleton = skeletonData.skeleton;
     rootBone = skeletonData.rootBone;
-    bones = skeletonData.bones;
+    _bones = skeletonData.bones;
 
     // Create body mesh
     bodyMesh = createHumanoidBodyMesh(skeleton, rootBone);
@@ -507,7 +503,7 @@ describe("ArmorFittingService Integration Tests", () => {
     it("computes valid bounding boxes for each region", () => {
       const regions = fittingService.computeBodyRegions(bodyMesh, skeleton);
 
-      regions.forEach((region, name) => {
+      regions.forEach((region, _name) => {
         // Bounding box should not be empty
         expect(region.boundingBox.isEmpty()).toBe(false);
 
@@ -615,7 +611,7 @@ describe("ArmorFittingService Integration Tests", () => {
       armorMesh.updateMatrixWorld(true);
 
       const originalBounds = new THREE.Box3().setFromObject(armorMesh);
-      const originalSize = originalBounds.getSize(new THREE.Vector3());
+      const _originalSize = originalBounds.getSize(new THREE.Vector3());
 
       // Fit armor to torso region
       fittingService.fitArmorToBoundingBox(armorMesh, torsoRegion, 0.02);
@@ -875,7 +871,7 @@ describe("ArmorFittingService Integration Tests", () => {
 
     it("preserves armor material after binding", () => {
       const armorMesh = createTorsoArmorMesh();
-      const originalMaterial = armorMesh.material;
+      const _originalMaterial = armorMesh.material;
       armorMesh.position.set(0, 1.25, 0);
       armorMesh.updateMatrixWorld(true);
 

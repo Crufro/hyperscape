@@ -12,7 +12,7 @@
  * - Topology changes during scale operations
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import * as THREE from "three";
 
 import { ArmorScaleFixer } from "../ArmorScaleFixer";
@@ -105,7 +105,7 @@ describe("ArmorScaleFixer", () => {
     });
 
     it("identifies scale factor from world transform", () => {
-      const { skeleton, rootBone } = createTestSkeleton();
+      const { skeleton: _skeleton, rootBone } = createTestSkeleton();
 
       const expectedScale = 0.01; // VRM-style scale
       rootBone.scale.set(expectedScale, expectedScale, expectedScale);
@@ -124,7 +124,7 @@ describe("ArmorScaleFixer", () => {
     });
 
     it("handles nested scale transforms", () => {
-      const { skeleton, rootBone } = createTestSkeleton();
+      const { skeleton: _skeleton, rootBone } = createTestSkeleton();
 
       // Create nested groups with scale
       const group1 = new THREE.Group();
@@ -197,7 +197,7 @@ describe("ArmorScaleFixer", () => {
 
       // Get original bounds
       const originalBounds = new THREE.Box3().setFromObject(mesh);
-      const originalSize = originalBounds.getSize(new THREE.Vector3());
+      const _originalSize = originalBounds.getSize(new THREE.Vector3());
 
       // Apply scale fix
       const fixed = ArmorScaleFixer.applySkeletonScale(mesh);
@@ -511,7 +511,7 @@ describe("ArmorScaleFixer", () => {
 
   describe("Edge Cases", () => {
     it("handles mesh with no skeleton gracefully", () => {
-      const mesh = createTestMesh("box") as unknown as THREE.SkinnedMesh;
+      const _mesh = createTestMesh("box") as unknown as THREE.SkinnedMesh;
 
       // This should not crash
       expect(() => {

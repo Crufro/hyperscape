@@ -15,8 +15,12 @@ import { describe, it, expect } from "vitest";
 import {
   DEFAULT_TOPOLOGY,
   DEFAULT_TEXTURE_RESOLUTION,
+  DEFAULT_AI_MODEL,
   POLYCOUNT_PRESETS,
   validatePolycount,
+  getPolycountPreset,
+  getRecommendedPolycount,
+  createGenerationConfig,
 } from "../constants";
 import type { ImageTo3DOptions, MeshyTask } from "../types";
 import type { ImageTo3DPipelineResult } from "../image-to-3d";
@@ -163,6 +167,90 @@ describe("Image-to-3D Pipeline", () => {
       expect(result.valid).toBe(true);
       expect(result.warning).toBeDefined();
       expect(result.warning).toContain("below recommended minimum");
+    });
+
+    it("warns when polycount exceeds asset class maximum significantly", () => {
+      // Test that exceeding the max still returns valid=true with warning
+      const extremePolycount = 50000;
+      const result = validatePolycount("small_prop", extremePolycount);
+
+      expect(result.valid).toBe(true);
+      expect(result.warning).toBeDefined();
+      expect(result.warning).toContain("exceeds recommended maximum");
+    });
+  });
+
+  describe("Polycount Helper Functions", () => {
+    it("getPolycountPreset returns preset for asset class", () => {
+      const preset = getPolycountPreset("small_prop");
+
+      expect(preset).toBeDefined();
+      expect(preset.name).toBeDefined();
+      expect(preset.minPolycount).toBe(500);
+      expect(preset.maxPolycount).toBe(2000);
+      expect(preset.defaultPolycount).toBeDefined();
+    });
+
+    it("getRecommendedPolycount returns default polycount", () => {
+      const polycount = getRecommendedPolycount("small_prop");
+
+      expect(polycount).toBe(POLYCOUNT_PRESETS.small_prop.defaultPolycount);
+    });
+
+    it("getRecommendedPolycount works for all asset classes", () => {
+      const classes = [
+        "small_prop",
+        "medium_prop",
+        "large_prop",
+        "npc_character",
+        "small_building",
+        "large_structure",
+      ] as const;
+
+      classes.forEach((assetClass) => {
+        const polycount = getRecommendedPolycount(assetClass);
+        expect(typeof polycount).toBe("number");
+        expect(polycount).toBeGreaterThan(0);
+      });
+    });
+
+    it("createGenerationConfig returns valid config", () => {
+      const config = createGenerationConfig("small_prop");
+
+      expect(config.assetClass).toBe("small_prop");
+      expect(config.targetPolycount).toBe(
+        POLYCOUNT_PRESETS.small_prop.defaultPolycount,
+      );
+      expect(config.topology).toBe(
+        POLYCOUNT_PRESETS.small_prop.recommendedTopology,
+      );
+      expect(config.enablePBR).toBe(POLYCOUNT_PRESETS.small_prop.recommendPBR);
+      expect(config.aiModel).toBe(DEFAULT_AI_MODEL);
+      expect(config.textureResolution).toBe(DEFAULT_TEXTURE_RESOLUTION);
+      expect(config.shouldRemesh).toBe(true);
+      expect(config.shouldTexture).toBe(true);
+    });
+
+    it("createGenerationConfig applies overrides", () => {
+      const config = createGenerationConfig("medium_prop", {
+        targetPolycount: 4000,
+        enablePBR: false,
+        textureResolution: 4096,
+      });
+
+      expect(config.assetClass).toBe("medium_prop");
+      expect(config.targetPolycount).toBe(4000);
+      expect(config.enablePBR).toBe(false);
+      expect(config.textureResolution).toBe(4096);
+    });
+
+    it("createGenerationConfig works for npc_character asset class", () => {
+      const config = createGenerationConfig("npc_character");
+
+      expect(config.assetClass).toBe("npc_character");
+      expect(config.targetPolycount).toBe(
+        POLYCOUNT_PRESETS.npc_character.defaultPolycount,
+      );
     });
   });
 

@@ -60,7 +60,6 @@ import type {
   TextToSpeechOptions,
   SoundEffectOptions,
   MusicGenerationOptions,
-  VoicePreset,
 } from "../elevenlabs-service";
 
 // We'll dynamically import the service functions to reset the singleton between tests
@@ -715,7 +714,7 @@ describe("ElevenLabs Audio Service", () => {
     });
 
     it("all presets have required fields", () => {
-      Object.entries(GAME_VOICE_PRESETS).forEach(([name, preset]) => {
+      Object.entries(GAME_VOICE_PRESETS).forEach(([_name, preset]) => {
         expect(preset.voiceId).toBeDefined();
         expect(preset.voiceId.length).toBeGreaterThan(0);
         expect(preset.description).toBeDefined();
@@ -1016,7 +1015,7 @@ describe("ElevenLabs Audio Service", () => {
     });
 
     it("all SFX prompts are descriptive strings", () => {
-      Object.entries(SFX_PROMPTS).forEach(([key, prompt]) => {
+      Object.entries(SFX_PROMPTS).forEach(([_key, prompt]) => {
         expect(typeof prompt).toBe("string");
         expect(prompt.length).toBeGreaterThan(10);
       });
@@ -1069,7 +1068,7 @@ describe("ElevenLabs Audio Service", () => {
     });
 
     it("all music prompts include atmospheric descriptions", () => {
-      Object.entries(MUSIC_PROMPTS).forEach(([key, prompt]) => {
+      Object.entries(MUSIC_PROMPTS).forEach(([_key, prompt]) => {
         expect(typeof prompt).toBe("string");
         expect(prompt.length).toBeGreaterThan(30);
       });
@@ -1078,7 +1077,7 @@ describe("ElevenLabs Audio Service", () => {
 
   describe("Voice Preset Voice IDs", () => {
     it("all presets have valid voice ID format", () => {
-      Object.entries(GAME_VOICE_PRESETS).forEach(([name, preset]) => {
+      Object.entries(GAME_VOICE_PRESETS).forEach(([_name, preset]) => {
         expect(preset.voiceId).toBeDefined();
         expect(typeof preset.voiceId).toBe("string");
         expect(preset.voiceId.length).toBeGreaterThan(10);

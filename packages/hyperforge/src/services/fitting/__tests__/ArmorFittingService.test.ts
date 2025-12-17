@@ -20,7 +20,6 @@ import type { BodyRegion, CollisionPoint } from "../ArmorFittingService";
 import {
   countFaces,
   countVertices,
-  detectMeshCollisions,
   findUnweightedVertices,
   createTestMesh,
   createTestSkeleton,
@@ -442,7 +441,7 @@ describe("ArmorFittingService", () => {
       armorMesh.updateMatrixWorld(true);
 
       const initialBounds = new THREE.Box3().setFromObject(armorMesh);
-      const initialSize = initialBounds.getSize(new THREE.Vector3());
+      const _initialSize = initialBounds.getSize(new THREE.Vector3());
 
       // Fit armor
       fittingService.fitArmorToBoundingBox(armorMesh, bodyRegion, 0.02);

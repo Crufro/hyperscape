@@ -14,7 +14,7 @@
  * - Skeleton rebuild and validation
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -387,7 +387,11 @@ function createTestHumanoidScene(): {
   const armature = new THREE.Object3D();
   armature.name = "Armature";
 
-  const { skeleton, rootBone, bones } = createRealisticHumanoidSkeleton();
+  const {
+    skeleton,
+    rootBone: _rootBone,
+    bones,
+  } = createRealisticHumanoidSkeleton();
   const mesh = createRealisticSkinnedMesh(skeleton);
 
   armature.add(mesh);
@@ -449,7 +453,7 @@ describe("SimpleHandRiggingService Integration Tests", () => {
   describe("Full Pipeline: rigHands()", () => {
     it("successfully rigs hands on a humanoid model exported as GLB", async () => {
       // Create a test model
-      const { scene, skeleton, mesh, bones } = createTestHumanoidScene();
+      const { scene, skeleton, mesh: _mesh, bones } = createTestHumanoidScene();
 
       // Verify initial state
       const leftHand = bones.get("LeftHand");
@@ -1248,7 +1252,7 @@ describe("SimpleHandRiggingService Integration Tests", () => {
     });
 
     it("handles scaled model correctly", async () => {
-      const { scene, mesh } = createTestHumanoidScene();
+      const { scene, mesh: _mesh } = createTestHumanoidScene();
 
       // Apply scale to the model
       scene.scale.set(0.01, 0.01, 0.01); // Common VRM scale
@@ -1337,6 +1341,75 @@ describe("SimpleHandRiggingService Integration Tests", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
+    });
+
+    it("validateModelStructure returns errors for invalid model", () => {
+      // Create a scene with a skinned mesh that has orphaned bones
+      const scene = new THREE.Object3D();
+      scene.name = "Scene";
+
+      // Create a root bone
+      const rootBone = new THREE.Bone();
+      rootBone.name = "Root";
+      rootBone.position.set(0, 0, 0);
+
+      // Create a child bone with no parent connection to scene
+      const orphanBone = new THREE.Bone();
+      orphanBone.name = "OrphanBone";
+      orphanBone.position.set(0, 10, 0);
+      // Don't add to rootBone - it's orphaned
+
+      // Create geometry
+      const geometry = new THREE.BoxGeometry(1, 2, 1, 2, 4, 2);
+      const vertexCount = geometry.attributes.position.count;
+
+      // Add skinning attributes
+      const skinIndices = new Float32Array(vertexCount * 4);
+      const skinWeights = new Float32Array(vertexCount * 4);
+      for (let i = 0; i < vertexCount; i++) {
+        skinIndices[i * 4] = 0;
+        skinIndices[i * 4 + 1] = 1; // Reference to orphan bone
+        skinWeights[i * 4] = 0.5;
+        skinWeights[i * 4 + 1] = 0.5;
+      }
+      geometry.setAttribute(
+        "skinIndex",
+        new THREE.Float32BufferAttribute(skinIndices, 4),
+      );
+      geometry.setAttribute(
+        "skinWeight",
+        new THREE.Float32BufferAttribute(skinWeights, 4),
+      );
+
+      // Create skeleton with the orphan bone (which has no parent)
+      const skeleton = new THREE.Skeleton([rootBone, orphanBone]);
+
+      // Create skinned mesh
+      const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const mesh = new THREE.SkinnedMesh(geometry, material);
+      mesh.name = "Body";
+      mesh.add(rootBone);
+      mesh.bind(skeleton);
+
+      scene.add(mesh);
+      scene.updateMatrixWorld(true);
+
+      // Access private method
+      const validateModelStructure = (
+        service as unknown as {
+          validateModelStructure: (model: THREE.Object3D) => {
+            isValid: boolean;
+            errors: string[];
+          };
+        }
+      ).validateModelStructure.bind(service);
+
+      const result = validateModelStructure(scene);
+
+      // Should detect the orphan bone has no parent
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors.some((e) => e.includes("no parent"))).toBe(true);
     });
 
     it("isBoneInScene detects bones correctly", () => {
@@ -1821,7 +1894,7 @@ describe("SimpleHandRiggingService Integration Tests", () => {
     });
 
     it("maintains weight normalization after application", async () => {
-      const { scene, bones, mesh } = createTestHumanoidScene();
+      const { scene, bones, mesh: _mesh } = createTestHumanoidScene();
       const leftHand = bones.get("LeftHand")!;
 
       // Create hand bones
@@ -1893,7 +1966,7 @@ describe("SimpleHandRiggingService Integration Tests", () => {
 
   describe("updateAllSkeletons() - Skeleton Update", () => {
     it("updates all skinned mesh skeletons", () => {
-      const { scene, mesh } = createTestHumanoidScene();
+      const { scene, mesh: _mesh } = createTestHumanoidScene();
 
       // Access private method
       const updateAllSkeletons = (

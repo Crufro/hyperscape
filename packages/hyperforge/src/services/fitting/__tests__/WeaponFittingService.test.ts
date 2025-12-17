@@ -17,7 +17,6 @@ import * as THREE from "three";
 
 import { WeaponFittingService } from "../WeaponFittingService";
 import type { WeaponAttachmentOptions } from "../WeaponFittingService";
-import { createTestMesh } from "@/__tests__/utils/test-helpers";
 
 // Import polyfills for server-side Three.js
 import "@/lib/server/three-polyfills";
@@ -962,7 +961,8 @@ describe("WeaponFittingService", () => {
     });
 
     it("weapon follows hand bone transforms", () => {
-      const { skinnedMesh, skeleton } = createCharacterSkeletonWithHands();
+      const { skinnedMesh, skeleton: _skeleton } =
+        createCharacterSkeletonWithHands();
       const weapon = createWeaponMesh();
 
       const result = fittingService.attachWeaponToHand(

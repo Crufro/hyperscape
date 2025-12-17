@@ -17,12 +17,7 @@ import {
   getAssetThumbnailUrl,
   getCDNBaseUrl,
 } from "../url-resolver";
-import type {
-  HyperForgeAsset,
-  CDNAsset,
-  LocalAsset,
-  BaseTemplateAsset,
-} from "@/types";
+import type { CDNAsset, LocalAsset, BaseTemplateAsset } from "@/types";
 
 describe("URL Resolver", () => {
   describe("URL Resolution - asset:// Protocol", () => {

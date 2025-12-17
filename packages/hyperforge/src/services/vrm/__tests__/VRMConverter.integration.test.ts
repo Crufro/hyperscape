@@ -11,12 +11,11 @@
  * - Verifies output is valid VRM data
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import * as THREE from "three";
 
 import {
   VRMConverter,
-  VRM_HUMANOID_BONES,
   convertGLBToVRM,
   convertGLBToVRMPreservingTextures,
 } from "../VRMConverter";
@@ -676,7 +675,7 @@ describe("VRMConverter Integration Tests", () => {
       >;
 
       // Verify each bone has a valid node index
-      for (const [boneName, boneData] of Object.entries(humanBones)) {
+      for (const [_boneName, boneData] of Object.entries(humanBones)) {
         expect(typeof boneData.node).toBe("number");
         expect(boneData.node).toBeGreaterThanOrEqual(0);
 

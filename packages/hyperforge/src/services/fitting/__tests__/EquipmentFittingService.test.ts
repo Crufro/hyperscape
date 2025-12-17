@@ -143,7 +143,7 @@ describe("EquipmentFittingService", () => {
 
     it("each slot has valid bone references", () => {
       // Common VRM/humanoid bone names
-      const validBoneNames = [
+      const _validBoneNames = [
         "Hips",
         "Spine",
         "Spine1",
@@ -167,7 +167,7 @@ describe("EquipmentFittingService", () => {
         "RightFoot",
       ];
 
-      for (const [slotName, slot] of Object.entries(EQUIPMENT_SLOTS)) {
+      for (const [_slotName, slot] of Object.entries(EQUIPMENT_SLOTS)) {
         for (const bone of slot.bones) {
           // Each bone should be a valid humanoid bone name
           expect(typeof bone).toBe("string");
@@ -415,8 +415,8 @@ describe("EquipmentFittingService", () => {
   describe("Bone Name Variations", () => {
     it("handles common bone naming conventions", () => {
       // Different naming conventions for the same bone
-      const spineVariations = ["Spine", "spine", "Spine1", "spine_01"];
-      const handVariations = [
+      const _spineVariations = ["Spine", "spine", "Spine1", "spine_01"];
+      const _handVariations = [
         "Hand",
         "hand",
         "LeftHand",

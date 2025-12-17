@@ -246,10 +246,10 @@ function createValidGLBBinary(): ArrayBuffer {
 }
 
 describe("VRMConverter", () => {
-  let converter: VRMConverter;
+  let _converter: VRMConverter;
 
   beforeAll(() => {
-    converter = new VRMConverter();
+    _converter = new VRMConverter();
   });
 
   describe("Bone Mapping", () => {
@@ -367,7 +367,7 @@ describe("VRMConverter", () => {
       // Use regular geometry bounds since skinned mesh bounds have issues in node
       const geoBounds = geometry.boundingBox || new THREE.Box3();
       geometry.computeBoundingBox();
-      const dimensions = geoBounds.getSize(new THREE.Vector3());
+      const _dimensions = geoBounds.getSize(new THREE.Vector3());
 
       // Before normalization, height should be large
       expect(
@@ -703,7 +703,7 @@ describe("VRMConverter", () => {
     it("converts a full Meshy skeleton to VRM format", async () => {
       // Create a complete scene with Meshy-style skeleton
       const scene = new THREE.Scene();
-      const { skeleton, rootBone, bones } = createMeshySkeletonFull();
+      const { skeleton, rootBone } = createMeshySkeletonFull();
 
       // Create and add skinned mesh
       const mesh = createSkinnedMeshForSkeleton(skeleton, rootBone);
@@ -1108,7 +1108,7 @@ describe("VRMConverter", () => {
       const nodes = parsedVRM.json.nodes as Array<{ name?: string }>;
 
       // Verify node indices are valid
-      for (const [boneName, boneData] of Object.entries(humanBones)) {
+      for (const [_boneName, boneData] of Object.entries(humanBones)) {
         expect(boneData.node).toBeGreaterThanOrEqual(0);
         expect(boneData.node).toBeLessThan(nodes.length);
 

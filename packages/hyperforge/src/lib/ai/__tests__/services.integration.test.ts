@@ -12,14 +12,12 @@
  * - sprite-service.ts lines 26-293
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 // Import real functions from concept-art-service
 import {
   buildConceptArtPrompt,
   CONCEPT_ART_SYSTEM_PROMPT,
-  generateConceptArt,
-  generateAndSaveConceptArt,
   type ConceptArtOptions,
   type ConceptArtResult,
 } from "../concept-art-service";
@@ -29,9 +27,6 @@ import {
   buildSpritePrompt,
   SPRITE_SYSTEM_PROMPT,
   DEFAULT_VIEWS,
-  generateSpritesForAsset,
-  generateThumbnailSprite,
-  generateSpriteSheet,
   type AssetInfo,
   type SpriteGenerationOptions,
   type SpriteResult,

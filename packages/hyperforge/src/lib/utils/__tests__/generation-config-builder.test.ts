@@ -9,8 +9,6 @@ import { describe, it, expect } from "vitest";
 import {
   buildGenerationConfig,
   type BuildConfigOptions,
-  type MaterialPreset,
-  type GenerationConfig,
 } from "@/lib/utils/generation-config-builder";
 
 /**

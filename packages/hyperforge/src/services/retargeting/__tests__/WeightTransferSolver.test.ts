@@ -152,7 +152,9 @@ function createMixamoSkeleton(): THREE.Skeleton {
 /**
  * Create a geometry with skin weights for testing
  */
-function createSkinnedGeometry(vertexCount: number = 20): THREE.BufferGeometry {
+function createSkinnedGeometry(
+  _vertexCount: number = 20,
+): THREE.BufferGeometry {
   const geometry = new THREE.BoxGeometry(0.4, 1.8, 0.2, 2, 4, 1);
   geometry.translate(0, 0.9, 0);
 

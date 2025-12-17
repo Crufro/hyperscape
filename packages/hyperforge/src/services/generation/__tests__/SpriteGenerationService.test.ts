@@ -129,9 +129,9 @@ describe("SpriteGenerationService", () => {
 
     // Reset the module cache and reimport
     vi.resetModules();
-    const module = await import("../SpriteGenerationService");
-    SpriteGenerationService = module.SpriteGenerationService;
-    spriteGenerator = module.spriteGenerator;
+    const spriteModule = await import("../SpriteGenerationService");
+    SpriteGenerationService = spriteModule.SpriteGenerationService;
+    spriteGenerator = spriteModule.spriteGenerator;
 
     // Setup default GLTF mock again after module reset
     resetGLTFMockToDefault();
@@ -148,8 +148,8 @@ describe("SpriteGenerationService", () => {
       // Create a fresh instance and check
       vi.resetModules();
       mockSetSize.mockClear();
-      const module = await import("../SpriteGenerationService");
-      new module.SpriteGenerationService();
+      const spriteModule = await import("../SpriteGenerationService");
+      new spriteModule.SpriteGenerationService();
       expect(mockSetSize).toHaveBeenCalledWith(512, 512);
     });
 

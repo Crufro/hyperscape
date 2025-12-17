@@ -569,7 +569,7 @@ describe("WeightTransferSolver Configuration", () => {
       const targetBones = createHumanoidSkeleton();
 
       // Rename target bones
-      targetBones.forEach((bone, i) => {
+      targetBones.forEach((bone, _i) => {
         bone.name = `Target_${bone.name}`;
       });
 
@@ -863,7 +863,7 @@ describe("Integration Scenarios", () => {
       const geometry = createHumanoidGeometry();
 
       const solver = new DistanceSolver(geometry, bones);
-      const { skinIndices, skinWeights } = solver.calculateWeights();
+      const { skinIndices } = solver.calculateWeights();
 
       const vertexCount = geometry.attributes.position.count;
       expect(skinIndices.length).toBe(vertexCount * 4);
@@ -880,7 +880,7 @@ describe("Integration Scenarios", () => {
       geometry.translate(0, 3, 0);
 
       const solver = new DistanceChildTargetingSolver(geometry, bones);
-      const { skinIndices, skinWeights } = solver.calculateWeights();
+      const { skinIndices } = solver.calculateWeights();
 
       const vertexCount = geometry.attributes.position.count;
       expect(skinIndices.length).toBe(vertexCount * 4);

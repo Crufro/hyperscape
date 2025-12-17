@@ -186,6 +186,15 @@ describe("AI Providers", () => {
       );
       expect(TASK_MODELS.imageGeneration).toBe(getTaskModel("imageGeneration"));
     });
+
+    it("TASK_MODELS proxy handles unknown property gracefully", () => {
+      const proxyWithUnknown = TASK_MODELS as Record<string, string>;
+      // Access an unknown property - should return undefined or fallback
+      const unknownValue = proxyWithUnknown["nonExistentTask"];
+      expect(
+        unknownValue === undefined || typeof unknownValue === "string",
+      ).toBe(true);
+    });
   });
 
   describe("Model Capabilities", () => {

@@ -309,7 +309,7 @@ describe("WeightTransferService", () => {
 
   describe("Weight Normalization", () => {
     it("ensures all vertices have weights summing to 1.0", () => {
-      const { mesh: bodyMesh, skeleton } = createTestSkinnedMesh();
+      const { mesh: bodyMesh, skeleton: _skeleton } = createTestSkinnedMesh();
 
       // Verify body mesh weights are already normalized
       const geometry = bodyMesh.geometry as THREE.BufferGeometry;

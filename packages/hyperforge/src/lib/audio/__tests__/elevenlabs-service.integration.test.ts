@@ -14,15 +14,7 @@
  */
 
 // Run tests sequentially to avoid race conditions with shared mocks
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  beforeAll,
-} from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Use vi.hoisted to create mock functions before module loads
 const mocks = vi.hoisted(() => ({

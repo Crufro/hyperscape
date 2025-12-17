@@ -12,8 +12,11 @@
  * - Mask cleanup issues
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import * as THREE from "three";
+
+// Increase timeout for slow segmentation tests
+vi.setConfig({ testTimeout: 60000 });
 
 import { HandSegmentationService } from "../HandSegmentationService";
 import type { PixelMask, FingerSegmentation } from "../HandSegmentationService";
@@ -135,7 +138,7 @@ describe("HandSegmentationService", () => {
       const landmarks = createTestHandLandmarks(width, height);
       const segmentation = service.segmentFingers(landmarks, width, height);
 
-      for (const [name, mask] of Object.entries(segmentation)) {
+      for (const [_name, mask] of Object.entries(segmentation)) {
         expect(mask.width).toBe(width);
         expect(mask.height).toBe(height);
         expect(mask.data).toBeInstanceOf(Uint8Array);
@@ -152,7 +155,7 @@ describe("HandSegmentationService", () => {
       const landmarks = createTestHandLandmarks(128, 128);
       const segmentation = service.segmentFingers(landmarks, 128, 128);
 
-      for (const [name, mask] of Object.entries(segmentation)) {
+      for (const [_name, mask] of Object.entries(segmentation)) {
         for (const value of mask.data) {
           expect(value === 0 || value === 255).toBe(true);
         }

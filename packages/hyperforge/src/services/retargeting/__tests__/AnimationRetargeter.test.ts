@@ -21,7 +21,6 @@ import {
   findMixamoBoneName,
   MIXAMO_TO_MESHY,
   MESHY_TO_MIXAMO,
-  MESHY_VARIATIONS,
   VRM_TO_MIXAMO,
 } from "@/services/vrm/BoneMappings";
 

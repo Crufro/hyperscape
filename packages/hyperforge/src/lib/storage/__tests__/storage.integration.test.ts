@@ -9,6 +9,7 @@
  * - supabase-storage.ts: Bucket operations, upload/download logic
  */
 
+/* global AbortSignal, DOMException */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ============================================================================
@@ -119,7 +120,6 @@ import {
   assetExists,
   getAssetFileSize,
   deleteAssetFiles,
-  copyAssetFiles,
   downloadFile,
   downloadAndSaveModel,
   listAssetIds,

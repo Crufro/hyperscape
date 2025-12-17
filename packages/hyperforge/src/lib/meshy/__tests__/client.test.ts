@@ -20,13 +20,7 @@ import {
   DEFAULT_TOPOLOGY,
   DEFAULT_TEXTURE_RESOLUTION,
 } from "../constants";
-import type {
-  MeshyTask,
-  ImageTo3DOptions,
-  TextTo3DOptions,
-  RetextureOptions,
-  RiggingOptions,
-} from "../types";
+import type { MeshyTask, ImageTo3DOptions, TextTo3DOptions } from "../types";
 import {
   createImageTo3DTask,
   createTextTo3DPreviewTask,
