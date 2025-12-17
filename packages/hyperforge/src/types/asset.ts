@@ -3,11 +3,7 @@
  * Unified types for all assets (CDN, Local, Base)
  */
 
-import type {
-  AssetSource,
-  AssetRarity,
-  AssetCategory,
-} from "@/lib-core/cdn/types";
+import type { AssetSource, AssetRarity, AssetCategory } from "@/lib/cdn/types";
 
 export interface SpriteData {
   angle: string;

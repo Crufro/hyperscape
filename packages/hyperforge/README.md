@@ -82,9 +82,36 @@ Assets are cached in-memory with 5-minute TTL.
 
 ### Meshy 3D Pipeline
 
-- **Text-to-3D**: Generate 3D models from text prompts
-- **Image-to-3D**: Convert images to 3D models
+HyperForge uses the Meshy API for AI-powered 3D model generation, optimized for Three.js web MMO assets.
+
+**Generation Workflows:**
+- **Text-to-3D**: Generate 3D models from text prompts (two-stage: preview → refine)
+- **Image-to-3D**: Convert images to 3D models (single-stage)
+- **Retexture**: Apply new textures to existing models
+- **Rigging**: Add skeleton and basic animations to characters
 - **Task Polling**: Automatic status polling until completion
+
+**Mesh Control:**
+- **Topology**: Triangle (GPU-ready) or Quad (artist-friendly)
+- **Polycount**: Configurable target polygon count with asset-class presets
+- **PBR Textures**: Optional normal, metallic, roughness maps
+
+**Asset Class Presets** (recommended polycounts for web MMO):
+| Asset Class | Polycount Range | Default |
+|-------------|-----------------|---------|
+| Small Props | 500 - 2,000 | 1,000 |
+| Medium Props | 2,000 - 5,000 | 3,000 |
+| Large Props | 5,000 - 10,000 | 7,500 |
+| NPC Characters | 2,000 - 10,000 | 5,000 |
+| Small Buildings | 5,000 - 15,000 | 10,000 |
+| Large Structures | 15,000 - 50,000 | 30,000 |
+
+**Three.js Best Practices:**
+- Keep individual meshes < 100,000 triangles
+- Use LOD (Level of Detail) for distant objects
+- Instance frequently repeated objects (trees, rocks, etc.)
+- Bake details into normal/roughness/AO maps
+- Export as GLB with triangulated meshes
 
 ## Project Structure
 
@@ -140,7 +167,19 @@ bun run start
 
 ## References
 
+### AI & Generation
 - [Vercel AI Gateway Docs](https://vercel.com/docs/ai-gateway)
 - [AI SDK Docs](https://sdk.vercel.ai/docs)
-- [Meshy API Docs](https://docs.meshy.ai)
+
+### Meshy API Documentation
+- [Meshy API Overview](https://www.meshy.ai/api) - High-level API overview
+- [Image-to-3D API](https://docs.meshy.ai/en/api/image-to-3d) - Convert images to 3D models
+- [Text-to-3D API](https://docs.meshy.ai/api/text-to-3d) - Generate 3D from text prompts
+- [Quickstart Guide](https://docs.meshy.ai/en/api/quick-start) - API keys and authentication
+- [API Changelog](https://docs.meshy.ai/en/api/changelog) - Latest features and updates
+- [Multi-Image API (Fal.ai)](https://fal.ai/models/fal-ai/meshy/v5/multi-image-to-3d/api) - Multi-view reconstruction
+
+### Performance Resources
+- [Three.js Documentation](https://threejs.org/docs/)
+- [glTF Optimization](https://github.com/KhronosGroup/glTF-Tutorials)
 

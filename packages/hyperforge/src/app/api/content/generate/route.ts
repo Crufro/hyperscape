@@ -11,8 +11,14 @@ import type {
   Store,
   Biome,
 } from "@/types/game/content-types";
+import {
+  uploadGameContent,
+  isSupabaseConfigured,
+} from "@/lib/storage/supabase-storage";
+import { TASK_MODELS } from "@/lib/ai/providers";
 
-const model = gateway("google/gemini-2.0-flash-001");
+// Use Claude for creative content generation (quests, NPCs, items, areas)
+const model = gateway(TASK_MODELS.contentGeneration);
 
 // ============================================
 // QUEST GENERATION
@@ -377,39 +383,53 @@ Rules:
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, ...params } = body;
+    const { type, saveToStorage = true, ...params } = body;
 
     let result;
-    let generatedAt = new Date().toISOString();
+    let generatedContent: Record<string, unknown> | null = null;
+    let contentId = "";
+    const generatedAt = new Date().toISOString();
 
     switch (type) {
       case "quest":
+        const quest = await generateQuest({ type, ...params });
+        generatedContent = quest as unknown as Record<string, unknown>;
+        contentId = quest.id;
         result = {
-          quest: await generateQuest({ type, ...params }),
+          quest,
           generatedAt,
           prompt: JSON.stringify(params),
         };
         break;
 
       case "area":
+        const area = await generateArea({ type, ...params });
+        generatedContent = area as unknown as Record<string, unknown>;
+        contentId = area.id;
         result = {
-          area: await generateArea({ type, ...params }),
+          area,
           generatedAt,
           prompt: JSON.stringify(params),
         };
         break;
 
       case "item":
+        const item = await generateItem({ type, ...params });
+        generatedContent = item as unknown as Record<string, unknown>;
+        contentId = item.id;
         result = {
-          item: await generateItem({ type, ...params }),
+          item,
           generatedAt,
           prompt: JSON.stringify(params),
         };
         break;
 
       case "store":
+        const store = await generateStore({ type, ...params });
+        generatedContent = store as unknown as Record<string, unknown>;
+        contentId = store.id;
         result = {
-          store: await generateStore({ type, ...params }),
+          store,
           generatedAt,
           prompt: JSON.stringify(params),
         };
@@ -422,7 +442,29 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    return NextResponse.json({ success: true, content: result });
+    // Save to Supabase if enabled
+    let storageUrl: string | undefined;
+    if (saveToStorage && generatedContent && isSupabaseConfigured()) {
+      try {
+        const uploadResult = await uploadGameContent(
+          generatedContent,
+          type as "quest" | "npc" | "dialogue" | "item" | "area",
+          contentId,
+        );
+        if (uploadResult.success) {
+          storageUrl = uploadResult.url;
+          console.log(`[Content Gen] Saved ${type} to Supabase: ${storageUrl}`);
+        }
+      } catch (error) {
+        console.warn("[Content Gen] Failed to save to Supabase:", error);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      content: result,
+      storageUrl,
+    });
   } catch (error) {
     console.error("[API] Content generation failed:", error);
     return NextResponse.json(

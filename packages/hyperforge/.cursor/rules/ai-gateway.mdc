@@ -1,0 +1,186 @@
+# Vercel AI Gateway Rules for HyperForge
+
+This document defines the required patterns and practices for AI integration in HyperForge.
+All AI operations MUST route through Vercel AI Gateway using the AI SDK.
+
+## Official Documentation
+
+- Vercel AI Gateway Docs: https://vercel.com/docs/ai-gateway
+- Getting Started: https://vercel.com/docs/ai-gateway/getting-started
+- Authentication: https://vercel.com/docs/ai-gateway/authentication
+- Models & Providers: https://vercel.com/docs/ai-gateway/models-and-providers
+- AI SDK Docs: https://sdk.vercel.ai/docs
+
+## Required Imports
+
+Always use these imports for AI operations:
+
+```typescript
+// AI SDK functions
+import { generateText, streamText, generateObject } from "ai";
+
+// AI Gateway provider
+import { gateway } from "@ai-sdk/gateway";
+
+// Task-specific models (prefer these over hardcoded strings)
+import { TASK_MODELS, getTextModel, getVisionModel } from "@/lib/ai/providers";
+```
+
+## Required Patterns
+
+### Text Generation
+
+```typescript
+const result = await generateText({
+  model: gateway(TASK_MODELS.textGeneration),
+  prompt: "Your prompt here",
+  system: "Optional system prompt",
+  maxTokens: 2000,
+  temperature: 0.7,
+});
+return result.text;
+```
+
+### Streaming Text
+
+```typescript
+const result = streamText({
+  model: gateway(TASK_MODELS.dialogueGeneration),
+  prompt: "Your prompt",
+});
+
+for await (const chunk of result.textStream) {
+  // Handle each chunk
+}
+```
+
+### Structured Output (JSON with Zod)
+
+```typescript
+import { z } from "zod";
+
+const schema = z.object({
+  name: z.string(),
+  items: z.array(z.string()),
+});
+
+const result = await generateObject({
+  model: gateway(TASK_MODELS.contentGeneration),
+  prompt: "Generate structured data",
+  schema,
+});
+return result.object; // Typed as { name: string, items: string[] }
+```
+
+### Image/Vision Analysis
+
+```typescript
+const result = await generateText({
+  model: gateway(TASK_MODELS.vision),
+  messages: [{
+    role: "user",
+    content: [
+      { type: "text", text: "Describe this image" },
+      { type: "image", image: imageUrl },
+    ],
+  }],
+});
+```
+
+## Model Selection
+
+Use `TASK_MODELS` from `@/lib/ai/providers` for task-specific model selection:
+
+| Task | Model Constant | Current Model |
+|------|---------------|---------------|
+| Prompt Enhancement | `TASK_MODELS.promptEnhancement` | openai/gpt-4o-mini |
+| General Text | `TASK_MODELS.textGeneration` | openai/gpt-4o-mini |
+| Dialogue/JSON | `TASK_MODELS.dialogueGeneration` | google/gemini-2.0-flash |
+| Creative Content | `TASK_MODELS.contentGeneration` | anthropic/claude-sonnet-4 |
+| Image Generation | `TASK_MODELS.imageGeneration` | google/gemini-2.5-flash-image |
+| Vision/Analysis | `TASK_MODELS.vision` | openai/gpt-4o |
+
+Model strings use `provider/model-name` format (e.g., `"anthropic/claude-sonnet-4"`).
+
+## Environment Variables
+
+- `AI_GATEWAY_API_KEY` - Required for API key authentication
+- OIDC tokens are auto-generated on Vercel deployments (zero-key auth)
+
+## Forbidden Patterns
+
+### NEVER call provider APIs directly
+
+```typescript
+// FORBIDDEN - bypasses AI Gateway
+fetch("https://api.openai.com/v1/chat/completions", {...})
+fetch("https://api.anthropic.com/v1/messages", {...})
+```
+
+### NEVER use raw fetch to AI Gateway
+
+```typescript
+// FORBIDDEN - use AI SDK instead
+fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {...})
+```
+
+### NEVER hardcode model names
+
+```typescript
+// FORBIDDEN
+model: gateway("gpt-4o-mini")
+
+// CORRECT
+model: gateway(TASK_MODELS.promptEnhancement)
+```
+
+### NEVER import from deprecated files
+
+```typescript
+// FORBIDDEN - this file was deleted
+import { enhancePromptWithGPT4 } from "@/lib/ai/openai-service";
+
+// CORRECT
+import { enhancePromptWithGPT4 } from "@/lib/ai/gateway";
+```
+
+## HyperForge AI Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/ai/gateway.ts` | Main AI service - all generation functions |
+| `src/lib/ai/providers.ts` | Model configurations and TASK_MODELS |
+| `src/lib/ai/concept-art-service.ts` | Concept art image generation |
+| `src/lib/ai/sprite-service.ts` | 2D sprite generation |
+| `src/lib/ai/prompts.ts` | Prompt templates |
+
+## Asset Generation Pipeline
+
+This documents which AI services generate which assets and where they are stored:
+
+| Asset Type | Generator | Model | Storage Bucket |
+|------------|-----------|-------|----------------|
+| 3D Models | Meshy API | meshy-4/meshy-6 | meshy-models |
+| VRM Avatars | VRM Converter | (post-processing) | vrm-conversion |
+| Concept Art | AI Gateway | google/gemini-2.5-flash-image | image-generation |
+| Sprites/Textures | AI Gateway | google/gemini-2.5-flash-image | image-generation |
+| Voice/SFX/Music | ElevenLabs | (various) | audio-generations |
+| Quests/NPCs/Items | AI Gateway | anthropic/claude-sonnet-4 | content-generations |
+| Dialogue Trees | AI Gateway | google/gemini-2.0-flash | content-generations |
+
+### Storage Buckets (Supabase)
+
+1. `image-generation` - AI-generated images (concept art, sprites, textures)
+2. `audio-generations` - Voice, SFX, music from ElevenLabs
+3. `content-generations` - Quests, NPCs, dialogue, items (JSON)
+4. `meshy-models` - GLB models from Meshy API
+5. `vrm-conversion` - VRM converted character models
+6. `concept-art-pipeline` - Legacy/metadata
+
+## Benefits of AI Gateway
+
+1. **Unified API** - One endpoint for OpenAI, Anthropic, Google, etc.
+2. **Automatic Failover** - Switches providers if one is down
+3. **Load Balancing** - Routes to fastest available provider
+4. **Centralized Billing** - Track usage across all providers
+5. **OIDC Auth** - Zero-key authentication on Vercel deployments

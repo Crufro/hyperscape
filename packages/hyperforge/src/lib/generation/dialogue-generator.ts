@@ -3,7 +3,8 @@
  * Uses AI Gateway to generate NPC dialogue trees
  */
 
-import { generateTextWithProvider } from "@/lib-core/ai/gateway";
+import { generateTextWithProvider } from "@/lib/ai/gateway";
+import { TASK_MODELS } from "@/lib/ai/providers";
 import type {
   DialogueTree,
   DialogueNode,
@@ -60,7 +61,7 @@ export async function generateDialogueTree(
 
   const response = await generateTextWithProvider(prompt, {
     systemPrompt: DIALOGUE_SYSTEM_PROMPT,
-    model: "anthropic/claude-sonnet-4",
+    model: TASK_MODELS.dialogueGeneration,
     temperature: 0.8,
     maxTokens: 4000,
   });
@@ -210,7 +211,7 @@ ${context.lore ? `World Lore: ${context.lore}` : ""}
 Write in third person, past tense. Include their history, motivations, and how they came to their current role.`;
 
   return generateTextWithProvider(prompt, {
-    model: "anthropic/claude-sonnet-4",
+    model: TASK_MODELS.contentGeneration,
     temperature: 0.7,
     maxTokens: 1000,
   });

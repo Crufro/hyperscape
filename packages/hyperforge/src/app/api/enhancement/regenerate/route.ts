@@ -14,9 +14,10 @@ import { downloadAndSaveModel } from "@/lib/storage/asset-storage";
 import {
   startTextTo3DPreview,
   startTextTo3DRefine,
-} from "@/lib-core/meshy/text-to-3d";
-import { startImageTo3D } from "@/lib-core/meshy/image-to-3d";
-import { pollTaskStatus } from "@/lib-core/meshy/poll-task";
+} from "@/lib/meshy/text-to-3d";
+import { startImageTo3D } from "@/lib/meshy/image-to-3d";
+import { pollTaskStatus } from "@/lib/meshy/poll-task";
+import type { MeshyAIModel } from "@/lib/meshy/types";
 
 /**
  * Modify prompt based on variation strength
@@ -134,8 +135,16 @@ export async function POST(request: NextRequest) {
       parentAssetId: assetId,
     });
 
-    // Quality settings
-    const qualityOptions = {
+    // Quality settings with properly typed AI models
+    const qualityOptions: Record<
+      string,
+      {
+        targetPolycount: number;
+        textureResolution: number;
+        enablePBR: boolean;
+        aiModel: MeshyAIModel;
+      }
+    > = {
       standard: {
         targetPolycount: 6000,
         textureResolution: 1024,

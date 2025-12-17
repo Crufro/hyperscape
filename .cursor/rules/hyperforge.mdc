@@ -1,0 +1,449 @@
+---
+description: HyperForge asset generation studio - 3D models, images, audio, content with CDN/Supabase/local storage
+alwaysApply: false
+---
+# HyperForge Asset Generation Studio
+
+HyperForge is the AI-powered asset creation studio for Hyperscape. It generates 3D models, images, audio, and game content that align with the game server's manifest format.
+
+## 📌 Core Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        HyperForge Studio                            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐    │
+│  │ 3D Gen   │  │ Image    │  │ Audio    │  │ Content Gen      │    │
+│  │ (Meshy)  │  │ (OpenAI) │  │ (11Labs) │  │ (GPT-4/Claude)   │    │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────────┬─────────┘    │
+│       │             │             │                  │              │
+│       └─────────────┴─────────────┴──────────────────┘              │
+│                              ↓                                       │
+│                    ┌─────────────────────┐                          │
+│                    │  Storage Service    │                          │
+│                    └─────────┬───────────┘                          │
+└──────────────────────────────┼──────────────────────────────────────┘
+                               ↓
+         ┌─────────────────────┼─────────────────────┐
+         ↓                     ↓                     ↓
+   ┌───────────┐        ┌───────────┐         ┌───────────┐
+   │ CDN       │        │ Supabase  │         │ Local FS  │
+   │ (Docker)  │        │ (6 buckets)│        │ (Fallback)│
+   │ assets/   │        │           │         │           │
+   └─────┬─────┘        └─────┬─────┘         └─────┬─────┘
+         │                    │                     │
+         └────────────────────┴─────────────────────┘
+                              ↓
+                    ┌─────────────────────┐
+                    │  Game Server        │
+                    │  (Manifest JSONs)   │
+                    └─────────────────────┘
+```
+
+## 🔧 Package Location
+
+```
+packages/hyperforge/
+├── lib/                      # Core libraries (Next.js API)
+│   ├── ai/                   # AI gateway, prompts
+│   ├── cdn/                  # CDN loader, types
+│   ├── db/                   # Drizzle DB
+│   └── meshy/                # Meshy 3D generation
+├── src/
+│   ├── app/                  # Next.js App Router
+│   │   └── api/              # API routes
+│   ├── lib/
+│   │   ├── ai/               # Concept art, sprites
+│   │   ├── audio/            # ElevenLabs service
+│   │   ├── generation/       # Content generation
+│   │   ├── manifest/         # Manifest export
+│   │   └── storage/          # Supabase/local storage
+│   ├── services/             # Processing services
+│   └── types/                # TypeScript types
+└── public/prompts/           # JSON prompt presets
+```
+
+## 📦 Storage Architecture
+
+### Priority Order (Serving & Saving)
+
+1. **CDN (Docker)** - Source of truth for production game assets
+2. **Supabase Buckets** - AI-generated assets (6 buckets)
+3. **Local Filesystem** - Development fallback
+
+### CDN (Docker + assets repo)
+
+The game server serves assets from the `assets/` repo via Docker CDN:
+
+```bash
+NEXT_PUBLIC_CDN_URL=http://localhost:8080  # Development
+```
+
+**Manifest locations** (development reads from filesystem):
+```
+packages/server/world/assets/manifests/
+├── items.json       # Weapons, armor, tools, resources
+├── npcs.json        # Mobs, bosses, quest NPCs
+├── resources.json   # Trees, rocks, fishing spots
+├── music.json       # Zone themes, combat music
+└── biomes.json      # World zones
+```
+
+### Supabase Buckets (6 total)
+
+| Bucket | Purpose | Folder Structure |
+|--------|---------|------------------|
+| `image-generation` | AI images | `/reference-images/`, `/concept-art/`, `/sprites/`, `/textures/` |
+| `audio-generations` | Voice, SFX, Music | `/generated/` |
+| `content-generations` | JSON content | `/generated/`, `/game/quests/`, `/game/npcs/`, `/game/dialogues/`, `/game/items/`, `/game/areas/` |
+| `meshy-models` | GLB from Meshy | `/{assetId}/model.glb`, `/{assetId}/preview.glb` |
+| `vrm-conversion` | VRM models | `/{assetId}/model.vrm` |
+| `concept-art-pipeline` | Metadata, thumbnails | `/forge/models/{assetId}/` |
+
+### Local Fallback
+
+```bash
+HYPERFORGE_ASSETS_DIR=./assets  # Default: ./assets
+```
+
+## 🎮 Generation Types
+
+### 1. 3D Models (Meshy API)
+
+**See detailed docs**: `.cursor/rules/meshy.mdc`
+
+| Pipeline | API | Description |
+|----------|-----|-------------|
+| Text-to-3D | v2 | Two-stage: preview → refine |
+| Image-to-3D | v1 | Single stage from image |
+| Retexture | v1 | New textures on existing model |
+| Rigging | v1 | Add skeleton + animations |
+
+**Quality presets**:
+```typescript
+const qualityOptions = {
+  preview: { targetPolycount: 10000, textureResolution: 1024, aiModel: "meshy-4" },
+  medium:  { targetPolycount: 30000, textureResolution: 2048, aiModel: "latest" },
+  high:    { targetPolycount: 50000, textureResolution: 4096, aiModel: "latest" },
+};
+```
+
+### 2. Images (OpenAI)
+
+| Type | Service | Output |
+|------|---------|--------|
+| Concept Art | `concept-art-service.ts` | Texture references for Meshy |
+| Sprites | `sprite-service.ts` | Sprite sheets |
+| Textures | `openai-service.ts` | Material textures |
+
+### 3. Audio (ElevenLabs)
+
+**See detailed docs**: `.cursor/rules/elevenlabs.mdc`
+
+| Type | Use Case |
+|------|----------|
+| Voice TTS | NPC dialogue, narration |
+| Sound Effects | Combat, items, environment, UI |
+| Music | Zone themes, combat, menus |
+
+### 4. Content (GPT-4 / Claude)
+
+| Type | Output Format |
+|------|---------------|
+| Quest definitions | JSON matching quest schema |
+| NPC data | JSON matching NPCManifest |
+| Dialogue trees | JSON with nodes + choices |
+| Item definitions | JSON matching ItemManifest |
+| Area/zone data | JSON with spawn info |
+
+## 📋 Manifest Alignment
+
+Generated assets MUST match the game server's manifest schemas.
+
+### Item Manifest Schema
+
+```typescript
+interface ItemManifest {
+  id: string;                    // Unique ID: "sword_bronze"
+  name: string;                  // Display name: "Bronze Sword"
+  type: string;                  // "weapon" | "armor" | "tool" | "resource"
+  description?: string;
+  examine?: string;
+  
+  // Model paths (asset:// protocol)
+  modelPath?: string;            // "asset://models/sword-bronze/sword-bronze.glb"
+  equippedModelPath?: string;    // For equipped visuals
+  iconPath?: string;
+  thumbnailPath?: string;
+  
+  // Properties
+  value?: number;
+  weight?: number;
+  rarity?: "common" | "uncommon" | "rare" | "epic" | "legendary";
+  stackable?: boolean;
+  tradeable?: boolean;
+  
+  // Equipment
+  equipSlot?: "weapon" | "shield" | "head" | "body" | "legs" | "hands" | "feet";
+  weaponType?: "SWORD" | "AXE" | "MACE" | "DAGGER" | "SPEAR" | "BOW" | "STAFF";
+  attackType?: "MELEE" | "RANGED" | "MAGIC";
+  
+  // Combat bonuses
+  bonuses?: { attack?: number; strength?: number; defense?: number; };
+  
+  // Requirements
+  requirements?: { level?: number; skills?: Record<string, number>; };
+}
+```
+
+### NPC Manifest Schema
+
+```typescript
+interface NPCManifest {
+  id: string;                    // "goblin_warrior"
+  name: string;                  // "Goblin Warrior"
+  description?: string;
+  category: "mob" | "boss" | "neutral" | "quest";
+  faction?: string;
+  
+  // Stats
+  stats?: {
+    level?: number;
+    health?: number;
+    attack?: number;
+    strength?: number;
+    defense?: number;
+  };
+  
+  // Combat
+  combat?: {
+    attackable?: boolean;
+    aggressive?: boolean;
+    aggroRange?: number;
+    attackSpeedTicks?: number;
+    respawnTicks?: number;
+  };
+  
+  // Appearance (nested OR flattened)
+  appearance?: {
+    modelPath?: string;
+    iconPath?: string;
+    scale?: number;
+  };
+  modelPath?: string;            // Flattened alternative
+  
+  // Spawning
+  spawnBiomes?: string[];
+}
+```
+
+### Resource Manifest Schema
+
+```typescript
+interface ResourceManifest {
+  id: string;                    // "oak_tree"
+  name: string;                  // "Oak Tree"
+  type: string;                  // "tree" | "rock" | "fishing_spot"
+  
+  modelPath: string | null;
+  depletedModelPath?: string;
+  scale?: number;
+  
+  // Harvesting
+  harvestSkill?: string;         // "woodcutting"
+  toolRequired?: string | null;  // "axe"
+  levelRequired?: number;
+  
+  // Timing
+  baseCycleTicks?: number;
+  depleteChance?: number;
+  respawnTicks?: number;
+  
+  // Yield
+  harvestYield?: Array<{
+    itemId: string;
+    quantity: number;
+    chance: number;
+    xpAmount?: number;
+  }>;
+}
+```
+
+## 🔗 Asset Path Protocol
+
+Generated assets use the `asset://` protocol for manifest paths:
+
+```typescript
+// Format asset path for manifest
+function formatAssetPath(localPath: string, assetId: string): string {
+  if (localPath.startsWith("asset://")) return localPath;
+  const filename = localPath.split("/").pop() || `${assetId}.glb`;
+  return `asset://models/${assetId}/${filename}`;
+}
+
+// Examples:
+// asset://models/sword-bronze/sword-bronze.glb
+// asset://models/sword/variants/bronze/model.glb
+```
+
+## 🚀 Generation Pipeline
+
+### Full 3D Asset Pipeline
+
+```typescript
+import { generate3DModel } from "@/lib/generation/generation-service";
+
+const result = await generate3DModel({
+  prompt: "Medieval bronze sword with ornate hilt",
+  pipeline: "text-to-3d",
+  quality: "medium",
+  category: "weapon",
+  useGPT4Enhancement: true,      // Enhance prompt with GPT-4
+  generateConceptArt: true,      // Generate texture reference
+  convertToVRM: false,           // For characters/NPCs
+  enableHandRigging: false,      // For characters with hands
+  metadata: {
+    id: "sword_bronze",
+    name: "Bronze Sword",
+    type: "weapon",
+    weaponType: "SWORD",
+    rarity: "common",
+  },
+}, onProgress);
+
+// Result includes:
+// - modelUrl: Meshy CDN URL
+// - localModelUrl: /api/assets/{id}/model.glb
+// - thumbnailUrl, vrmUrl, etc.
+```
+
+### Stages
+
+1. **Prompt Enhancement** - GPT-4 improves the prompt
+2. **Concept Art** - Generate texture reference image
+3. **Text-to-3D Preview** - Untextured mesh
+4. **Text-to-3D Refine** - Add textures
+5. **Meshy Auto-Rigging** - (optional) Add skeleton
+6. **Skeleton Merge** - Merge skeleton into textured model
+7. **Hand Rigging** - (optional) Add finger bones
+8. **VRM Conversion** - (optional) Convert to VRM 1.0
+9. **Save Assets** - To Supabase/local
+
+## 📡 API Routes
+
+### 3D Generation
+
+```http
+POST /api/generate
+POST /api/meshy/status?taskId={id}
+POST /api/vrm/convert
+POST /api/hand-rigging/simple
+```
+
+### Images
+
+```http
+POST /api/images/concept-art
+POST /api/images/sprites
+POST /api/upload/image
+```
+
+### Audio
+
+```http
+POST /api/audio/voice/generate
+POST /api/audio/sfx/generate
+POST /api/audio/music/generate
+GET  /api/audio/voices
+```
+
+### Content
+
+```http
+POST /api/content/dialogue
+POST /api/content/generate
+```
+
+### Manifest
+
+```http
+GET  /api/manifest/items
+GET  /api/manifest/npcs
+POST /api/export/manifest
+```
+
+## 🗃️ Database Schema (Drizzle)
+
+```typescript
+// lib/db/schema.ts
+export const assets = sqliteTable("assets", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  category: text("category").notNull(),
+  status: text("status").default("draft"),
+  modelUrl: text("model_url"),
+  thumbnailUrl: text("thumbnail_url"),
+  metadata: text("metadata"),  // JSON string
+  createdAt: integer("created_at").default(Date.now()),
+  updatedAt: integer("updated_at"),
+});
+```
+
+## 🎯 Asset Categories
+
+```typescript
+type AssetCategory =
+  | "weapon"      // Swords, axes, bows, staves
+  | "prop"        // Barrels, crates, furniture
+  | "building"    // Houses, shops, structures
+  | "npc"         // Mobs, bosses, quest NPCs
+  | "character"   // Player avatars, VRM
+  | "resource"    // Trees, rocks, fishing spots
+  | "environment" // Terrain, foliage
+  | "tool"        // Axes, pickaxes, fishing rods
+  | "armor"       // Helmets, bodies, legs
+  | "item"        // Generic items
+  | "currency"    // Coins, tokens
+  | "avatar"      // VRM avatars
+  | "emote"       // Animation clips
+  | "audio"       // Sound effects
+  | "music"       // Music tracks
+  | "biome";      // World zones
+```
+
+## ⚙️ Environment Variables
+
+```bash
+# CDN
+NEXT_PUBLIC_CDN_URL=http://localhost:8080
+
+# Supabase Storage
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_xxx
+
+# AI Services
+MESHY_API_KEY=xxx
+ELEVENLABS_API_KEY=xxx
+OPENAI_API_KEY=xxx
+
+# Local Storage (fallback)
+HYPERFORGE_ASSETS_DIR=./assets
+```
+
+## 📖 Related Documentation
+
+| File | Description |
+|------|-------------|
+| `.cursor/rules/meshy.mdc` | Meshy 3D generation API |
+| `.cursor/rules/elevenlabs.mdc` | ElevenLabs audio API |
+| `.cursor/rules/models.mdc` | AI model references |
+| `packages/hyperforge/README.md` | Package documentation |
+
+## ⚠️ Key Rules
+
+1. **Manifest Alignment** - All generated assets must match manifest schemas
+2. **Storage Priority** - CDN → Supabase → Local (for both serving and saving)
+3. **Asset Protocol** - Use `asset://` paths in manifests
+4. **VRM for Characters** - Convert NPCs/characters to VRM for Hyperscape
+5. **Polycount Budgets** - Follow Three.js web MMO guidelines
+6. **Type Safety** - Match types from `packages/shared/src/types/`

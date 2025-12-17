@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { CDNAsset } from "@/lib-core/cdn/types";
+import type { CDNAsset } from "@/lib/cdn/types";
 
 // Extended asset type that includes local and forge assets
 export interface LibraryAsset extends CDNAsset {
@@ -17,6 +17,8 @@ export interface LibraryAsset extends CDNAsset {
   // VRM support
   hasVRM?: boolean;
   vrmPath?: string;
+  // Full URL for Supabase/external assets (thumbnailPath is the path, thumbnailUrl is the resolved URL)
+  thumbnailUrl?: string;
 }
 
 export function useCDNAssets() {
@@ -55,8 +57,10 @@ export function useCDNAssets() {
         }
       }
 
-      // Combine: local assets first (newest), then CDN assets
-      const allAssets = [...localAssets, ...cdnAssets];
+      // Combine: CDN assets first (verified in-game), then local/forge assets
+      // CDN = GitHub repo = verified in-game items (highest priority)
+      // LOCAL/FORGE = Supabase = HyperForge generations (lower priority)
+      const allAssets = [...cdnAssets, ...localAssets];
       setAssets(allAssets);
       setError(null);
     } catch (err) {

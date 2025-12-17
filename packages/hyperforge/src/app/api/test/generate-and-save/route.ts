@@ -3,7 +3,7 @@ import {
   createTextTo3DPreviewTask,
   createTextTo3DRefineTask,
   getTaskStatus,
-} from "@/lib-core/meshy/client";
+} from "@/lib/meshy/client";
 import { downloadAndSaveModel } from "@/lib/storage/asset-storage";
 
 /**

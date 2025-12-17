@@ -1,0 +1,603 @@
+---
+description: ElevenLabs audio API reference for HyperForge - Voice TTS, Sound Effects, Music Generation
+alwaysApply: false
+---
+# ElevenLabs API Reference for HyperForge
+
+This guide covers ElevenLabs integration for generating audio assets in HyperForge: voice/TTS, sound effects, and music.
+
+## 📌 Core Documentation URLs
+
+| Purpose | URL |
+|---------|-----|
+| ElevenLabs API Overview | https://elevenlabs.io/docs/overview |
+| Quickstart Guide | https://elevenlabs.io/docs/quickstart |
+| Text-to-Speech API | https://elevenlabs.io/docs/api-reference/text-to-speech/convert |
+| List Voices | https://elevenlabs.io/docs/api-reference/voices/search |
+| Voice Details | https://elevenlabs.io/docs/api-reference/voices/get |
+| Sound Effects API | https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert |
+| Music Quickstart | https://elevenlabs.io/docs/cookbooks/music/quickstart |
+| Music Compose API | https://elevenlabs.io/docs/api-reference/music/compose-detailed |
+| Instant Voice Cloning | https://elevenlabs.io/docs/developers/guides/cookbooks/voices/instant-voice-cloning |
+| Postman Collection | https://www.postman.com/elevenlabs/elevenlabs/collection/7i9rytu/elevenlabs-api-documentation |
+
+## 🔧 HyperForge ElevenLabs Implementation
+
+### HyperForge Package (Next.js)
+
+```
+packages/hyperforge/src/
+├── lib/audio/
+│   └── elevenlabs-service.ts    # Main service with all APIs
+├── types/
+│   └── audio.ts                 # Audio asset types
+└── app/api/audio/
+    ├── voice/generate/route.ts  # Voice TTS endpoint
+    ├── voices/route.ts          # List voices endpoint
+    ├── sfx/generate/route.ts    # Sound effects endpoint
+    └── music/generate/route.ts  # Music generation endpoint
+```
+
+### Asset-Forge Package (Elysia)
+
+```
+packages/asset-forge/server/services/
+├── ElevenLabsVoiceService.ts       # Voice generation service
+├── ElevenLabsSoundEffectsService.ts # SFX generation service
+└── ElevenLabsMusicService.ts       # Music generation service
+```
+
+### Environment Variable
+
+```bash
+ELEVENLABS_API_KEY=your_api_key_here
+```
+
+### SDK Package
+
+```typescript
+// Uses official ElevenLabs SDK
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+// or
+import { ElevenLabsClient } from "elevenlabs";
+```
+
+## 🤖 AI Models
+
+| Model ID | Name | Description | Latency |
+|----------|------|-------------|---------|
+| `eleven_multilingual_v2` | Multilingual v2 | High quality, 29 languages | Standard |
+| `eleven_v3` | v3 | Latest voice model | Standard |
+| `eleven_turbo_v2` | Turbo v2 | Fast, low-latency | ~75ms |
+| `eleven_monolingual_v1` | Monolingual v1 | English-only | Standard |
+| `eleven_flash_v2` | Flash v2 | Extremely low latency | ~75ms |
+| `music_v1` | Music v1 | Music generation | Varies |
+
+**Default for TTS**: `eleven_multilingual_v2`
+**Default for Music**: `music_v1`
+
+## 🎤 Text-to-Speech (Voice Generation)
+
+### TypeScript Usage
+
+```typescript
+import { generateSpeech, generateSpeechWithTimestamps } from "@/lib/audio/elevenlabs-service";
+
+// Basic TTS
+const result = await generateSpeech({
+  voiceId: "21m00Tcm4TlvDq8ikWAM",
+  text: "Hello adventurer, welcome to my shop!",
+  modelId: "eleven_multilingual_v2",
+  stability: 0.5,
+  similarityBoost: 0.75,
+  style: 0.5,
+  outputFormat: "mp3_44100_128",
+});
+
+// TTS with timestamps for lip-sync
+const withTiming = await generateSpeechWithTimestamps({
+  voiceId: "21m00Tcm4TlvDq8ikWAM",
+  text: "Hello adventurer!",
+});
+// Returns: { audio, timestamps: [{ character, start, end }] }
+```
+
+### API Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `voiceId` | string | required | ElevenLabs voice ID |
+| `text` | string | required | Text to synthesize |
+| `modelId` | string | `"eleven_multilingual_v2"` | TTS model |
+| `stability` | number | `0.5` | 0-1, higher = more consistent |
+| `similarityBoost` | number | `0.75` | 0-1, how much to match original |
+| `style` | number | `0.5` | 0-1, expressiveness level |
+| `outputFormat` | string | `"mp3_44100_128"` | Audio format |
+
+### Output Formats
+
+| Format | Quality | Use Case |
+|--------|---------|----------|
+| `mp3_44100_128` | High | Default, good quality |
+| `mp3_22050_32` | Low | Smaller files, lower quality |
+| `pcm_16000` | Raw | Real-time streaming |
+
+## 👥 Voice Management
+
+### List All Voices
+
+```typescript
+import { getVoices, searchVoices, getSharedVoices } from "@/lib/audio/elevenlabs-service";
+
+// Get all user voices
+const voices = await getVoices();
+
+// Search voices
+const results = await searchVoices({
+  search: "wizard",
+  gender: "male",
+  category: "professional",
+  pageSize: 20,
+});
+
+// Get shared/community voices
+const shared = await getSharedVoices({
+  gender: "female",
+  language: "en",
+  featured: true,
+  pageSize: 20,
+});
+```
+
+### Voice Object Structure
+
+```typescript
+interface Voice {
+  id: string;          // ElevenLabs voice ID
+  name: string;        // Display name
+  description?: string;
+  previewUrl?: string; // Preview audio URL
+  labels?: {
+    accent?: string;   // e.g., "british"
+    age?: string;      // e.g., "young"
+    gender?: string;   // e.g., "male"
+    useCase?: string;  // e.g., "narration"
+  };
+}
+```
+
+## 🎭 Game Voice Presets
+
+HyperForge includes predefined voice presets for RPG character types:
+
+| Preset | Description | Stability | Style |
+|--------|-------------|-----------|-------|
+| `male-warrior` | Deep, commanding | 0.7 | 0.6 |
+| `female-mage` | Mystical, ethereal | 0.5 | 0.7 |
+| `old-sage` | Wise, elderly | 0.8 | 0.4 |
+| `young-hero` | Energetic, youthful | 0.5 | 0.8 |
+| `villain` | Dark, menacing | 0.6 | 0.9 |
+| `merchant` | Friendly, persuasive | 0.6 | 0.5 |
+| `guard` | Authoritative | 0.75 | 0.5 |
+| `innkeeper` | Warm, welcoming | 0.65 | 0.4 |
+
+### Using Presets
+
+```typescript
+import { GAME_VOICE_PRESETS, getPresetVoiceSettings } from "@/lib/audio/elevenlabs-service";
+
+// Get preset
+const preset = GAME_VOICE_PRESETS["merchant"];
+console.log(preset.voiceId, preset.description);
+
+// Get voice settings for a preset
+const settings = getPresetVoiceSettings("villain");
+// Returns: { stability: 0.6, similarityBoost: 0.85, style: 0.9 }
+```
+
+### Environment Variables for Preset Voices
+
+Override default voice IDs with custom ones:
+
+```bash
+ELEVENLABS_VOICE_MALE_WARRIOR=your_voice_id
+ELEVENLABS_VOICE_FEMALE_MAGE=your_voice_id
+ELEVENLABS_VOICE_OLD_SAGE=your_voice_id
+ELEVENLABS_VOICE_YOUNG_HERO=your_voice_id
+ELEVENLABS_VOICE_VILLAIN=your_voice_id
+ELEVENLABS_VOICE_MERCHANT=your_voice_id
+ELEVENLABS_VOICE_GUARD=your_voice_id
+ELEVENLABS_VOICE_INNKEEPER=your_voice_id
+```
+
+## 🔊 Sound Effects Generation
+
+### TypeScript Usage
+
+```typescript
+import { generateSoundEffect, SFX_PROMPTS } from "@/lib/audio/elevenlabs-service";
+
+// Custom SFX
+const result = await generateSoundEffect({
+  text: "Sharp metallic sword swing through air",
+  durationSeconds: 1.5,
+  promptInfluence: 0.7,
+});
+
+// Using preset
+const presetPrompt = SFX_PROMPTS["sword-swing"];
+const sfx = await generateSoundEffect({
+  text: presetPrompt,
+  durationSeconds: 1.0,
+});
+```
+
+### API Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `text` | string | required | Description of sound effect |
+| `durationSeconds` | number | auto | 0.5-22 seconds |
+| `promptInfluence` | number | `0.7` | 0-1, how closely to follow prompt |
+
+### Built-in SFX Presets
+
+#### Combat
+
+| ID | Description |
+|----|-------------|
+| `sword-swing` | Sharp metallic sword swing |
+| `sword-hit` | Metal sword hitting armor |
+| `bow-draw` | Bow string being drawn |
+| `arrow-release` | Arrow being released |
+| `magic-cast` | Mystical spell casting |
+| `fireball` | Fiery whoosh spell |
+| `heal-spell` | Gentle healing magic |
+
+#### Items
+
+| ID | Description |
+|----|-------------|
+| `coin-pickup` | Single gold coin pickup |
+| `coins-drop` | Multiple coins falling |
+| `item-pickup` | Generic item pickup |
+| `inventory-open` | Leather bag opening |
+| `potion-drink` | Drinking from bottle |
+| `chest-open` | Treasure chest opening |
+| `chest-lock` | Lock clicking closed |
+
+#### Environment
+
+| ID | Description |
+|----|-------------|
+| `door-open` | Heavy wooden door creaking |
+| `door-close` | Door shutting |
+| `footsteps-stone` | Boots on stone floor |
+| `footsteps-grass` | Soft footsteps on grass |
+| `footsteps-wood` | Wooden floor creaking |
+| `water-splash` | Small splash in water |
+| `campfire-crackle` | Warm campfire sounds |
+| `wind-outdoor` | Gentle outdoor wind |
+| `rain-light` | Light rain falling |
+
+#### UI
+
+| ID | Description |
+|----|-------------|
+| `ui-click` | Clean UI button click |
+| `ui-confirm` | Positive confirmation |
+| `ui-cancel` | Soft cancel sound |
+| `level-up` | Triumphant fanfare |
+| `quest-complete` | Quest completion jingle |
+| `achievement` | Achievement unlock |
+
+### SFX Categories
+
+```typescript
+type SoundEffectCategory =
+  | "combat"
+  | "item"
+  | "environment"
+  | "ui"
+  | "character"
+  | "ambient"
+  | "custom";
+```
+
+## 🎼 Music Generation
+
+### TypeScript Usage
+
+```typescript
+import { generateMusic, generateMusicDetailed, MUSIC_PROMPTS } from "@/lib/audio/elevenlabs-service";
+
+// Simple music generation
+const result = await generateMusic({
+  prompt: "Epic orchestral battle music with driving drums",
+  durationMs: 60000, // 60 seconds
+  forceInstrumental: true,
+});
+
+// Using preset
+const presetPrompt = MUSIC_PROMPTS["combat-boss"];
+const bossMusic = await generateMusic({
+  prompt: presetPrompt,
+  durationMs: 120000,
+});
+```
+
+### API Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `prompt` | string | required | Natural language music description |
+| `durationMs` | number | `30000` | 3,000-300,000 ms (3s to 5min) |
+| `forceInstrumental` | boolean | `false` | No vocals if true |
+| `compositionPlan` | object | - | Structured multi-section plan |
+
+### Built-in Music Presets
+
+#### Zones/Areas
+
+| ID | Style |
+|----|-------|
+| `forest-ambient` | Peaceful medieval forest |
+| `dungeon-dark` | Dark, ominous tension |
+| `town-bustling` | Lively medieval marketplace |
+| `castle-grand` | Majestic orchestral throne room |
+| `tavern-cozy` | Warm folk tavern |
+| `cave-mysterious` | Mysterious underground |
+| `desert-vast` | Arabian-inspired adventure |
+| `snow-peaceful` | Serene winter landscape |
+
+#### Combat
+
+| ID | Style |
+|----|-------|
+| `combat-standard` | Intense orchestral battle |
+| `combat-boss` | Epic boss battle |
+| `combat-victory` | Triumphant victory fanfare |
+
+#### Emotional
+
+| ID | Style |
+|----|-------|
+| `emotional-sad` | Melancholic piano |
+| `emotional-heroic` | Inspiring heroic theme |
+| `emotional-mysterious` | Enigmatic puzzling |
+
+#### Menu/UI
+
+| ID | Style |
+|----|-------|
+| `menu-main` | Epic fantasy main menu |
+| `menu-pause` | Calm ambient pause |
+
+### Music Categories
+
+```typescript
+type MusicCategory =
+  | "ambient"
+  | "combat"
+  | "boss"
+  | "town"
+  | "dungeon"
+  | "menu"
+  | "cutscene"
+  | "victory"
+  | "defeat"
+  | "custom";
+```
+
+## 📡 API Routes (HyperForge)
+
+### Voice Generation
+
+```http
+POST /api/audio/voice/generate
+Content-Type: application/json
+
+{
+  "text": "Welcome to my shop, adventurer!",
+  "voiceId": "21m00Tcm4TlvDq8ikWAM",  // OR
+  "voicePreset": "merchant",
+  "npcId": "npc_merchant_001",
+  "dialogueNodeId": "greeting_1",
+  "withTimestamps": true,
+  "saveToAsset": true
+}
+```
+
+### List Voices
+
+```http
+GET /api/audio/voices?type=all
+GET /api/audio/voices?type=search&search=wizard&gender=male
+GET /api/audio/voices?type=shared&gender=female&pageSize=20
+GET /api/audio/voices?type=presets
+```
+
+### Sound Effects Generation
+
+```http
+POST /api/audio/sfx/generate
+Content-Type: application/json
+
+{
+  "prompt": "Sharp sword swing through air",  // OR
+  "presetId": "sword-swing",
+  "category": "combat",
+  "name": "sword_attack_1",
+  "durationSeconds": 1.5,
+  "promptInfluence": 0.7,
+  "tags": ["sword", "attack", "melee"],
+  "saveToAsset": true
+}
+```
+
+### Music Generation
+
+```http
+POST /api/audio/music/generate
+Content-Type: application/json
+
+{
+  "prompt": "Epic orchestral battle music",  // OR
+  "presetId": "combat-boss",
+  "category": "boss",
+  "name": "boss_fight_theme",
+  "durationMs": 60000,
+  "forceInstrumental": true,
+  "loopable": true,
+  "zones": ["dungeon_final_boss"],
+  "saveToAsset": true
+}
+```
+
+## 📦 Audio Asset Types
+
+### Voice Asset
+
+```typescript
+interface VoiceAsset {
+  id: string;
+  name: string;
+  npcId?: string;
+  dialogueNodeId?: string;
+  text: string;
+  voiceId: string;
+  voicePreset?: string;
+  url: string;
+  duration: number;
+  format: string;
+  timestamps?: Array<{ character: string; start: number; end: number }>;
+  generatedAt: string;
+}
+```
+
+### Sound Effect Asset
+
+```typescript
+interface SoundEffectAsset {
+  id: string;
+  name: string;
+  category: SoundEffectCategory;
+  prompt: string;
+  url: string;
+  duration: number;
+  format: string;
+  tags: string[];
+  generatedAt: string;
+}
+```
+
+### Music Asset
+
+```typescript
+interface MusicAsset {
+  id: string;
+  name: string;
+  category: MusicCategory;
+  prompt: string;
+  url: string;
+  duration: number;
+  format: string;
+  loopable: boolean;
+  bpm?: number;
+  genre?: string;
+  mood?: string;
+  zones?: string[];
+  generatedAt: string;
+}
+```
+
+## 💰 Cost Estimation
+
+### Voice (TTS)
+
+```typescript
+// Approximate: $0.30 per 10,000 characters
+const costPerChar = 0.00003;
+const totalChars = texts.reduce((sum, text) => sum + text.length, 0);
+const estimatedCost = totalChars * costPerChar;
+```
+
+### Sound Effects
+
+```typescript
+// Approximate: Base $0.01 + $0.002 per second
+const baseCost = 0.01;
+const durationCost = duration * 0.002;
+const estimatedCost = baseCost + durationCost;
+```
+
+## 🚀 Best Practices
+
+### 1. Authentication & Security
+- Store API key in environment variables (`ELEVENLABS_API_KEY`)
+- Monitor usage costs and quotas
+- Never expose API key in client-side code
+
+### 2. Latency Optimization
+- Use Flash/Turbo models for real-time speech
+- Use streaming endpoints where supported
+- Pre-generate common dialogue for instant playback
+
+### 3. Voice Selection
+- Test voice quality for each character type
+- Use presets for consistent character voices
+- Consider multilingual models for localization
+
+### 4. SFX Best Practices
+- Keep duration short (0.5-3s) for responsiveness
+- Use higher `promptInfluence` for precise sounds
+- Generate variations for variety
+
+### 5. Music Best Practices
+- Use `forceInstrumental: true` for game music
+- Set `loopable: true` for ambient tracks
+- Match duration to gameplay needs
+
+### 6. Storage Strategy
+- Primary: Supabase audio-generations bucket
+- Fallback: Local filesystem
+- Return base64 for immediate playback
+
+## ⚠️ Common Pitfalls
+
+1. **Don't expose API key in client code** - Use server-side API routes
+2. **Don't generate in real-time for long text** - Pre-generate dialogue
+3. **Don't use high-quality models for streaming** - Use Flash/Turbo
+4. **Don't generate 5-minute tracks for short loops** - Match duration to need
+5. **Handle stream conversion carefully** - SDK returns various types
+
+## 📖 Related HyperForge Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/audio/elevenlabs-service.ts` | Main audio service |
+| `src/types/audio.ts` | Audio asset types |
+| `src/types/game/dialogue-types.ts` | NPC dialogue types |
+| `src/components/modules/AudioStudioPanel.tsx` | Audio UI panel |
+| `src/app/audio/` | Audio studio pages |
+| `lib/storage/supabase-storage.ts` | Audio file storage |
+
+## 🔗 Quick Reference
+
+### Generate Voice
+
+```typescript
+const speech = await generateSpeech({ voiceId, text, stability: 0.5, style: 0.7 });
+```
+
+### Generate SFX
+
+```typescript
+const sfx = await generateSoundEffect({ text: "sword swing", durationSeconds: 1 });
+```
+
+### Generate Music
+
+```typescript
+const music = await generateMusic({ prompt: "epic battle", durationMs: 60000 });
+```

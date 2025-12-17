@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useGenerationStore } from "@/stores/generation-store";
+import { useVariantStore } from "@/stores/variant-store";
 import Link from "next/link";
 import {
   Check,
@@ -9,12 +11,22 @@ import {
   Sparkles,
   ExternalLink,
   Box,
-  Image as ImageIcon,
+  Palette,
+  Plus,
+  X,
 } from "lucide-react";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
+import { Modal } from "@/components/ui/modal";
+import { VariantDefinitionPanel } from "./VariantDefinitionPanel";
+import type { TextureVariant } from "./GenerationFormRouter";
 
 export function ResultPreview() {
-  const { generatedAssets, currentGeneration, reset } = useGenerationStore();
+  const { generatedAssets, reset } = useGenerationStore();
+  const { setBaseModel, variants, clearVariants } = useVariantStore();
+
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [pendingVariants, setPendingVariants] = useState<TextureVariant[]>([]);
+  const [isCreatingVariants, setIsCreatingVariants] = useState(false);
 
   // Get the most recent generated asset
   const latestAsset = generatedAssets[generatedAssets.length - 1];
@@ -33,10 +45,54 @@ export function ResultPreview() {
   const metadata = latestAsset.metadata;
   const hasVRM = metadata?.hasVRM === true;
   const hasHandRigging = metadata?.hasHandRigging === true;
+  const hasVariants = metadata?.hasVariants === true;
+  const variantCount = (metadata?.variantCount as number) || 0;
   const assetId = (metadata?.assetId as string) || latestAsset.id;
   const localModelUrl = metadata?.localModelUrl as string;
   const localVrmUrl = metadata?.localVrmUrl as string;
   const localThumbnailUrl = metadata?.localThumbnailUrl as string;
+
+  const handleOpenVariantModal = () => {
+    // Set this asset as the base model for variants
+    setBaseModel(
+      assetId,
+      localModelUrl || latestAsset.modelUrl || "",
+      String(metadata?.name || assetId),
+    );
+    setPendingVariants([]);
+    setShowVariantModal(true);
+  };
+
+  const handleCreateVariants = async () => {
+    if (pendingVariants.length === 0) return;
+
+    setIsCreatingVariants(true);
+
+    try {
+      const response = await fetch("/api/variants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "batch",
+          baseModelId: assetId,
+          baseModelUrl: localModelUrl || latestAsset.modelUrl,
+          variants: pendingVariants,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Variants created:", result);
+        // Could update UI to show pending variants
+      }
+    } catch (error) {
+      console.error("Failed to create variants:", error);
+    } finally {
+      setIsCreatingVariants(false);
+      setShowVariantModal(false);
+      setPendingVariants([]);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -148,6 +204,24 @@ export function ResultPreview() {
                 <ExternalLink className="w-3 h-3 opacity-50" />
               </Link>
             )}
+
+          {/* Add Texture Variant Button */}
+          <button
+            onClick={handleOpenVariantModal}
+            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-foreground hover:from-purple-500/30 hover:to-pink-500/30 text-sm transition-colors border border-purple-500/20"
+          >
+            <Palette className="w-4 h-4 text-purple-400" />
+            Add Texture Variants
+            <Plus className="w-3 h-3 opacity-50" />
+          </button>
+
+          {/* Show existing variants count */}
+          {hasVariants && variantCount > 0 && (
+            <div className="text-center text-xs text-muted-foreground">
+              {variantCount} texture variant{variantCount !== 1 ? "s" : ""}{" "}
+              registered
+            </div>
+          )}
         </div>
       </div>
 
@@ -155,6 +229,49 @@ export function ResultPreview() {
       <SpectacularButton onClick={reset} variant="outline" className="w-full">
         Generate Another
       </SpectacularButton>
+
+      {/* Variant Creation Modal */}
+      <Modal
+        isOpen={showVariantModal}
+        onClose={() => setShowVariantModal(false)}
+        title="Create Texture Variants"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create texture variants for{" "}
+            <span className="font-medium text-foreground">
+              {String(metadata?.name || assetId)}
+            </span>
+            . Each variant uses the same base mesh with different textures.
+          </p>
+
+          <VariantDefinitionPanel
+            variants={pendingVariants}
+            onVariantsChange={setPendingVariants}
+          />
+
+          <div className="flex gap-2 pt-4 border-t border-glass-border">
+            <SpectacularButton
+              variant="outline"
+              onClick={() => setShowVariantModal(false)}
+              className="flex-1"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </SpectacularButton>
+            <SpectacularButton
+              onClick={handleCreateVariants}
+              disabled={pendingVariants.length === 0 || isCreatingVariants}
+              className="flex-1"
+            >
+              <Palette className="w-4 h-4 mr-2" />
+              {isCreatingVariants
+                ? "Creating..."
+                : `Create ${pendingVariants.length} Variant${pendingVariants.length !== 1 ? "s" : ""}`}
+            </SpectacularButton>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

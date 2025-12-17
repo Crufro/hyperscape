@@ -28,10 +28,20 @@ export interface SimpleHandRiggingResult {
 export class SimpleHandRiggingService {
   private loader: GLTFLoader;
   private exporter: GLTFExporter;
+  private debugMode: boolean = false;
 
   constructor() {
     this.loader = new GLTFLoader();
     this.exporter = new GLTFExporter();
+  }
+
+  /**
+   * Debug logger - only logs when debugMode is enabled
+   */
+  private log(message: string, ...args: unknown[]): void {
+    if (this.debugMode) {
+      this.log(message, ...args);
+    }
   }
 
   /**
@@ -47,14 +57,17 @@ export class SimpleHandRiggingService {
       debugMode = false,
     } = options;
 
+    // Store debugMode for use by helper methods
+    this.debugMode = debugMode;
+
     try {
-      console.log("🤖 Starting simple hand rigging process...");
+      this.log("🤖 Starting simple hand rigging process...");
 
       // Load the model
       const model = await this.loadModel(modelFile);
 
       // Fix model scale issues
-      console.log("📊 Fixing model scale...");
+      this.log("📊 Fixing model scale...");
 
       // The model has bones with 0.01 scale which causes export issues
       // We need to apply this scale to the geometry and reset bone scales
@@ -67,7 +80,7 @@ export class SimpleHandRiggingService {
         if (child.name === "Armature" && !armatureFound) {
           const oldScale = child.scale.x;
           if (Math.abs(oldScale - 1.0) > 0.001) {
-            console.log(
+            this.log(
               `  Found Armature with scale ${oldScale.toFixed(4)}, resetting to 1.0`,
             );
             child.scale.set(1, 1, 1);
@@ -78,7 +91,7 @@ export class SimpleHandRiggingService {
 
       model.traverse((child) => {
         if (child instanceof THREE.SkinnedMesh) {
-          console.log(`  Found SkinnedMesh: ${child.name}`);
+          this.log(`  Found SkinnedMesh: ${child.name}`);
 
           // Scale the geometry to match bone scale
           child.geometry.scale(BONE_SCALE_FIX, BONE_SCALE_FIX, BONE_SCALE_FIX);
@@ -105,7 +118,7 @@ export class SimpleHandRiggingService {
             child.bindMatrixInverse.copy(child.matrixWorld).invert();
           }
 
-          console.log(
+          this.log(
             `  ✅ Applied scale fix of ${BONE_SCALE_FIX}x to geometry and bones`,
           );
         }
@@ -118,12 +131,12 @@ export class SimpleHandRiggingService {
       const finalBounds = new THREE.Box3().setFromObject(model);
       const finalSize = new THREE.Vector3();
       finalBounds.getSize(finalSize);
-      console.log(
+      this.log(
         `📏 Final model size after fixes: ${finalSize.x.toFixed(3)} x ${finalSize.y.toFixed(3)} x ${finalSize.z.toFixed(3)}`,
       );
 
       // CRITICAL: Remove orphaned bones BEFORE any processing
-      console.log("🧹 Removing orphaned bones before hand rigging...");
+      this.log("🧹 Removing orphaned bones before hand rigging...");
       // Don't remove head bones - they're valid bones!
       const problematicBoneNames: string[] = []; // Empty list - no bones are inherently problematic
       const bonesToDelete: THREE.Bone[] = [];
@@ -149,11 +162,11 @@ export class SimpleHandRiggingService {
 
       // Remove the bones from the scene hierarchy
       if (bonesToDelete.length > 0) {
-        console.log(
+        this.log(
           `  Found ${bonesToDelete.length} orphaned/problematic bones to remove:`,
         );
         bonesToDelete.forEach((bone) => {
-          console.log(`    - ${bone.name}`);
+          this.log(`    - ${bone.name}`);
 
           // Re-parent any children to the bone's parent
           const children = [...bone.children];
@@ -189,7 +202,7 @@ export class SimpleHandRiggingService {
               const index = bonesArray.indexOf(boneToDelete);
               if (index !== -1) {
                 indicesToRemove.push(index);
-                console.log(
+                this.log(
                   `    Removing ${boneToDelete.name} from skeleton at index ${index}`,
                 );
               }
@@ -238,7 +251,7 @@ export class SimpleHandRiggingService {
                 bonesArray.splice(idx, 1);
                 inversesArray.splice(idx, 1);
               });
-              console.log(
+              this.log(
                 `    Updated skeleton: now has ${skeleton.bones.length} bones`,
               );
             }
@@ -247,7 +260,7 @@ export class SimpleHandRiggingService {
 
         // Update world matrices after removal
         model.updateMatrixWorld(true);
-        console.log("  ✅ Orphaned bones removed");
+        this.log("  ✅ Orphaned bones removed");
       }
 
       const originalBoneCount = this.countBones(model);
@@ -259,7 +272,7 @@ export class SimpleHandRiggingService {
         throw new Error("No wrist bones found in the model");
       }
 
-      console.log(`✅ Found ${wristBones.length} wrist bone(s)`);
+      this.log(`✅ Found ${wristBones.length} wrist bone(s)`);
 
       // Process each hand
       const addedBones: string[] = [];
@@ -290,23 +303,23 @@ export class SimpleHandRiggingService {
       model.updateMatrixWorld(true);
 
       // Validate the model before export
-      console.log("Validating model structure...");
+      this.log("Validating model structure...");
       const validationResult = this.validateModelStructure(model);
       if (!validationResult.isValid) {
         console.error("Model validation failed:", validationResult.errors);
       } else {
-        console.log("✅ Model structure validated successfully");
+        this.log("✅ Model structure validated successfully");
       }
 
       // Final skeleton update
       this.updateAllSkeletons(model);
 
       // Export the rigged model
-      console.log("Exporting rigged model...");
+      this.log("Exporting rigged model...");
       const exportedBlob = await this.exportModel(model, debugMode);
 
       // Final validation - check the exported model size
-      console.log(
+      this.log(
         `📦 Export complete. Model size: ${exportedBlob.byteLength} bytes`,
       );
 
@@ -349,12 +362,12 @@ export class SimpleHandRiggingService {
       const isLeft = wristBone.name.toLowerCase().includes("left");
       const side = isLeft ? "left" : "right";
       if (debugMode) {
-        console.log(
+        this.log(
           `Debug: palm length=${palmBoneLength}, finger length=${fingerBoneLength}`,
         );
       }
 
-      console.log(`\n🖐️ Creating simple hand bones for ${side} hand...`);
+      this.log(`\n🖐️ Creating simple hand bones for ${side} hand...`);
 
       // Get wrist world position and matrix
       const wristWorldPos = new THREE.Vector3();
@@ -363,14 +376,14 @@ export class SimpleHandRiggingService {
       wristBone.updateWorldMatrix(true, false);
       wristWorldMatrix.copy(wristBone.matrixWorld);
 
-      console.log(`  Wrist bone: ${wristBone.name}`);
-      console.log(`  Wrist world position: ${wristWorldPos.toArray()}`);
-      console.log(`  Wrist local position: ${wristBone.position.toArray()}`);
+      this.log(`  Wrist bone: ${wristBone.name}`);
+      this.log(`  Wrist world position: ${wristWorldPos.toArray()}`);
+      this.log(`  Wrist local position: ${wristBone.position.toArray()}`);
 
       // Auto-scale based on the forearm length
       // The wrist's local position tells us how long the forearm is
       const forearmLength = wristBone.position.length();
-      console.log(`  Forearm length: ${forearmLength}`);
+      this.log(`  Forearm length: ${forearmLength}`);
 
       // Calculate exact bone sizes based on the scale chain:
       // 1. We work in bone local space (where forearm is ~1625 units)
@@ -386,7 +399,7 @@ export class SimpleHandRiggingService {
         parentWorldScale.set(1, 1, 1);
       }
 
-      console.log(`  Parent bone world scale: ${parentWorldScale.x}`);
+      this.log(`  Parent bone world scale: ${parentWorldScale.x}`);
 
       // A realistic hand is about 18-20cm long
       // The forearm (from elbow to wrist) is typically 25-30cm
@@ -403,22 +416,22 @@ export class SimpleHandRiggingService {
       const finalPalmLength = totalHandLength * 0.4;
       const finalFingerLength = totalHandLength * 0.6;
 
-      console.log(`  Hand to forearm ratio: ${handToForearmRatio}`);
-      console.log(`  Total hand length: ${totalHandLength} (local space)`);
-      console.log(
+      this.log(`  Hand to forearm ratio: ${handToForearmRatio}`);
+      this.log(`  Total hand length: ${totalHandLength} (local space)`);
+      this.log(
         `  Bone lengths - Palm: ${finalPalmLength}, Finger: ${finalFingerLength}`,
       );
 
       // Get the forward direction (along the arm towards fingers)
       const forward = this.getHandForwardDirection(model, wristBone, isLeft);
-      console.log(`  Forward direction: ${forward.toArray()}`);
+      this.log(`  Forward direction: ${forward.toArray()}`);
 
       // For bone positioning, we need to work in the parent's local space
       // Don't use world scale as it can be misleading with nested transforms
       const localPalmLength = finalPalmLength;
       const localFingerLength = finalFingerLength;
 
-      console.log(
+      this.log(
         `  Using local space lengths - Palm: ${localPalmLength}, Finger: ${localFingerLength}`,
       );
 
@@ -438,8 +451,8 @@ export class SimpleHandRiggingService {
       const fingerPosition = forward.clone().multiplyScalar(localFingerLength);
       fingerBone.position.copy(fingerPosition);
 
-      console.log(`  Palm bone local position: ${palmBone.position.toArray()}`);
-      console.log(
+      this.log(`  Palm bone local position: ${palmBone.position.toArray()}`);
+      this.log(
         `  Finger bone local position: ${fingerBone.position.toArray()}`,
       );
 
@@ -459,20 +472,20 @@ export class SimpleHandRiggingService {
       palmBone.getWorldPosition(palmWorldPos);
       fingerBone.getWorldPosition(fingerWorldPos);
 
-      console.log(`  Palm world position: ${palmWorldPos.toArray()}`);
-      console.log(`  Finger world position: ${fingerWorldPos.toArray()}`);
-      console.log(
+      this.log(`  Palm world position: ${palmWorldPos.toArray()}`);
+      this.log(`  Finger world position: ${fingerWorldPos.toArray()}`);
+      this.log(
         `  Distance wrist->palm: ${wristWorldPos.distanceTo(palmWorldPos)}`,
       );
-      console.log(
+      this.log(
         `  Distance palm->finger: ${palmWorldPos.distanceTo(fingerWorldPos)}`,
       );
 
       // Check if bones are actually at different positions
       const actualPalmLength = wristWorldPos.distanceTo(palmWorldPos);
       const actualFingerLength = palmWorldPos.distanceTo(fingerWorldPos);
-      console.log(`  Actual palm bone length: ${actualPalmLength}`);
-      console.log(`  Actual finger bone length: ${actualFingerLength}`);
+      this.log(`  Actual palm bone length: ${actualPalmLength}`);
+      this.log(`  Actual finger bone length: ${actualFingerLength}`);
 
       if (actualPalmLength < 0.001) {
         console.error(
@@ -486,12 +499,12 @@ export class SimpleHandRiggingService {
       }
 
       // Verify bone hierarchy
-      console.log(`  Bone hierarchy:`);
-      console.log(`    ${wristBone.name} (existing wrist)`);
-      console.log(
+      this.log(`  Bone hierarchy:`);
+      this.log(`    ${wristBone.name} (existing wrist)`);
+      this.log(
         `      └─ ${palmBone.name} (new palm) - ${palmBone.children.length} children`,
       );
-      console.log(
+      this.log(
         `           └─ ${fingerBone.name} (new finger) - ${fingerBone.children.length} children`,
       );
 
@@ -517,7 +530,7 @@ export class SimpleHandRiggingService {
           }
         }
       });
-      console.log(`  Found ${allBonesInModel.length} total bones in model`);
+      this.log(`  Found ${allBonesInModel.length} total bones in model`);
 
       // Get the original skeleton as reference for bone order
       let referenceSkeleton: THREE.Skeleton | undefined;
@@ -533,7 +546,7 @@ export class SimpleHandRiggingService {
       });
 
       if (referenceSkeleton) {
-        console.log(
+        this.log(
           `  Reference skeleton has ${referenceSkeleton.bones.length} bones`,
         );
 
@@ -597,7 +610,7 @@ export class SimpleHandRiggingService {
         }
       }
 
-      console.log(`  Total bones for new skeleton: ${skeletonBones.length}`);
+      this.log(`  Total bones for new skeleton: ${skeletonBones.length}`);
 
       // CRITICAL FIX: Remove any non-bone nodes that might have been included
       const validBones: THREE.Bone[] = [];
@@ -616,7 +629,7 @@ export class SimpleHandRiggingService {
         }
       }
 
-      console.log(`  Filtered to ${validBones.length} valid bones`);
+      this.log(`  Filtered to ${validBones.length} valid bones`);
 
       // Sort bones by hierarchy depth to ensure parents come before children
       const getBoneDepth = (bone: THREE.Bone): number => {
@@ -639,7 +652,7 @@ export class SimpleHandRiggingService {
       });
 
       // CRITICAL: Verify all bones are properly connected
-      console.log("  Verifying bone hierarchy...");
+      this.log("  Verifying bone hierarchy...");
       for (let i = 0; i < sortedBones.length; i++) {
         const bone = sortedBones[i];
         if (bone.parent && bone.parent instanceof THREE.Bone) {
@@ -658,8 +671,8 @@ export class SimpleHandRiggingService {
 
       // Create the shared skeleton
       sharedSkeleton = new THREE.Skeleton(sortedBones, sortedInverses);
-      console.log(`  Created shared skeleton with ${sortedBones.length} bones`);
-      console.log(`  Bone names: ${sortedBones.map((b) => b.name).join(", ")}`);
+      this.log(`  Created shared skeleton with ${sortedBones.length} bones`);
+      this.log(`  Bone names: ${sortedBones.map((b) => b.name).join(", ")}`);
 
       // Second pass: bind all skinned meshes to the shared skeleton
       model.traverse((child) => {
@@ -729,7 +742,7 @@ export class SimpleHandRiggingService {
           child.skeleton.pose();
           child.skeleton.update();
 
-          console.log(
+          this.log(
             `  Bound ${child.name || "mesh"} to shared skeleton (mapped ${boneIndexMap.size} bones)`,
           );
         }
@@ -747,7 +760,7 @@ export class SimpleHandRiggingService {
       // Force update all skeletons
       this.updateAllSkeletons(model);
 
-      console.log(`✅ Created 2 simple bones for ${side} hand`);
+      this.log(`✅ Created 2 simple bones for ${side} hand`);
 
       return [palmBone, fingerBone];
     } catch (error) {
@@ -764,12 +777,12 @@ export class SimpleHandRiggingService {
     wristBone: THREE.Bone,
     _isLeft: boolean,
   ): THREE.Vector3 {
-    console.log(`    Detecting hand forward direction for ${wristBone.name}`);
+    this.log(`    Detecting hand forward direction for ${wristBone.name}`);
 
     // Method 1: Try to find the direction from elbow/forearm to wrist
     const parentBone = wristBone.parent as THREE.Bone;
     if (parentBone && parentBone.isBone) {
-      console.log(`    Found parent bone: ${parentBone.name}`);
+      this.log(`    Found parent bone: ${parentBone.name}`);
 
       // Get positions in world space
       const parentWorldPos = new THREE.Vector3();
@@ -782,7 +795,7 @@ export class SimpleHandRiggingService {
         .subVectors(wristWorldPos, parentWorldPos)
         .normalize();
 
-      console.log(`    Arm direction (world): ${armDirection.toArray()}`);
+      this.log(`    Arm direction (world): ${armDirection.toArray()}`);
 
       // Convert to wrist's local space
       const wristWorldMatrix = new THREE.Matrix4();
@@ -799,7 +812,7 @@ export class SimpleHandRiggingService {
       armDirection.applyMatrix4(rotationOnly);
       armDirection.normalize();
 
-      console.log(`    Arm direction (local): ${armDirection.toArray()}`);
+      this.log(`    Arm direction (local): ${armDirection.toArray()}`);
 
       // The hand typically continues in the same direction as the arm
       return armDirection;
@@ -824,8 +837,8 @@ export class SimpleHandRiggingService {
       // Direction from wrist to hand center
       const direction = avgPos.sub(wristPos).normalize();
 
-      console.log(`    Found ${handVertices.length} hand vertices`);
-      console.log(`    Hand center direction (world): ${direction.toArray()}`);
+      this.log(`    Found ${handVertices.length} hand vertices`);
+      this.log(`    Hand center direction (world): ${direction.toArray()}`);
 
       // Convert to local space of wrist bone
       const wristWorldMatrix = new THREE.Matrix4();
@@ -842,13 +855,13 @@ export class SimpleHandRiggingService {
       direction.applyMatrix4(rotationOnly);
       direction.normalize();
 
-      console.log(`    Hand center direction (local): ${direction.toArray()}`);
+      this.log(`    Hand center direction (local): ${direction.toArray()}`);
 
       return direction;
     }
 
     // Method 3: Fallback based on common rig patterns
-    console.log("    Using fallback direction based on common rig patterns");
+    this.log("    Using fallback direction based on common rig patterns");
 
     // Most rigs have hands extending along one of the bone's local axes
     // We'll test each axis and see which makes most sense
@@ -875,7 +888,7 @@ export class SimpleHandRiggingService {
       bestAxis = new THREE.Vector3(0, 1, 0);
     }
 
-    console.log(`    Fallback direction: ${bestAxis.toArray()}`);
+    this.log(`    Fallback direction: ${bestAxis.toArray()}`);
 
     return bestAxis;
   }
@@ -891,13 +904,11 @@ export class SimpleHandRiggingService {
     const wristIndex = this.findBoneIndex(model, wristBone);
 
     if (wristIndex === -1) {
-      console.log("    Could not find wrist bone index");
+      this.log("    Could not find wrist bone index");
       return handVertices;
     }
 
-    console.log(
-      `    Finding hand vertices for wrist bone index: ${wristIndex}`,
-    );
+    this.log(`    Finding hand vertices for wrist bone index: ${wristIndex}`);
 
     model.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && child.geometry) {
@@ -928,13 +939,13 @@ export class SimpleHandRiggingService {
           }
         }
 
-        console.log(
+        this.log(
           `    Found ${foundCount} vertices influenced by wrist in mesh ${child.name}`,
         );
       }
     });
 
-    console.log(`    Total hand vertices found: ${handVertices.length}`);
+    this.log(`    Total hand vertices found: ${handVertices.length}`);
     return handVertices;
   }
 
@@ -950,9 +961,7 @@ export class SimpleHandRiggingService {
     fingerBone: THREE.Bone,
     isLeft: boolean,
   ): Promise<void> {
-    console.log(
-      `Applying simple weights for ${isLeft ? "left" : "right"} hand`,
-    );
+    this.log(`Applying simple weights for ${isLeft ? "left" : "right"} hand`);
     // Get bone positions in their local/model space
     const wristLocalPos = wristBone.position.clone();
     const palmLocalPos = palmBone.position.clone();
@@ -967,14 +976,14 @@ export class SimpleHandRiggingService {
     palmBone.getWorldPosition(palmWorldPos);
     fingerBone.getWorldPosition(fingerWorldPos);
 
-    console.log(`  Weight application debug:`);
-    console.log(
+    this.log(`  Weight application debug:`);
+    this.log(
       `    Wrist - local: ${wristLocalPos.toArray()}, world: ${wristWorldPos.toArray()}`,
     );
-    console.log(
+    this.log(
       `    Palm - local: ${palmLocalPos.toArray()}, world: ${palmWorldPos.toArray()}`,
     );
-    console.log(
+    this.log(
       `    Finger - local: ${fingerLocalPos.toArray()}, world: ${fingerWorldPos.toArray()}`,
     );
 
@@ -986,20 +995,18 @@ export class SimpleHandRiggingService {
     const actualFingerLength = palmWorldPos.distanceTo(fingerWorldPos);
     const handLength = actualPalmLength + actualFingerLength;
 
-    console.log(`    Hand direction: ${handDirection.toArray()}`);
-    console.log(
+    this.log(`    Hand direction: ${handDirection.toArray()}`);
+    this.log(
       `    Actual bone lengths - Palm: ${actualPalmLength}, Finger: ${actualFingerLength}`,
     );
-    console.log(`    Total hand length: ${handLength}`);
+    this.log(`    Total hand length: ${handLength}`);
 
     // Check if bones were created properly
     if (actualPalmLength < 0.001 || actualFingerLength < 0.001) {
       console.error(
         `  ❌ Bones have incorrect lengths - Palm: ${actualPalmLength}, Finger: ${actualFingerLength}`,
       );
-      console.log(
-        `  ℹ️ This might be due to scale issues in the bone hierarchy`,
-      );
+      this.log(`  ℹ️ This might be due to scale issues in the bone hierarchy`);
     }
 
     model.traverse((child) => {
@@ -1015,7 +1022,7 @@ export class SimpleHandRiggingService {
         const palmIndex = this.findBoneIndex(model, palmBone);
         const fingerIndex = this.findBoneIndex(model, fingerBone);
 
-        console.log(
+        this.log(
           `  Bone indices - Wrist: ${wristIndex}, Palm: ${palmIndex}, Finger: ${fingerIndex}`,
         );
 
@@ -1025,14 +1032,14 @@ export class SimpleHandRiggingService {
           const palmBoneFromIndex = child.skeleton.bones[palmIndex];
           const fingerBoneFromIndex = child.skeleton.bones[fingerIndex];
 
-          console.log(`  Bone verification:`);
-          console.log(
+          this.log(`  Bone verification:`);
+          this.log(
             `    Wrist bone at index ${wristIndex}: ${wristBoneFromIndex?.name || "NOT FOUND"}`,
           );
-          console.log(
+          this.log(
             `    Palm bone at index ${palmIndex}: ${palmBoneFromIndex?.name || "NOT FOUND"}`,
           );
-          console.log(
+          this.log(
             `    Finger bone at index ${fingerIndex}: ${fingerBoneFromIndex?.name || "NOT FOUND"}`,
           );
 
@@ -1063,17 +1070,17 @@ export class SimpleHandRiggingService {
           .clone()
           .applyMatrix4(meshInverseMatrix);
 
-        console.log(`  Bone positions in mesh space:`);
-        console.log(`    Wrist: ${wristMeshPos.toArray()}`);
-        console.log(`    Palm: ${palmMeshPos.toArray()}`);
-        console.log(`    Finger: ${fingerMeshPos.toArray()}`);
+        this.log(`  Bone positions in mesh space:`);
+        this.log(`    Wrist: ${wristMeshPos.toArray()}`);
+        this.log(`    Palm: ${palmMeshPos.toArray()}`);
+        this.log(`    Finger: ${fingerMeshPos.toArray()}`);
 
         // For a proper hand rig, we need to:
         // 1. Find vertices that are in the hand region (beyond wrist)
         // 2. Only modify weights for those vertices
         // 3. Keep the wrist bone influence but ADD palm/finger influence
 
-        console.log(`  🎯 Smart weight assignment for hand vertices...`);
+        this.log(`  🎯 Smart weight assignment for hand vertices...`);
 
         const vertex = new THREE.Vector3();
         const handDirMesh = new THREE.Vector3()
@@ -1081,23 +1088,23 @@ export class SimpleHandRiggingService {
           .normalize();
         const handLengthMesh = wristMeshPos.distanceTo(fingerMeshPos);
 
-        console.log(`  Hand direction in mesh space: ${handDirMesh.toArray()}`);
-        console.log(`  Hand length in mesh space: ${handLengthMesh}`);
+        this.log(`  Hand direction in mesh space: ${handDirMesh.toArray()}`);
+        this.log(`  Hand length in mesh space: ${handLengthMesh}`);
 
         // Due to scale issues, let's also check the actual scale factor
         const scaleFactor = handLengthMesh / handLength; // mesh space vs world space
-        console.log(`  Scale factor (mesh/world): ${scaleFactor}`);
+        this.log(`  Scale factor (mesh/world): ${scaleFactor}`);
 
         // If the scale factor is extreme, it means there's a scale mismatch
         // This often happens when bones have very different scales
         if (scaleFactor > 1000 || scaleFactor < 0.001) {
-          console.log(
+          this.log(
             `  ⚠️ Extreme scale factor detected! Using mesh-space hand length directly.`,
           );
           // For weight assignment, we'll trust the mesh space measurements more
           const palmLengthMesh = wristMeshPos.distanceTo(palmMeshPos);
           const fingerLengthMesh = palmMeshPos.distanceTo(fingerMeshPos);
-          console.log(
+          this.log(
             `  Mesh space lengths - Palm: ${palmLengthMesh.toFixed(3)}, Finger: ${fingerLengthMesh.toFixed(3)}`,
           );
         }
@@ -1145,7 +1152,7 @@ export class SimpleHandRiggingService {
           ? searchRadius * 5.0
           : searchRadius;
 
-        console.log(
+        this.log(
           `  Using search radius: ${actualSearchRadius.toFixed(3)} (${isRightHand ? "Right hand - 5x larger" : "Left hand - normal"})`,
         );
 
@@ -1291,44 +1298,42 @@ export class SimpleHandRiggingService {
           }
         }
 
-        console.log(`  Vertex analysis:`);
-        console.log(`    Total vertices: ${vertexCount}`);
-        console.log(`    Wrist-influenced: ${wristInfluencedCount}`);
-        console.log(`    In hand region: ${handRegionCount}`);
-        console.log(`    Modifiable (wrist + hand): ${modifiableCount}`);
-        console.log(`    Actually modified: ${modifiedCount}`);
+        this.log(`  Vertex analysis:`);
+        this.log(`    Total vertices: ${vertexCount}`);
+        this.log(`    Wrist-influenced: ${wristInfluencedCount}`);
+        this.log(`    In hand region: ${handRegionCount}`);
+        this.log(`    Modifiable (wrist + hand): ${modifiableCount}`);
+        this.log(`    Actually modified: ${modifiedCount}`);
 
-        console.log(`  Vertex projection analysis:`);
-        console.log(`    Min projection: ${minProjection.toFixed(3)}`);
-        console.log(`    Max projection: ${maxProjection.toFixed(3)}`);
-        console.log(
-          `    Vertices behind wrist: ${verticesInNegativeDirection}`,
-        );
-        console.log(`    Search radius: ${actualSearchRadius.toFixed(3)}`);
-        console.log(
+        this.log(`  Vertex projection analysis:`);
+        this.log(`    Min projection: ${minProjection.toFixed(3)}`);
+        this.log(`    Max projection: ${maxProjection.toFixed(3)}`);
+        this.log(`    Vertices behind wrist: ${verticesInNegativeDirection}`);
+        this.log(`    Search radius: ${actualSearchRadius.toFixed(3)}`);
+        this.log(
           `    Hand direction: ${handDirMesh
             .toArray()
             .map((v) => v.toFixed(3))
             .join(", ")}`,
         );
-        console.log(
+        this.log(
           `    Expected direction: ${wristBone.name.toLowerCase().includes("left") ? "Positive X" : "Negative X"}`,
         );
 
-        console.log(`  Wrist-influenced vertex analysis:`);
-        console.log(
+        this.log(`  Wrist-influenced vertex analysis:`);
+        this.log(
           `    Wrist vertex min projection: ${wristVertexMinProj.toFixed(3)}`,
         );
-        console.log(
+        this.log(
           `    Wrist vertex max projection: ${wristVertexMaxProj.toFixed(3)}`,
         );
-        console.log(`    Wrist vertex count: ${wristVertexCount}`);
+        this.log(`    Wrist vertex count: ${wristVertexCount}`);
 
         if (wristVertexMaxProj < 0) {
-          console.log(
+          this.log(
             `    ⚠️ ALL wrist vertices are BEHIND the wrist! Hand direction might be wrong.`,
           );
-          console.log(`    🔧 Inverting hand direction and retrying...`);
+          this.log(`    🔧 Inverting hand direction and retrying...`);
 
           // Invert the hand direction
           handDirMesh.multiplyScalar(-1);
@@ -1448,21 +1453,21 @@ export class SimpleHandRiggingService {
             }
           }
 
-          console.log(
+          this.log(
             `    After direction inversion: ${modifiedCount} vertices modified`,
           );
         } else if (wristVertexMinProj > actualSearchRadius) {
-          console.log(
+          this.log(
             `    ⚠️ ALL wrist vertices are BEYOND search radius! Need larger search radius.`,
           );
         }
 
         // Additional fallback: If we still found NO modifiable vertices, try inverting direction
         if (modifiableCount === 0 && wristInfluencedCount > 0) {
-          console.log(
+          this.log(
             `  ⚠️ Found ${wristInfluencedCount} wrist vertices but NONE in hand region!`,
           );
-          console.log(`  🔧 Trying direction inversion as last resort...`);
+          this.log(`  🔧 Trying direction inversion as last resort...`);
 
           // Invert the hand direction
           handDirMesh.multiplyScalar(-1);
@@ -1556,7 +1561,7 @@ export class SimpleHandRiggingService {
             }
           }
 
-          console.log(
+          this.log(
             `  After fallback inversion: found ${modifiableCount} modifiable, modified ${modifiedCount}`,
           );
         }
@@ -1576,9 +1581,9 @@ export class SimpleHandRiggingService {
           child.geometry.attributes.skinIndex.needsUpdate = true;
           child.geometry.attributes.skinWeight.needsUpdate = true;
 
-          console.log(`  ✅ Updated skin weights for ${child.name || "mesh"}`);
+          this.log(`  ✅ Updated skin weights for ${child.name || "mesh"}`);
         } else {
-          console.log(`  ℹ️ No hand vertices found to modify`);
+          this.log(`  ℹ️ No hand vertices found to modify`);
         }
       }
     });
@@ -1632,7 +1637,7 @@ export class SimpleHandRiggingService {
         child.geometry.computeBoundingSphere();
         child.geometry.computeBoundingBox();
 
-        console.log(`  Updated skeleton for ${child.name || "mesh"}`);
+        this.log(`  Updated skeleton for ${child.name || "mesh"}`);
       }
     });
   }
@@ -1663,12 +1668,12 @@ export class SimpleHandRiggingService {
     });
 
     // Debug: log all bone names found
-    console.log(
+    this.log(
       `🦴 All bones in model (${allBoneNames.length}):`,
       allBoneNames.slice(0, 30).join(", ") +
         (allBoneNames.length > 30 ? "..." : ""),
     );
-    console.log(
+    this.log(
       `🖐️ Potential wrist bones found: ${wristBones.map((b) => b.name).join(", ") || "none"}`,
     );
 
@@ -1744,16 +1749,16 @@ export class SimpleHandRiggingService {
     model: THREE.Object3D,
     debugMode: boolean,
   ): Promise<ArrayBuffer> {
-    console.log("📦 Preparing model for export...");
+    this.log("📦 Preparing model for export...");
 
     // Debug: Check model scale before export
     const modelBounds = new THREE.Box3().setFromObject(model);
     const modelSize = new THREE.Vector3();
     modelBounds.getSize(modelSize);
-    console.log(
+    this.log(
       `  Model size before export: ${modelSize.x.toFixed(3)} x ${modelSize.y.toFixed(3)} x ${modelSize.z.toFixed(3)}`,
     );
-    console.log(
+    this.log(
       `  Model scale: ${model.scale.x}, ${model.scale.y}, ${model.scale.z}`,
     );
 
@@ -1765,14 +1770,14 @@ export class SimpleHandRiggingService {
         (child.scale.x !== 1 || child.scale.y !== 1 || child.scale.z !== 1)
       ) {
         hasScaleIssues = true;
-        console.log(
+        this.log(
           `  ⚠️ Found scaled mesh: ${child.name} with scale ${child.scale.x}, ${child.scale.y}, ${child.scale.z}`,
         );
       }
     });
 
     if (hasScaleIssues) {
-      console.log(
+      this.log(
         "  ❌ Model has meshes with non-unit scale. This should have been fixed during loading!",
       );
     }
@@ -1781,7 +1786,7 @@ export class SimpleHandRiggingService {
     model.updateMatrixWorld(true);
 
     // CRITICAL: Validate bone hierarchy to prevent GLTF export errors
-    console.log("  🔍 Validating bone hierarchy before export...");
+    this.log("  🔍 Validating bone hierarchy before export...");
     const allBonesInScene = new Set<THREE.Bone>();
     const rootBones = new Set<THREE.Bone>();
 
@@ -1796,7 +1801,7 @@ export class SimpleHandRiggingService {
       }
     });
 
-    console.log(
+    this.log(
       `  Found ${allBonesInScene.size} bones total, ${rootBones.size} root bones`,
     );
 
@@ -1804,7 +1809,7 @@ export class SimpleHandRiggingService {
     model.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && child.skeleton) {
         const skeleton = child.skeleton;
-        console.log(
+        this.log(
           `  Validating skeleton for ${child.name || "mesh"} with ${skeleton.bones.length} bones`,
         );
 
@@ -1876,7 +1881,7 @@ export class SimpleHandRiggingService {
             }
           });
 
-          console.log(
+          this.log(
             `  Rebuilt skeleton with ${validBones.length} valid bones (was ${skeleton.bones.length})`,
           );
 
@@ -1932,7 +1937,7 @@ export class SimpleHandRiggingService {
           // Bind to new skeleton
           child.bind(newSkeleton, child.bindMatrix || new THREE.Matrix4());
 
-          console.log(
+          this.log(
             `  ✅ Successfully rebuilt skeleton with ${validBones.length} bones`,
           );
         }
@@ -1966,7 +1971,7 @@ export class SimpleHandRiggingService {
     });
 
     // FINAL VALIDATION: Ensure all skeletons only reference bones that exist in the scene
-    console.log("  🔍 Final skeleton validation before GLTF export...");
+    this.log("  🔍 Final skeleton validation before GLTF export...");
     const allValidBones = new Set<THREE.Bone>();
 
     // Collect ALL bones in the model
@@ -1976,13 +1981,13 @@ export class SimpleHandRiggingService {
       }
     });
 
-    console.log(`  Total bones in model: ${allValidBones.size}`);
+    this.log(`  Total bones in model: ${allValidBones.size}`);
 
     // Check each skeleton one more time
     model.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && child.skeleton) {
         const skeleton = child.skeleton;
-        console.log(
+        this.log(
           `  Checking skeleton for ${child.name}: ${skeleton.bones.length} bones`,
         );
 
@@ -2011,9 +2016,7 @@ export class SimpleHandRiggingService {
           if (rootBone) {
             const emergencySkeleton = new THREE.Skeleton([rootBone]);
             child.bind(emergencySkeleton);
-            console.log(
-              "  ✅ Bound to emergency skeleton with single root bone",
-            );
+            this.log("  ✅ Bound to emergency skeleton with single root bone");
           }
         }
       }
@@ -2023,7 +2026,7 @@ export class SimpleHandRiggingService {
     model.updateMatrixWorld(true);
 
     // CRITICAL FIX: Validate and fix skin indices before export
-    console.log("  🔧 Validating skin indices...");
+    this.log("  🔧 Validating skin indices...");
 
     model.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && child.skeleton) {
@@ -2052,9 +2055,9 @@ export class SimpleHandRiggingService {
             }
           }
 
-          console.log(`  Mesh ${child.name}:`);
-          console.log(`    Skeleton has ${skeleton.bones.length} bones`);
-          console.log(`    Max skin index found: ${maxIndex}`);
+          this.log(`  Mesh ${child.name}:`);
+          this.log(`    Skeleton has ${skeleton.bones.length} bones`);
+          this.log(`    Max skin index found: ${maxIndex}`);
 
           if (invalidCount > 0) {
             console.error(`    ❌ Fixed ${invalidCount} invalid skin indices!`);
@@ -2065,16 +2068,16 @@ export class SimpleHandRiggingService {
               `    ❌ Max index ${maxIndex} >= bone count ${skeleton.bones.length}!`,
             );
           } else {
-            console.log(`    ✅ All skin indices valid`);
+            this.log(`    ✅ All skin indices valid`);
           }
         }
       }
     });
 
-    console.log("  ✅ Skin validation complete");
+    this.log("  ✅ Skin validation complete");
 
     // CRITICAL: Ensure no nodes have children references to removed bones
-    console.log("  🔧 Cleaning up node references...");
+    this.log("  🔧 Cleaning up node references...");
     model.traverse((node) => {
       if (node.children && node.children.length > 0) {
         const originalChildCount = node.children.length;
@@ -2083,7 +2086,7 @@ export class SimpleHandRiggingService {
           return child.parent === node;
         });
         if (node.children.length < originalChildCount) {
-          console.log(
+          this.log(
             `    Cleaned ${originalChildCount - node.children.length} stale references from ${node.name}`,
           );
         }
@@ -2091,16 +2094,16 @@ export class SimpleHandRiggingService {
     });
 
     // DEBUG: Log the bone to node index mapping
-    console.log("  🔍 Analyzing bone-to-node mapping...");
+    this.log("  🔍 Analyzing bone-to-node mapping...");
     const allNodes: THREE.Object3D[] = [];
     model.traverse((node) => allNodes.push(node));
 
     model.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && child.skeleton) {
-        console.log(`  Skeleton bones for ${child.name}:`);
+        this.log(`  Skeleton bones for ${child.name}:`);
         child.skeleton.bones.forEach((bone, boneIdx) => {
           const nodeIdx = allNodes.indexOf(bone);
-          console.log(`    Bone ${boneIdx}: ${bone.name} -> Node ${nodeIdx}`);
+          this.log(`    Bone ${boneIdx}: ${bone.name} -> Node ${nodeIdx}`);
           if (nodeIdx >= 31) {
             console.error(
               `    ❌ Bone ${bone.name} has node index ${nodeIdx} which is out of bounds!`,
@@ -2129,7 +2132,7 @@ export class SimpleHandRiggingService {
       console.error(
         "  ❌ Some bones have node indices > 30, this will cause GLTF import errors!",
       );
-      console.log("  🔧 Attempting to fix by removing orphaned nodes...");
+      this.log("  🔧 Attempting to fix by removing orphaned nodes...");
 
       // Remove any non-essential nodes that come before bones
       const nodesToRemove: THREE.Object3D[] = [];
@@ -2163,10 +2166,10 @@ export class SimpleHandRiggingService {
         }
       });
 
-      console.log(`  Found ${nodesToRemove.length} nodes to remove`);
+      this.log(`  Found ${nodesToRemove.length} nodes to remove`);
       nodesToRemove.forEach((node) => {
         if (node.parent) {
-          console.log(`    Removing node: ${node.name || "unnamed"}`);
+          this.log(`    Removing node: ${node.name || "unnamed"}`);
           node.parent.remove(node);
         }
       });
@@ -2186,7 +2189,7 @@ export class SimpleHandRiggingService {
       }
     });
 
-    console.log(`  Found ${bonesInSkeletons.size} bones in skeletons`);
+    this.log(`  Found ${bonesInSkeletons.size} bones in skeletons`);
 
     // Find orphaned bones but DON'T remove them - just warn
     const orphanedBones: THREE.Bone[] = [];
@@ -2204,16 +2207,14 @@ export class SimpleHandRiggingService {
         `  ⚠️ Found ${orphanedBones.length} bones not in any skeleton:`,
       );
       orphanedBones.forEach((bone) => {
-        console.log(`    - ${bone.name}`);
+        this.log(`    - ${bone.name}`);
       });
 
       // CRITICAL FIX: Actually remove orphaned bones to prevent GLTF export issues
-      console.log("  🗑️ Removing orphaned bones to prevent export errors...");
+      this.log("  🗑️ Removing orphaned bones to prevent export errors...");
       orphanedBones.forEach((bone) => {
         if (bone.parent) {
-          console.log(
-            `    Removing ${bone.name} from parent ${bone.parent.name}`,
-          );
+          this.log(`    Removing ${bone.name} from parent ${bone.parent.name}`);
           // First, re-parent any children to the orphaned bone's parent
           const children = [...bone.children];
           children.forEach((child) => {
@@ -2223,7 +2224,7 @@ export class SimpleHandRiggingService {
           bone.parent.remove(bone);
         }
       });
-      console.log("  ✅ Orphaned bones removed");
+      this.log("  ✅ Orphaned bones removed");
     }
 
     // Final check: ensure all skeletons are valid
@@ -2256,36 +2257,36 @@ export class SimpleHandRiggingService {
       );
     }
 
-    console.log("  ✅ Final validation complete");
+    this.log("  ✅ Final validation complete");
 
     // DEBUG: Export as JSON first to inspect structure
     if (debugMode) {
-      console.log("  🐛 DEBUG MODE: Exporting as JSON to inspect structure...");
+      this.log("  🐛 DEBUG MODE: Exporting as JSON to inspect structure...");
       this.exporter.parse(
         model,
         (result) => {
-          console.log("  GLTF JSON structure:", result);
+          this.log("  GLTF JSON structure:", result);
           if (!(result instanceof ArrayBuffer)) {
             const gltfResult = result as {
               nodes?: Array<{ name?: string; skin?: number; mesh?: number }>;
               skins?: Array<{ joints?: number[]; skeleton?: number }>;
             };
             if (gltfResult.nodes) {
-              console.log(`  Nodes: ${gltfResult.nodes.length}`);
+              this.log(`  Nodes: ${gltfResult.nodes.length}`);
               gltfResult.nodes.forEach((node, i: number) => {
-                console.log(
+                this.log(
                   `    Node ${i}: ${node.name || "unnamed"}, skin: ${node.skin}, mesh: ${node.mesh}`,
                 );
               });
             }
             if (gltfResult.skins) {
-              console.log(`  Skins: ${gltfResult.skins.length}`);
+              this.log(`  Skins: ${gltfResult.skins.length}`);
               gltfResult.skins.forEach((skin, i: number) => {
-                console.log(
+                this.log(
                   `    Skin ${i}: joints: ${skin.joints?.length}, skeleton: ${skin.skeleton}`,
                 );
                 if (skin.joints) {
-                  console.log(`      Joint indices: ${skin.joints.join(", ")}`);
+                  this.log(`      Joint indices: ${skin.joints.join(", ")}`);
                 }
               });
             }
@@ -2362,7 +2363,7 @@ export class SimpleHandRiggingService {
       console.warn("Model validation issues:", issues);
       return { isValid: false, errors: issues };
     } else {
-      console.log("✅ Model structure validated successfully");
+      this.log("✅ Model structure validated successfully");
       return { isValid: true, errors: [] };
     }
   }

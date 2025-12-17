@@ -4,7 +4,7 @@ import {
   createTextTo3DPreviewTask,
   createTextTo3DRefineTask,
   getTaskStatus,
-} from "@/lib-core/meshy/client";
+} from "@/lib/meshy/client";
 
 export async function POST(request: NextRequest) {
   try {

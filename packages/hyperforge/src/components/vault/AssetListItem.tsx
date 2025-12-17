@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Star,
-  Globe,
   Box,
-  HardDrive,
-  Sparkles,
   User,
   Swords,
   Shield,
@@ -15,9 +13,14 @@ import {
   Coins,
   Store,
   Package,
+  MoreVertical,
+  Palette,
+  Download,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { CDNAsset } from "@/lib-core/cdn/types";
+import { type LibraryAsset } from "@/hooks/useCDNAssets";
 import { cn } from "@/lib/utils";
 
 interface ItemStoreInfo {
@@ -28,18 +31,17 @@ interface ItemStoreInfo {
   buybackRate?: number;
 }
 
-interface AssetWithSource extends CDNAsset {
-  source?: "CDN" | "LOCAL";
-  createdAt?: string;
-  status?: string;
+// Use LibraryAsset from the hook which properly extends CDNAsset
+type AssetWithSource = LibraryAsset & {
   hasHandRigging?: boolean;
-}
+};
 
 interface AssetListItemProps {
   asset: AssetWithSource;
   isSelected?: boolean;
   onSelect?: (asset: AssetWithSource) => void;
   onFavorite?: (asset: AssetWithSource) => void;
+  onCreateVariant?: (asset: AssetWithSource) => void;
 }
 
 // Rarity colors
@@ -71,9 +73,12 @@ export function AssetListItem({
   isSelected,
   onSelect,
   onFavorite,
+  onCreateVariant,
 }: AssetListItemProps) {
   const [storeInfo, setStoreInfo] = useState<ItemStoreInfo[] | null>(null);
   const [showStoreInfo, setShowStoreInfo] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
 
   const isLocal = asset.source === "LOCAL";
   const hasVRM =
@@ -84,11 +89,7 @@ export function AssetListItem({
 
   // Check if this is an item that could be in stores
   const isGameItem =
-    asset.category === "weapon" ||
-    asset.category === "armor" ||
-    asset.category === "tool" ||
-    asset.category === "resource" ||
-    asset.category === "consumable" ||
+    asset.category === "item" ||
     asset.type === "weapon" ||
     asset.type === "armor" ||
     asset.type === "tool";
@@ -157,14 +158,26 @@ export function AssetListItem({
         }
       }}
     >
-      {/* Icon */}
+      {/* Thumbnail or Icon */}
       <div
         className={cn(
-          "w-8 h-8 rounded flex items-center justify-center flex-shrink-0",
+          "w-10 h-10 rounded flex items-center justify-center flex-shrink-0 overflow-hidden",
           iconBgClass,
         )}
       >
-        <CategoryIcon className={cn("w-4 h-4", iconColorClass)} />
+        {asset.thumbnailUrl && !thumbnailError ? (
+          <Image
+            src={asset.thumbnailUrl}
+            alt={asset.name}
+            width={40}
+            height={40}
+            className="w-full h-full object-cover"
+            unoptimized // Allow external URLs without optimization
+            onError={() => setThumbnailError(true)}
+          />
+        ) : (
+          <CategoryIcon className={cn("w-4 h-4", iconColorClass)} />
+        )}
       </div>
 
       {/* Info */}
@@ -290,6 +303,72 @@ export function AssetListItem({
       >
         <Star className="w-4 h-4 text-muted-foreground" />
       </button>
+
+      {/* Context Menu Button */}
+      <div className="relative">
+        <button
+          type="button"
+          className="w-6 h-6 p-0 flex-shrink-0 flex items-center justify-center rounded hover:bg-glass-bg transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowContextMenu(!showContextMenu);
+          }}
+        >
+          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+        </button>
+
+        {/* Context Menu Dropdown */}
+        {showContextMenu && (
+          <div
+            className="absolute right-0 top-full mt-1 z-50 w-48 py-1 rounded-lg bg-glass-bg/95 border border-glass-border backdrop-blur-sm shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Create Texture Variant */}
+            <button
+              type="button"
+              className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowContextMenu(false);
+                onCreateVariant?.(asset);
+              }}
+            >
+              <Palette className="w-4 h-4 text-purple-400" />
+              Create Texture Variant
+            </button>
+
+            {/* Download */}
+            {asset.modelPath && (
+              <a
+                href={asset.modelPath}
+                download
+                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowContextMenu(false);
+                }}
+              >
+                <Download className="w-4 h-4 text-cyan-400" />
+                Download Model
+              </a>
+            )}
+
+            {/* Copy ID */}
+            <button
+              type="button"
+              className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(asset.id);
+                setShowContextMenu(false);
+              }}
+            >
+              <Copy className="w-4 h-4 text-muted-foreground" />
+              Copy Asset ID
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Store Info Popup */}
       {showStoreInfo && storeInfo && storeInfo.length > 0 && (

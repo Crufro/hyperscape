@@ -34,7 +34,8 @@ import "@/lib/server/three-polyfills";
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 
-import { MESHY_VARIATIONS } from "./BoneMappings";
+import { MESHY_VARIATIONS, findMeshyBoneName } from "./BoneMappings";
+import { parseGLB, buildGLB } from "@/lib/utils/glb-binary-utils";
 
 /**
  * VRM HumanoidBone names (VRM 1.0 standard)
@@ -573,42 +574,6 @@ export class VRMConverter {
   }
 
   /**
-   * Validate T-pose and normalize if needed
-   *
-   * NOTE: We MUST normalize to T-pose because:
-   * 1. Hyperscape's animation system requires T-pose bind pose
-   * 2. The matrix vs TRS conflict causes issues if not T-pose
-   * 3. This ensures compatibility with both Hyperscape AND online VRM viewers
-   */
-  private validateTPose(): void {
-    console.log("🤸 Validating T-pose...");
-
-    const hipsBone = this.findBoneByName("Hips");
-    if (!hipsBone) {
-      console.warn("   ⚠️  Cannot validate T-pose - Hips bone not found");
-      return;
-    }
-
-    // Check if Hips has significant rotation (should be near identity for T-pose)
-    const hipsRot = hipsBone.quaternion;
-    const rotationMagnitude = Math.sqrt(
-      hipsRot.x * hipsRot.x + hipsRot.y * hipsRot.y + hipsRot.z * hipsRot.z,
-    );
-
-    console.log(
-      `   Hips rotation: [${hipsRot.x.toFixed(3)}, ${hipsRot.y.toFixed(3)}, ${hipsRot.z.toFixed(3)}, ${hipsRot.w.toFixed(3)}]`,
-    );
-    console.log(`   Rotation magnitude: ${rotationMagnitude.toFixed(3)}`);
-
-    if (rotationMagnitude > 0.1) {
-      console.log(`   ⚠️  Model not in T-pose - normalizing...`);
-      this.normalizeBindPoseToTPose();
-    } else {
-      console.log("   ✅ Model appears to be in T-pose");
-    }
-  }
-
-  /**
    * Normalize bind pose to T-pose
    *
    * This fixes non-T-pose VRMs (like A-pose from Meshy) by:
@@ -855,54 +820,6 @@ export class VRMConverter {
   }
 
   /**
-   * REMOVED: We don't normalize to T-pose anymore
-   * Meshy models come in a good rest pose already
-   * Manipulating bone rotations causes deformation issues
-   */
-  private normalizeToPose_DISABLED(): void {
-    console.log("🤸 Skipping T-pose normalization (using Meshy rest pose)...");
-
-    // We don't modify bone rotations anymore
-    // The Meshy models should work fine with their default pose
-
-    // Find arm bones just for logging
-    const leftUpperArm = this.findBoneByName("LeftArm");
-    const rightUpperArm = this.findBoneByName("RightArm");
-
-    if (leftUpperArm && rightUpperArm) {
-      console.log("   ✅ Using original Meshy rest pose");
-    }
-  }
-
-  /**
-   * LEGACY: Old T-pose normalization that caused deformation
-   */
-  private normalizeToPose_OLD_BROKEN(): void {
-    console.log("🤸 Normalizing to T-pose...");
-
-    // Find arm bones
-    const leftUpperArm = this.findBoneByName("LeftArm");
-    const rightUpperArm = this.findBoneByName("RightArm");
-
-    if (leftUpperArm) {
-      // Rotate left arm down to T-pose (75° around Z axis)
-      leftUpperArm.rotation.z = (75 * Math.PI) / 180;
-      console.log("   Adjusted left arm to T-pose");
-    }
-
-    if (rightUpperArm) {
-      // Rotate right arm down to T-pose (-75° around Z axis)
-      rightUpperArm.rotation.z = (-75 * Math.PI) / 180;
-      console.log("   Adjusted right arm to T-pose");
-    }
-
-    // Update skeleton
-    if (this.skinnedMesh.skeleton) {
-      this.skinnedMesh.skeleton.update();
-    }
-  }
-
-  /**
    * Export scene as VRM GLB
    *
    * CRITICAL: We export as binary GLB first, then parse and modify the JSON
@@ -961,63 +878,16 @@ export class VRMConverter {
     );
 
     // Parse the binary GLB to extract JSON and BIN chunks
-    const glbView = new DataView(glbBinary);
-
-    // Validate GLB header
-    const magic = glbView.getUint32(0, true);
-    if (magic !== 0x46546c67) {
-      throw new Error("Invalid GLB: wrong magic number");
-    }
-
-    const version = glbView.getUint32(4, true);
-    if (version !== 2) {
-      throw new Error(`Invalid GLB: unsupported version ${version}`);
-    }
-
-    // Parse JSON chunk
-    const jsonChunkLength = glbView.getUint32(12, true);
-    const jsonChunkType = glbView.getUint32(16, true);
-    if (jsonChunkType !== 0x4e4f534a) {
-      // "JSON"
-      throw new Error("Invalid GLB: first chunk is not JSON");
-    }
-
-    // CRITICAL: Copy the JSON bytes, don't just create a view
-    const jsonBytesView = new Uint8Array(glbBinary, 20, jsonChunkLength);
-    const jsonBytes = new Uint8Array(jsonChunkLength);
-    jsonBytes.set(jsonBytesView);
-
-    const jsonString = new TextDecoder().decode(jsonBytes);
-    const gltfJson = JSON.parse(jsonString);
+    const { json: gltfJson, bin: binChunkData } = parseGLB(glbBinary);
 
     console.log("📝 Parsed glTF JSON from GLB");
     console.log(
-      `   Nodes: ${gltfJson.nodes?.length || 0}, Meshes: ${gltfJson.meshes?.length || 0}`,
+      `   Nodes: ${(gltfJson.nodes as unknown[])?.length || 0}, Meshes: ${(gltfJson.meshes as unknown[])?.length || 0}`,
     );
-
-    // Extract BIN chunk if present - COPY the data, don't just create a view
-    const binChunkOffset = 12 + 8 + jsonChunkLength;
-    let binChunkData: Uint8Array | null = null;
-
-    if (binChunkOffset < glbBinary.byteLength) {
-      const binChunkLength = glbView.getUint32(binChunkOffset, true);
-      const binChunkType = glbView.getUint32(binChunkOffset + 4, true);
-
-      if (binChunkType === 0x004e4942) {
-        // "BIN\0"
-        // CRITICAL: Copy the data, don't just create a view
-        // A view would become invalid after async operations
-        const binView = new Uint8Array(
-          glbBinary,
-          binChunkOffset + 8,
-          binChunkLength,
-        );
-        binChunkData = new Uint8Array(binChunkLength);
-        binChunkData.set(binView);
-        console.log(
-          `   BIN chunk size: ${(binChunkLength / 1024).toFixed(2)} KB`,
-        );
-      }
+    if (binChunkData) {
+      console.log(
+        `   BIN chunk size: ${(binChunkData.length / 1024).toFixed(2)} KB`,
+      );
     }
 
     // Convert matrix to TRS in nodes (GLTFExporter sometimes uses matrix for skinned nodes)
@@ -1158,55 +1028,9 @@ export class VRMConverter {
     }
 
     // Rebuild GLB with modified JSON and SAME BIN chunk
-    const newJsonString = JSON.stringify(gltfJson);
-    const newJsonBuffer = new TextEncoder().encode(newJsonString);
-    const newJsonChunkLength = Math.ceil(newJsonBuffer.length / 4) * 4; // 4-byte aligned
-    const jsonPadding = newJsonChunkLength - newJsonBuffer.length;
+    const glb = buildGLB(gltfJson, binChunkData);
 
-    const binChunkLength = binChunkData
-      ? Math.ceil(binChunkData.length / 4) * 4
-      : 0;
-    const binPadding = binChunkData ? binChunkLength - binChunkData.length : 0;
-    const totalLength =
-      12 + 8 + newJsonChunkLength + (binChunkData ? 8 + binChunkLength : 0);
-
-    const glb = new ArrayBuffer(totalLength);
-    const view = new DataView(glb);
-
-    // GLB Header
-    view.setUint32(0, 0x46546c67, true); // magic: "glTF"
-    view.setUint32(4, 2, true); // version: 2
-    view.setUint32(8, totalLength, true); // length
-
-    // JSON chunk header
-    view.setUint32(12, newJsonChunkLength, true); // chunkLength
-    view.setUint32(16, 0x4e4f534a, true); // chunkType: "JSON"
-
-    // JSON chunk data
-    const jsonChunkDataOut = new Uint8Array(glb, 20, newJsonChunkLength);
-    jsonChunkDataOut.set(newJsonBuffer);
-    for (let i = 0; i < jsonPadding; i++) {
-      jsonChunkDataOut[newJsonBuffer.length + i] = 0x20; // Pad with spaces
-    }
-
-    // BIN chunk (if exists)
-    if (binChunkData) {
-      const binChunkHeaderOffset = 20 + newJsonChunkLength;
-      view.setUint32(binChunkHeaderOffset, binChunkLength, true); // chunkLength
-      view.setUint32(binChunkHeaderOffset + 4, 0x004e4942, true); // chunkType: "BIN\0"
-
-      const binChunkDataOut = new Uint8Array(
-        glb,
-        binChunkHeaderOffset + 8,
-        binChunkLength,
-      );
-      binChunkDataOut.set(binChunkData);
-      for (let i = 0; i < binPadding; i++) {
-        binChunkDataOut[binChunkData.length + i] = 0x00; // Pad with zeros
-      }
-    }
-
-    console.log(`✅ VRM GLB created: ${(totalLength / 1024).toFixed(2)} KB`);
+    console.log(`✅ VRM GLB created: ${(glb.byteLength / 1024).toFixed(2)} KB`);
 
     return glb;
   }
@@ -1380,57 +1204,19 @@ export async function convertGLBToVRMPreservingTextures(
   const boneMappings = new Map<string, string>();
 
   // Parse the GLB binary
-  const glbView = new DataView(glbData);
+  const { json: gltfJson, bin: binChunkData } = parseGLB(glbData);
 
-  // Validate GLB header
-  const magic = glbView.getUint32(0, true);
-  if (magic !== 0x46546c67) {
-    throw new Error("Invalid GLB: wrong magic number");
-  }
-
-  const version = glbView.getUint32(4, true);
-  if (version !== 2) {
-    throw new Error(`Invalid GLB: unsupported version ${version}`);
-  }
-
-  const totalLength = glbView.getUint32(8, true);
-  console.log(`   GLB size: ${(totalLength / 1024).toFixed(2)} KB`);
-
-  // Parse JSON chunk
-  const jsonChunkLength = glbView.getUint32(12, true);
-  const jsonChunkType = glbView.getUint32(16, true);
-  if (jsonChunkType !== 0x4e4f534a) {
-    throw new Error("Invalid GLB: first chunk is not JSON");
-  }
-
-  const jsonBytes = new Uint8Array(glbData, 20, jsonChunkLength);
-  const jsonString = new TextDecoder().decode(jsonBytes);
-  const gltfJson = JSON.parse(jsonString);
-
-  console.log(`   Nodes: ${gltfJson.nodes?.length || 0}`);
-  console.log(`   Materials: ${gltfJson.materials?.length || 0}`);
-  console.log(`   Textures: ${gltfJson.textures?.length || 0}`);
-  console.log(`   Images: ${gltfJson.images?.length || 0}`);
-
-  // Extract BIN chunk
-  const binChunkOffset = 12 + 8 + jsonChunkLength;
-  let binChunkData: Uint8Array | null = null;
-
-  if (binChunkOffset < glbData.byteLength) {
-    const binChunkLength = glbView.getUint32(binChunkOffset, true);
-    const binChunkType = glbView.getUint32(binChunkOffset + 4, true);
-
-    if (binChunkType === 0x004e4942) {
-      // "BIN\0"
-      binChunkData = new Uint8Array(
-        glbData,
-        binChunkOffset + 8,
-        binChunkLength,
-      );
-      console.log(
-        `   BIN chunk size: ${(binChunkLength / 1024).toFixed(2)} KB`,
-      );
-    }
+  console.log(`   GLB size: ${(glbData.byteLength / 1024).toFixed(2)} KB`);
+  console.log(`   Nodes: ${(gltfJson.nodes as unknown[])?.length || 0}`);
+  console.log(
+    `   Materials: ${(gltfJson.materials as unknown[])?.length || 0}`,
+  );
+  console.log(`   Textures: ${(gltfJson.textures as unknown[])?.length || 0}`);
+  console.log(`   Images: ${(gltfJson.images as unknown[])?.length || 0}`);
+  if (binChunkData) {
+    console.log(
+      `   BIN chunk size: ${(binChunkData.length / 1024).toFixed(2)} KB`,
+    );
   }
 
   // Build node name to index map for bone mapping
@@ -1446,39 +1232,91 @@ export async function convertGLBToVRMPreservingTextures(
   // Map Meshy bones to VRM humanoid bones
   const humanBones: Record<string, { node: number }> = {};
 
-  // Meshy bone names → VRM bone names
-  const meshyToVrmMap: Record<string, string> = {
-    Hips: "hips",
-    Spine: "spine",
-    Spine01: "chest",
-    Spine02: "upperChest",
-    neck: "neck",
-    Neck: "neck",
-    Head: "head",
-    LeftShoulder: "leftShoulder",
-    LeftArm: "leftUpperArm",
-    LeftForeArm: "leftLowerArm",
-    LeftHand: "leftHand",
-    RightShoulder: "rightShoulder",
-    RightArm: "rightUpperArm",
-    RightForeArm: "rightLowerArm",
-    RightHand: "rightHand",
-    LeftUpLeg: "leftUpperLeg",
-    LeftLeg: "leftLowerLeg",
-    LeftFoot: "leftFoot",
-    LeftToe: "leftToes",
-    RightUpLeg: "rightUpperLeg",
-    RightLeg: "rightLowerLeg",
-    RightFoot: "rightFoot",
-    RightToe: "rightToes",
+  // VRM bone name → canonical Meshy bone name mapping
+  // We'll look up each VRM bone by trying all Meshy variations
+  const vrmToMeshyCanonical: Record<string, string> = {
+    hips: "Hips",
+    spine: "Spine",
+    chest: "Spine01",
+    upperChest: "Spine02",
+    neck: "Neck",
+    head: "Head",
+    leftShoulder: "LeftShoulder",
+    leftUpperArm: "LeftArm",
+    leftLowerArm: "LeftForeArm",
+    leftHand: "LeftHand",
+    rightShoulder: "RightShoulder",
+    rightUpperArm: "RightArm",
+    rightLowerArm: "RightForeArm",
+    rightHand: "RightHand",
+    leftUpperLeg: "LeftUpLeg",
+    leftLowerLeg: "LeftLeg",
+    leftFoot: "LeftFoot",
+    leftToes: "LeftToeBase",
+    rightUpperLeg: "RightUpLeg",
+    rightLowerLeg: "RightLeg",
+    rightFoot: "RightFoot",
+    rightToes: "RightToeBase",
   };
 
-  for (const [meshyBone, vrmBone] of Object.entries(meshyToVrmMap)) {
-    const nodeIndex = nodeNameToIndex.get(meshyBone);
-    if (nodeIndex !== undefined) {
-      humanBones[vrmBone] = { node: nodeIndex };
-      boneMappings.set(meshyBone, vrmBone);
-      console.log(`   Mapped ${vrmBone} → node ${nodeIndex} (${meshyBone})`);
+  // Helper to find node index by trying all variations of a canonical Meshy bone name
+  const findNodeByMeshyBone = (
+    canonicalName: string,
+  ): { nodeIndex: number; actualName: string } | null => {
+    // Get all variations for this canonical name
+    const variations = MESHY_VARIATIONS[canonicalName] || [canonicalName];
+
+    for (const variation of variations) {
+      const nodeIndex = nodeNameToIndex.get(variation);
+      if (nodeIndex !== undefined) {
+        return { nodeIndex, actualName: variation };
+      }
+    }
+
+    // Also try mixamorig prefix variations
+    const mixamoPrefixes = ["mixamorig:", "mixamorig"];
+    for (const prefix of mixamoPrefixes) {
+      for (const variation of variations) {
+        const prefixedName = prefix + variation;
+        const nodeIndex = nodeNameToIndex.get(prefixedName);
+        if (nodeIndex !== undefined) {
+          return { nodeIndex, actualName: prefixedName };
+        }
+      }
+    }
+
+    return null;
+  };
+
+  // Also try reverse lookup: iterate all nodes and see if any match known bone patterns
+  const nodeNames = Array.from(nodeNameToIndex.keys());
+  console.log(`   Checking ${nodeNames.length} nodes for bone matches...`);
+
+  for (const [vrmBone, meshyCanonical] of Object.entries(vrmToMeshyCanonical)) {
+    // Skip if already mapped
+    if (humanBones[vrmBone]) continue;
+
+    const result = findNodeByMeshyBone(meshyCanonical);
+    if (result) {
+      humanBones[vrmBone] = { node: result.nodeIndex };
+      boneMappings.set(result.actualName, vrmBone);
+      console.log(
+        `   Mapped ${vrmBone} → node ${result.nodeIndex} (${result.actualName})`,
+      );
+    } else {
+      // Try to find by checking if any node matches the canonical name via findMeshyBoneName
+      for (const nodeName of nodeNames) {
+        const canonical = findMeshyBoneName(nodeName);
+        if (canonical === meshyCanonical) {
+          const nodeIndex = nodeNameToIndex.get(nodeName)!;
+          humanBones[vrmBone] = { node: nodeIndex };
+          boneMappings.set(nodeName, vrmBone);
+          console.log(
+            `   Mapped ${vrmBone} → node ${nodeIndex} (${nodeName} via findMeshyBoneName)`,
+          );
+          break;
+        }
+      }
     }
   }
 
@@ -1525,56 +1363,10 @@ export async function convertGLBToVRMPreservingTextures(
   gltfJson.extensions.VRMC_vrm = vrmExtension;
 
   // Rebuild GLB with modified JSON and ORIGINAL BIN chunk (preserves textures!)
-  const newJsonString = JSON.stringify(gltfJson);
-  const newJsonBuffer = new TextEncoder().encode(newJsonString);
-  const newJsonChunkLength = Math.ceil(newJsonBuffer.length / 4) * 4;
-  const jsonPadding = newJsonChunkLength - newJsonBuffer.length;
-
-  const binChunkLength = binChunkData
-    ? Math.ceil(binChunkData.length / 4) * 4
-    : 0;
-  const binPadding = binChunkData ? binChunkLength - binChunkData.length : 0;
-  const newTotalLength =
-    12 + 8 + newJsonChunkLength + (binChunkData ? 8 + binChunkLength : 0);
-
-  const vrmGlb = new ArrayBuffer(newTotalLength);
-  const vrmView = new DataView(vrmGlb);
-
-  // GLB Header
-  vrmView.setUint32(0, 0x46546c67, true); // magic: "glTF"
-  vrmView.setUint32(4, 2, true); // version: 2
-  vrmView.setUint32(8, newTotalLength, true);
-
-  // JSON chunk header
-  vrmView.setUint32(12, newJsonChunkLength, true);
-  vrmView.setUint32(16, 0x4e4f534a, true); // "JSON"
-
-  // JSON chunk data
-  const jsonChunkOut = new Uint8Array(vrmGlb, 20, newJsonChunkLength);
-  jsonChunkOut.set(newJsonBuffer);
-  for (let i = 0; i < jsonPadding; i++) {
-    jsonChunkOut[newJsonBuffer.length + i] = 0x20; // Pad with spaces
-  }
-
-  // BIN chunk (copied from original - preserves textures!)
-  if (binChunkData) {
-    const binChunkHeaderOffset = 20 + newJsonChunkLength;
-    vrmView.setUint32(binChunkHeaderOffset, binChunkLength, true);
-    vrmView.setUint32(binChunkHeaderOffset + 4, 0x004e4942, true); // "BIN\0"
-
-    const binChunkOut = new Uint8Array(
-      vrmGlb,
-      binChunkHeaderOffset + 8,
-      binChunkLength,
-    );
-    binChunkOut.set(binChunkData);
-    for (let i = 0; i < binPadding; i++) {
-      binChunkOut[binChunkData.length + i] = 0x00;
-    }
-  }
+  const vrmGlb = buildGLB(gltfJson, binChunkData);
 
   console.log(
-    `✅ VRM GLB created: ${(newTotalLength / 1024).toFixed(2)} KB (textures preserved!)`,
+    `✅ VRM GLB created: ${(vrmGlb.byteLength / 1024).toFixed(2)} KB (textures preserved!)`,
   );
 
   return {

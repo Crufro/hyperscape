@@ -13,4 +13,4 @@ export type {
   ItemManifest,
   NPCManifest,
   ResourceManifest,
-} from "@/lib-core/cdn/types";
+} from "@/lib/cdn/types";

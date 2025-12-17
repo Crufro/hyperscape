@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Meshy 3D Generation Presets",
+  "description": "Polycount and configuration presets for Meshy API, optimized for Three.js web MMO assets",
+  "version": "1.0.0",
+  "documentation": {
+    "meshyApi": "https://www.meshy.ai/api",
+    "imageTo3d": "https://docs.meshy.ai/en/api/image-to-3d",
+    "textTo3d": "https://docs.meshy.ai/api/text-to-3d",
+    "quickstart": "https://docs.meshy.ai/en/api/quick-start",
+    "changelog": "https://docs.meshy.ai/en/api/changelog"
+  },
+  "assetClassPresets": {
+    "small_prop": {
+      "name": "Small Props",
+      "description": "Coins, potions, keys, small tools - frequently instanced items",
+      "examples": ["coins", "potions", "keys", "gems", "runes", "scrolls"],
+      "polycount": {
+        "min": 500,
+        "max": 2000,
+        "default": 1000
+      },
+      "settings": {
+        "topology": "triangle",
+        "enablePBR": false,
+        "textureResolution": 1024
+      }
+    },
+    "medium_prop": {
+      "name": "Medium Props",
+      "description": "Weapons, shields, barrels, crates, furniture",
+      "examples": ["swords", "shields", "barrels", "crates", "chairs", "tables"],
+      "polycount": {
+        "min": 2000,
+        "max": 5000,
+        "default": 3000
+      },
+      "settings": {
+        "topology": "triangle",
+        "enablePBR": true,
+        "textureResolution": 2048
+      }
+    },
+    "large_prop": {
+      "name": "Large Props",
+      "description": "Vehicles, large furniture, decorative statues, trees",
+      "examples": ["trees", "carts", "wagons", "statues", "fountains", "thrones"],
+      "polycount": {
+        "min": 5000,
+        "max": 10000,
+        "default": 7500
+      },
+      "settings": {
+        "topology": "triangle",
+        "enablePBR": true,
+        "textureResolution": 2048
+      }
+    },
+    "npc_character": {
+      "name": "NPC Characters",
+      "description": "Players, NPCs, monsters - uses normal maps for detail",
+      "examples": ["players", "guards", "merchants", "goblins", "dragons", "villagers"],
+      "polycount": {
+        "min": 2000,
+        "max": 10000,
+        "default": 5000
+      },
+      "settings": {
+        "topology": "triangle",
+        "enablePBR": true,
+        "textureResolution": 2048,
+        "poseMode": "a-pose"
+      }
+    },
+    "small_building": {
+      "name": "Small Buildings",
+      "description": "Houses, shops, small structures - consider LOD",
+      "examples": ["houses", "shops", "stalls", "towers", "sheds", "wells"],
+      "polycount": {
+        "min": 5000,
+        "max": 15000,
+        "default": 10000
+      },
+      "settings": {
+        "topology": "triangle",
+        "enablePBR": true,
+        "textureResolution": 2048,
+        "useLOD": true
+      }
+    },
+    "large_structure": {
+      "name": "Large Structures",
+      "description": "Castles, temples, dungeons - break into components with LODs",
+      "examples": ["castles", "temples", "cathedrals", "fortresses", "dungeons", "palaces"],
+      "polycount": {
+        "min": 15000,
+        "max": 50000,
+        "default": 30000
+      },
+      "settings": {
+        "topology": "triangle",
+        "enablePBR": true,
+        "textureResolution": 4096,
+        "useLOD": true,
+        "splitIntoComponents": true
+      }
+    }
+  },
+  "aiModels": {
+    "meshy-4": {
+      "name": "Meshy 4",
+      "description": "Stable model for image-to-3d",
+      "recommendedFor": ["image-to-3d"]
+    },
+    "meshy-5": {
+      "name": "Meshy 5",
+      "description": "Improved geometry and multi-image support",
+      "recommendedFor": ["image-to-3d", "retexture"]
+    },
+    "meshy-6": {
+      "name": "Meshy 6",
+      "description": "Latest model with best quality",
+      "recommendedFor": ["text-to-3d"]
+    },
+    "latest": {
+      "name": "Latest",
+      "description": "Always uses the newest available model",
+      "recommendedFor": ["text-to-3d", "image-to-3d"]
+    }
+  },
+  "topologyOptions": {
+    "triangle": {
+      "name": "Triangle",
+      "description": "Standard triangle mesh - GPU-compatible, recommended for runtime",
+      "useCase": "Production assets for Three.js/WebGL rendering"
+    },
+    "quad": {
+      "name": "Quad",
+      "description": "Quad-dominant mesh - artist-friendly for retopology",
+      "useCase": "Assets that need manual editing or subdivision",
+      "note": "Convert to triangles before exporting for game engines"
+    }
+  },
+  "performanceGuidelines": {
+    "maxTrianglesPerMesh": 100000,
+    "lodDistances": {
+      "high": { "distance": 0, "polycountMultiplier": 1.0 },
+      "medium": { "distance": 50, "polycountMultiplier": 0.5 },
+      "low": { "distance": 150, "polycountMultiplier": 0.25 },
+      "billboard": { "distance": 300, "polycountMultiplier": 0 }
+    },
+    "instancing": {
+      "description": "Use instancing for frequently repeated objects to reduce draw calls",
+      "candidates": ["trees", "rocks", "barrels", "crates", "coins", "foliage", "grass"]
+    },
+    "baking": {
+      "normalMaps": "Encode high-frequency detail in normal maps to reduce geometry",
+      "aoMaps": "Bake ambient occlusion for better lighting without extra geometry",
+      "roughnessMaps": "Use roughness maps for material variation"
+    }
+  },
+  "exportSettings": {
+    "format": "glb",
+    "triangulate": true,
+    "embedTextures": true,
+    "optimizeMesh": true
+  }
+}

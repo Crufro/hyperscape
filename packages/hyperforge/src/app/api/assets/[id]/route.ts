@@ -1,93 +1,190 @@
-/**
- * Asset API Route
- * Handles individual asset operations (GET, DELETE, etc.)
- */
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { loadCDNAssets } from "@/lib/cdn/loader";
 import {
-  deleteAssetFiles,
-  assetExists,
-  readAssetMetadata,
-  readAssetModel,
-  readAssetThumbnail,
-} from "@/lib/storage/asset-storage";
+  getForgeAsset,
+  isSupabaseConfigured,
+} from "@/lib/storage/supabase-storage";
+import { readAssetMetadata, assetExists } from "@/lib/storage/asset-storage";
+import type { CDNAsset } from "@/lib/cdn/types";
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:8080";
 
 /**
  * GET /api/assets/[id]
- * Get asset metadata
+ * Get single asset metadata with three-tier lookup:
+ * 1. CDN (main Hyperscape repo)
+ * 2. Supabase (FORGE assets)
+ * 3. Local filesystem
  */
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    const { id: assetId } = await params;
+    const { id } = await params;
 
-    if (!assetId) {
-      return NextResponse.json({ error: "Asset ID is required" }, { status: 400 });
+    // 1. Check CDN assets first
+    try {
+      const cdnAssets = await loadCDNAssets();
+      const cdnAsset = cdnAssets.find((a) => a.id === id);
+      if (cdnAsset) {
+        return NextResponse.json({
+          ...cdnAsset,
+          modelUrl: cdnAsset.modelPath.startsWith("asset://")
+            ? cdnAsset.modelPath.replace("asset://", `${CDN_URL}/`)
+            : `${CDN_URL}/${cdnAsset.modelPath}`,
+          thumbnailUrl: cdnAsset.thumbnailPath
+            ? cdnAsset.thumbnailPath.startsWith("asset://")
+              ? cdnAsset.thumbnailPath.replace("asset://", `${CDN_URL}/`)
+              : `${CDN_URL}/${cdnAsset.thumbnailPath}`
+            : undefined,
+        });
+      }
+    } catch (error) {
+      console.warn("[Assets API] CDN lookup failed:", error);
     }
 
-    // Check if asset exists
-    const exists = await assetExists(assetId);
-    if (!exists) {
-      return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+    // 2. Check Supabase FORGE assets
+    if (isSupabaseConfigured()) {
+      try {
+        const forgeAsset = await getForgeAsset(id);
+        if (forgeAsset) {
+          return NextResponse.json({
+            id: forgeAsset.id,
+            name: forgeAsset.name,
+            source: "LOCAL",
+            modelPath: forgeAsset.modelUrl,
+            modelUrl: forgeAsset.modelUrl,
+            thumbnailPath: forgeAsset.thumbnailUrl,
+            thumbnailUrl: forgeAsset.thumbnailUrl,
+            vrmPath: forgeAsset.vrmPath,
+            vrmUrl: forgeAsset.vrmUrl,
+            previewUrl: forgeAsset.previewUrl,
+            hasVRM: forgeAsset.hasVRM,
+            hasModel: forgeAsset.hasModel,
+            category: forgeAsset.category as CDNAsset["category"],
+            type: forgeAsset.type,
+            createdAt: forgeAsset.createdAt,
+            metadata: forgeAsset.metadata,
+          });
+        }
+      } catch (error) {
+        console.warn("[Assets API] Supabase lookup failed:", error);
+      }
     }
 
-    // Get metadata
-    const metadata = await readAssetMetadata(assetId);
+    // 3. Check local filesystem
+    const existsLocally = await assetExists(id);
+    if (existsLocally) {
+      const metadata = await readAssetMetadata(id);
+      if (metadata) {
+        return NextResponse.json({
+          id,
+          name: (metadata.name as string) || id,
+          source: "LOCAL",
+          modelPath: `/api/assets/${id}/model.glb`,
+          modelUrl: `/api/assets/${id}/model.glb`,
+          thumbnailPath: `/api/assets/${id}/thumbnail.png`,
+          thumbnailUrl: `/api/assets/${id}/thumbnail.png`,
+          vrmUrl: metadata.hasVRM ? `/api/assets/${id}/model.vrm` : undefined,
+          hasVRM: !!metadata.hasVRM,
+          hasModel: true,
+          category:
+            (metadata.category as CDNAsset["category"]) ||
+            (metadata.type as CDNAsset["category"]) ||
+            "item",
+          type: (metadata.type as string) || "object",
+          status: metadata.status || "completed",
+          createdAt: metadata.createdAt,
+          metadata,
+        });
+      }
+    }
 
-    return NextResponse.json({
-      success: true,
-      assetId,
-      metadata,
-    });
+    return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   } catch (error) {
-    console.error("[Assets API] GET error:", error);
+    console.error("[Assets API] Error fetching asset:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to get asset" },
-      { status: 500 }
+      { error: "Failed to fetch asset" },
+      { status: 500 },
     );
   }
 }
 
 /**
  * DELETE /api/assets/[id]
- * Delete an asset and all its files
+ * Delete an asset
  */
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    const { id: assetId } = await params;
+    const { id } = await params;
+    const { deleteAssetFiles } = await import("@/lib/storage/asset-storage");
 
-    if (!assetId) {
-      return NextResponse.json({ error: "Asset ID is required" }, { status: 400 });
-    }
+    await deleteAssetFiles(id);
 
-    // Check if asset exists
-    const exists = await assetExists(assetId);
+    return NextResponse.json({
+      success: true,
+      message: `Asset ${id} deleted`,
+    });
+  } catch (error) {
+    console.error("[Assets API] Error deleting asset:", error);
+    return NextResponse.json(
+      { error: "Failed to delete asset" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/assets/[id]
+ * Update asset metadata
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const updates = await request.json();
+    const { promises: fs } = await import("fs");
+    const { getMetadataPath, assetExists } = await import(
+      "@/lib/storage/asset-storage"
+    );
+
+    const exists = await assetExists(id);
     if (!exists) {
       return NextResponse.json({ error: "Asset not found" }, { status: 404 });
     }
 
-    // Get metadata before deleting (for response)
-    const metadata = await readAssetMetadata(assetId);
+    // Read existing metadata
+    const metadataPath = getMetadataPath(id);
+    let metadata: Record<string, unknown> = {};
+    try {
+      const content = await fs.readFile(metadataPath, "utf-8");
+      metadata = JSON.parse(content);
+    } catch {
+      // No existing metadata
+    }
 
-    // Delete all asset files
-    await deleteAssetFiles(assetId);
+    // Merge updates
+    const updatedMetadata = {
+      ...metadata,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
 
-    console.log(`[Assets API] Deleted asset: ${assetId}`);
+    // Write updated metadata
+    await fs.writeFile(metadataPath, JSON.stringify(updatedMetadata, null, 2));
 
-    return NextResponse.json({
-      success: true,
-      message: "Asset deleted successfully",
-      assetId,
-      deletedAsset: metadata,
-    });
+    return NextResponse.json(updatedMetadata);
   } catch (error) {
-    console.error("[Assets API] DELETE error:", error);
+    console.error("[Assets API] Error updating asset:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to delete asset" },
-      { status: 500 }
+      { error: "Failed to update asset" },
+      { status: 500 },
     );
   }
 }

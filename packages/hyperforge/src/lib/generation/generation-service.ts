@@ -1,30 +1,230 @@
 /**
  * Generation Service
  * Unified orchestrator for all generation types (3D, Audio, Content)
+ *
+ * Uses Meshy API for 3D generation with optimized settings for Three.js web MMO.
+ * @see https://docs.meshy.ai/api/text-to-3d
+ * @see https://docs.meshy.ai/en/api/image-to-3d
  */
 
 import type { GenerationConfig } from "@/components/generation/GenerationFormRouter";
 import {
   startTextTo3DPreview,
   startTextTo3DRefine,
-} from "@/lib-core/meshy/text-to-3d";
-import { startImageTo3D } from "@/lib-core/meshy/image-to-3d";
+} from "@/lib/meshy/text-to-3d";
+import { startImageTo3D } from "@/lib/meshy/image-to-3d";
 import {
   pollTaskStatus as pollTaskStatusUnified,
   type TextureUrls,
-} from "@/lib-core/meshy/poll-task";
+} from "@/lib/meshy/poll-task";
+import { createRiggingTask, getRiggingTaskStatus } from "@/lib/meshy/client";
 import {
-  createRiggingTask,
-  getRiggingTaskStatus,
-} from "@/lib-core/meshy/client";
+  POLYCOUNT_PRESETS,
+  DEFAULT_TEXTURE_RESOLUTION,
+} from "@/lib/meshy/constants";
+import type { MeshyAIModel } from "@/lib/meshy/types";
 import type { GenerationProgress } from "@/stores/generation-store";
 import {
   downloadAndSaveModel,
   saveAssetFiles,
   downloadFile,
 } from "@/lib/storage/asset-storage";
-import { enhancePromptWithGPT4 } from "@/lib/ai/openai-service";
+import { enhancePromptWithGPT4 } from "@/lib/ai/gateway";
 import { generateConceptArt } from "@/lib/ai/concept-art-service";
+
+/**
+ * Merge skeleton/skin data from a rigged GLB into a textured GLB
+ * This preserves textures from the textured model while adding skeleton from rigged model
+ *
+ * Used when Meshy rigging strips textures - we take:
+ * - Skeleton/bones from rigged model
+ * - Textures/materials from textured model
+ * - Merge them into one GLB with both
+ */
+async function mergeSkeletonIntoTexturedModel(
+  texturedGlbBuffer: Buffer,
+  riggedGlbBuffer: Buffer,
+): Promise<Buffer> {
+  // Parse both GLB files
+  const parseGlb = (buffer: Buffer) => {
+    const jsonChunkLength = buffer.readUInt32LE(12);
+    const jsonData = buffer.slice(20, 20 + jsonChunkLength).toString("utf8");
+    const binStart = 20 + jsonChunkLength + 8; // 8 bytes for bin chunk header
+    const binData = buffer.slice(binStart);
+    return {
+      json: JSON.parse(jsonData),
+      bin: binData,
+      jsonChunkLength,
+    };
+  };
+
+  const textured = parseGlb(texturedGlbBuffer);
+  const rigged = parseGlb(riggedGlbBuffer);
+
+  // Check if rigged model has skeleton data
+  if (!rigged.json.skins || rigged.json.skins.length === 0) {
+    console.log(
+      "[Skeleton Merge] Rigged model has no skeleton, returning textured model as-is",
+    );
+    return texturedGlbBuffer;
+  }
+
+  // Check if textured model already has skeleton
+  if (textured.json.skins && textured.json.skins.length > 0) {
+    console.log(
+      "[Skeleton Merge] Textured model already has skeleton, returning as-is",
+    );
+    return texturedGlbBuffer;
+  }
+
+  console.log(
+    "[Skeleton Merge] Merging skeleton from rigged model into textured model...",
+  );
+  console.log(
+    `  Textured: ${textured.json.nodes?.length || 0} nodes, ${textured.json.images?.length || 0} images`,
+  );
+  console.log(
+    `  Rigged: ${rigged.json.nodes?.length || 0} nodes, ${rigged.json.skins?.[0]?.joints?.length || 0} bones`,
+  );
+
+  // Copy skeleton-related data from rigged to textured
+  const texturedNodeCount = textured.json.nodes?.length || 0;
+
+  // Copy nodes (bone hierarchy) from rigged model
+  const riggedSkin = rigged.json.skins[0];
+
+  // Map old node indices to new indices
+  const nodeIndexMap = new Map<number, number>();
+  const nodesToAdd: Record<string, unknown>[] = [];
+
+  for (const oldIdx of riggedSkin.joints) {
+    const node = rigged.json.nodes[oldIdx];
+    const newIdx = texturedNodeCount + nodesToAdd.length;
+    nodeIndexMap.set(oldIdx, newIdx);
+
+    // Clone node and update children references later
+    nodesToAdd.push({ ...node });
+  }
+
+  // Update children references in added nodes
+  for (const node of nodesToAdd) {
+    if (node.children && Array.isArray(node.children)) {
+      node.children = (node.children as number[]).map((childIdx) => {
+        const newIdx = nodeIndexMap.get(childIdx);
+        return newIdx !== undefined ? newIdx : childIdx;
+      });
+    }
+  }
+
+  // Add bone nodes to textured model
+  textured.json.nodes = [...(textured.json.nodes || []), ...nodesToAdd];
+
+  // Create skin referencing the new node indices
+  const newSkin = {
+    ...riggedSkin,
+    joints: riggedSkin.joints.map(
+      (oldIdx: number) => nodeIndexMap.get(oldIdx)!,
+    ),
+    skeleton: nodeIndexMap.get(riggedSkin.skeleton) ?? riggedSkin.skeleton,
+  };
+
+  // Handle inverse bind matrices accessor
+  if (riggedSkin.inverseBindMatrices !== undefined) {
+    const ibmAccessor = rigged.json.accessors[riggedSkin.inverseBindMatrices];
+    const ibmBufferView = rigged.json.bufferViews[ibmAccessor.bufferView];
+
+    // Copy the inverse bind matrices data
+    const ibmData = rigged.bin.slice(
+      ibmBufferView.byteOffset || 0,
+      (ibmBufferView.byteOffset || 0) + ibmBufferView.byteLength,
+    );
+
+    // Add buffer view for IBM
+    const newBufferViewIndex = textured.json.bufferViews?.length || 0;
+    const texturedBinLength = textured.bin.length;
+
+    textured.json.bufferViews = textured.json.bufferViews || [];
+    textured.json.bufferViews.push({
+      buffer: 0,
+      byteOffset: texturedBinLength,
+      byteLength: ibmData.length,
+    });
+
+    // Add accessor for IBM
+    const newAccessorIndex = textured.json.accessors?.length || 0;
+    textured.json.accessors = textured.json.accessors || [];
+    textured.json.accessors.push({
+      ...ibmAccessor,
+      bufferView: newBufferViewIndex,
+    });
+
+    // Update skin reference
+    newSkin.inverseBindMatrices = newAccessorIndex;
+
+    // Append IBM data to bin chunk
+    textured.bin = Buffer.concat([textured.bin, ibmData]);
+  }
+
+  // Add skin to textured model
+  textured.json.skins = [newSkin];
+
+  // Apply skin to mesh node (first mesh node)
+  const meshNodeIdx = textured.json.nodes.findIndex(
+    (n: Record<string, unknown>) => n.mesh !== undefined,
+  );
+  if (meshNodeIdx >= 0) {
+    textured.json.nodes[meshNodeIdx].skin = 0;
+  }
+
+  // Update buffer size
+  if (textured.json.buffers && textured.json.buffers.length > 0) {
+    textured.json.buffers[0].byteLength = textured.bin.length;
+  }
+
+  // Reconstruct GLB
+  const jsonStr = JSON.stringify(textured.json);
+  const jsonBuffer = Buffer.from(jsonStr);
+  // Pad JSON to 4-byte alignment
+  const jsonPadding = (4 - (jsonBuffer.length % 4)) % 4;
+  const paddedJsonBuffer = Buffer.concat([
+    jsonBuffer,
+    Buffer.alloc(jsonPadding, 0x20),
+  ]);
+
+  // Pad BIN to 4-byte alignment
+  const binPadding = (4 - (textured.bin.length % 4)) % 4;
+  const paddedBinBuffer = Buffer.concat([
+    textured.bin,
+    Buffer.alloc(binPadding, 0x00),
+  ]);
+
+  // Build GLB
+  const totalLength =
+    12 + 8 + paddedJsonBuffer.length + 8 + paddedBinBuffer.length;
+  const glb = Buffer.alloc(totalLength);
+
+  // Header
+  glb.writeUInt32LE(0x46546c67, 0); // "glTF" magic
+  glb.writeUInt32LE(2, 4); // version
+  glb.writeUInt32LE(totalLength, 8);
+
+  // JSON chunk
+  glb.writeUInt32LE(paddedJsonBuffer.length, 12);
+  glb.writeUInt32LE(0x4e4f534a, 16); // "JSON"
+  paddedJsonBuffer.copy(glb, 20);
+
+  // BIN chunk
+  const binChunkStart = 20 + paddedJsonBuffer.length;
+  glb.writeUInt32LE(paddedBinBuffer.length, binChunkStart);
+  glb.writeUInt32LE(0x004e4942, binChunkStart + 4); // "BIN\0"
+  paddedBinBuffer.copy(glb, binChunkStart + 8);
+
+  console.log(
+    `[Skeleton Merge] Merged model: ${(glb.length / 1024 / 1024).toFixed(2)} MB with ${newSkin.joints.length} bones`,
+  );
+
+  return glb;
+}
 
 export interface GenerationResult {
   taskId: string;
@@ -51,26 +251,49 @@ export async function generate3DModel(
   // Map quality to Meshy AI model options
   // See: https://docs.meshy.ai/en/api/text-to-3d
   // As of Dec 2024, "latest" = Meshy-6, the newest and best model
-  const qualityOptions = {
+  //
+  // Polycount guidelines for Three.js web MMO (from POLYCOUNT_PRESETS):
+  // - Small props: 500 - 2,000 triangles
+  // - Medium props: 2,000 - 5,000 triangles
+  // - NPC Characters: 2,000 - 10,000 triangles
+  // - Large props: 5,000 - 10,000 triangles
+  // - Small buildings: 5,000 - 15,000 triangles
+  // - Large structures: 15,000 - 50,000 triangles
+  //
+  // These quality presets provide reasonable defaults for most use cases.
+  // For asset-specific polycount, use POLYCOUNT_PRESETS based on category.
+  const qualityOptions: Record<
+    string,
+    {
+      targetPolycount: number;
+      textureResolution: number;
+      enablePBR: boolean;
+      aiModel: MeshyAIModel;
+      textureRichness: string;
+    }
+  > = {
     // Preview / Meshy-4: Fast, lower quality (for quick iterations)
+    // ~10K polys good for small buildings or detailed props
     preview: {
-      targetPolycount: 10000,
+      targetPolycount: POLYCOUNT_PRESETS.small_building.defaultPolycount, // 10000
       textureResolution: 1024,
       enablePBR: true,
       aiModel: "meshy-4",
       textureRichness: "medium",
     },
     // Medium / Meshy-6: High quality with latest model
+    // ~30K polys good for large structures or high-detail characters
     medium: {
-      targetPolycount: 30000,
-      textureResolution: 2048,
+      targetPolycount: POLYCOUNT_PRESETS.large_structure.defaultPolycount, // 30000
+      textureResolution: DEFAULT_TEXTURE_RESOLUTION, // 2048
       enablePBR: true,
       aiModel: "latest", // Meshy-6 - best quality
       textureRichness: "high",
     },
     // High / Meshy-6: Maximum quality settings
+    // ~50K polys for hero assets (use LOD for runtime)
     high: {
-      targetPolycount: 50000,
+      targetPolycount: POLYCOUNT_PRESETS.large_structure.maxPolycount, // 50000
       textureResolution: 4096,
       enablePBR: true,
       aiModel: "latest", // Meshy-6 - best quality
@@ -467,8 +690,10 @@ export async function generate3DModel(
       `[Generation] Downloaded model: ${(modelBuffer.length / 1024 / 1024).toFixed(2)} MB`,
     );
 
-    // Download the original textured model if different from main model (rigging may strip textures)
+    // Download the original textured model if different from main model (rigging strips textures)
     let texturedModelBuffer: Buffer | undefined;
+    let mergedModelBuffer: Buffer = modelBuffer; // Will hold merged result (skeleton + textures)
+
     if (
       result.texturedModelUrl &&
       result.texturedModelUrl !== result.modelUrl
@@ -482,6 +707,29 @@ export async function generate3DModel(
         console.log(
           `[Generation] Downloaded textured model: ${(texturedModelBuffer.length / 1024 / 1024).toFixed(2)} MB`,
         );
+
+        // Merge skeleton from rigged model into textured model
+        // This preserves textures while adding the skeleton for hand rigging
+        onProgress?.({
+          status: "generating",
+          stage: "Merging",
+          progress: 86,
+          currentStep: "Merging skeleton with textures...",
+        });
+
+        try {
+          mergedModelBuffer = await mergeSkeletonIntoTexturedModel(
+            texturedModelBuffer,
+            modelBuffer,
+          );
+          console.log(
+            `[Generation] Merged model: ${(mergedModelBuffer.length / 1024 / 1024).toFixed(2)} MB`,
+          );
+        } catch (mergeError) {
+          console.error("[Generation] Failed to merge skeleton:", mergeError);
+          // Fall back to rigged model (no textures but has skeleton)
+          mergedModelBuffer = modelBuffer;
+        }
       } catch (error) {
         console.warn("[Generation] Failed to download textured model:", error);
       }
@@ -593,7 +841,8 @@ export async function generate3DModel(
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3500";
 
     // Step 1: Hand rigging on GLB (if enabled)
-    let processedModelBuffer = modelBuffer;
+    // Use merged model (with skeleton + textures) for hand rigging
+    let processedModelBuffer = mergedModelBuffer;
     let hasHandRigging = false;
     const shouldAddHandRigging =
       config.enableHandRigging &&
@@ -617,7 +866,8 @@ export async function generate3DModel(
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              glbData: modelBuffer.toString("base64"),
+              // Use merged model (has skeleton + textures)
+              glbData: mergedModelBuffer.toString("base64"),
               options: {
                 addFingerBones: true,
                 fingerBoneLength: 0.1,
@@ -656,15 +906,21 @@ export async function generate3DModel(
     }
 
     // Step 2: VRM conversion (always last in pipeline, if enabled)
-    // IMPORTANT: Use the TEXTURED model for VRM conversion because:
-    // - Meshy rigging strips textures from the model
-    // - VRM needs textures for proper visual rendering
-    // - The textured model from refine stage has embedded textures
+    // Note: VRM needs textures for proper visual rendering. The processedModelBuffer
+    // ideally has merged skeleton + textures, but this is only guaranteed when
+    // texturedModelUrl differs from modelUrl. When they're identical or texturedModelUrl
+    // is missing, textures may not be embedded.
     let vrmUrl: string | undefined;
     let vrmBuffer: Buffer | undefined;
     const shouldConvertToVRM =
       config.convertToVRM &&
       (config.category === "npc" || config.category === "character");
+
+    // Check if we have confirmed textures in the model
+    const hasConfirmedTextures =
+      result.texturedModelUrl &&
+      result.texturedModelUrl !== result.modelUrl &&
+      texturedModelBuffer !== undefined;
 
     if (shouldConvertToVRM) {
       try {
@@ -676,35 +932,31 @@ export async function generate3DModel(
         });
 
         // Determine which model to use for VRM conversion:
-        // Priority: 1. Textured model (has textures), 2. Processed model (may have hand rigging)
-        // We prefer textured model because VRM needs good visual quality
-        const useTexturedForVRM =
-          texturedModelBuffer && texturedModelBuffer.length > 0;
-        const vrmSourceBuffer = useTexturedForVRM
-          ? texturedModelBuffer
-          : processedModelBuffer;
-        const vrmSourceUrl = useTexturedForVRM
-          ? result.texturedModelUrl
-          : hasHandRigging
-            ? undefined
-            : result.modelUrl;
+        // Use processedModelBuffer which is based on mergedModelBuffer.
+        // If textured model was separate and merged, it has skeleton + textures.
+        // Otherwise, it may only have skeleton (textures not guaranteed).
+        const vrmSourceBuffer = processedModelBuffer;
+
+        if (!hasConfirmedTextures) {
+          console.warn(
+            "[Generation] VRM conversion: textures may not be embedded in model. " +
+              "texturedModelUrl was not separate from modelUrl.",
+          );
+        }
 
         console.log(
-          `[Generation] VRM conversion using: ${useTexturedForVRM ? "textured model (with textures)" : "rigged/processed model"}`,
+          `[Generation] VRM conversion using: processed model (skeleton${hasConfirmedTextures ? " + textures" : ""}${hasHandRigging ? " + hand rigging" : ""})`,
         );
 
-        // Call VRM conversion API with the best available model
+        // Call VRM conversion API with the processed model
         const vrmResponse = await fetch(`${baseUrl}/api/vrm/convert`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            // Use buffer if available (prefer textured), otherwise fall back to URL
-            glbData: vrmSourceBuffer
-              ? vrmSourceBuffer.toString("base64")
-              : undefined,
-            modelUrl: vrmSourceBuffer ? undefined : vrmSourceUrl,
+            // Always use the buffer - it has the merged skeleton + textures
+            glbData: vrmSourceBuffer.toString("base64"),
             avatarName: (metadata?.name as string) || "Generated Avatar",
             author: "HyperForge",
           }),

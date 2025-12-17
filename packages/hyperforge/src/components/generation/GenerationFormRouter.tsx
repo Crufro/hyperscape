@@ -14,6 +14,39 @@ interface GenerationFormRouterProps {
   onCancel: () => void;
 }
 
+/**
+ * Texture variant definition for generating multiple texture variations of a base model
+ * Follows RuneScape-style material tier patterns (bronze, steel, mithril, etc.)
+ */
+export interface TextureVariant {
+  id: string;
+  name: string; // e.g., "Bronze", "Mithril", "Copper Ore"
+  prompt?: string; // Text prompt for this variant's texture
+  referenceImageUrl?: string; // Optional image reference for texturing
+  materialPresetId?: string; // Link to material preset from material-presets.json
+}
+
+/**
+ * Generated variant result after processing
+ */
+export interface GeneratedVariant {
+  id: string;
+  variantId: string; // References TextureVariant.id
+  name: string;
+  modelUrl: string;
+  thumbnailUrl?: string;
+  materialPresetId?: string;
+}
+
+/**
+ * Options for what files to save after generation
+ */
+export interface SaveOptions {
+  saveBaseMesh: boolean; // Untextured mesh only (for variant base)
+  saveTexturedModel: boolean; // With base texture applied
+  saveVariants: boolean; // Generate and save texture variants
+}
+
 export interface GenerationConfig {
   category: AssetCategory;
   prompt: string;
@@ -27,6 +60,15 @@ export interface GenerationConfig {
   generateConceptArt?: boolean; // Generate concept art image before 3D (improves texturing)
   referenceImageUrl?: string; // Custom reference image URL (HTTP URL for Meshy texture_image_url)
   referenceImageDataUrl?: string; // Custom reference image as data URL (fallback)
+
+  // Concept Art Options
+  useConceptArtForTexturing?: boolean; // Whether to use generated concept art for texturing
+
+  // Save Options
+  saveOptions?: SaveOptions;
+
+  // Texture Variants (upfront definition for batch generation)
+  textureVariants?: TextureVariant[];
 }
 
 export function GenerationFormRouter({

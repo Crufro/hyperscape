@@ -1,0 +1,312 @@
+---
+description: Meshy.ai 3D generation API reference for HyperForge - Image-to-3D, Text-to-3D, rigging, retexturing
+alwaysApply: false
+---
+# Meshy.ai API Reference for HyperForge
+
+This guide covers Meshy.ai integration for generating 3D assets in HyperForge, optimized for Three.js web MMO performance.
+
+## 📌 Core Documentation URLs
+
+| Purpose | URL |
+|---------|-----|
+| Meshy API Overview | https://www.meshy.ai/api |
+| Image-to-3D API | https://docs.meshy.ai/en/api/image-to-3d |
+| Text-to-3D API | https://docs.meshy.ai/api/text-to-3d |
+| Quickstart (API keys) | https://docs.meshy.ai/en/api/quick-start |
+| Multi-Image to 3D | https://fal.ai/models/fal-ai/meshy/v5/multi-image-to-3d/api |
+| API Changelog | https://docs.meshy.ai/en/api/changelog |
+
+## 🔧 HyperForge Meshy Implementation
+
+All Meshy code lives in `packages/hyperforge/lib/meshy/`:
+
+```
+lib/meshy/
+├── client.ts        # API client with all endpoints
+├── constants.ts     # Presets, config, best practices
+├── types.ts         # TypeScript types for all APIs
+├── image-to-3d.ts   # Image-to-3D pipeline
+├── text-to-3d.ts    # Text-to-3D pipeline (two-stage)
+└── poll-task.ts     # Unified task polling
+```
+
+### Environment Variable
+```bash
+MESHY_API_KEY=your_api_key_here
+```
+
+## 🎮 API Versions
+
+| API | Base URL | Endpoints |
+|-----|----------|-----------|
+| v1 | `https://api.meshy.ai/openapi/v1` | Image-to-3D, Retexture, Rigging |
+| v2 | `https://api.meshy.ai/openapi/v2` | Text-to-3D (two-stage: preview → refine) |
+
+## 🤖 AI Model Versions
+
+| Model | Description | Recommended For |
+|-------|-------------|-----------------|
+| `meshy-4` | Stable model for image-to-3D | `image-to-3d` |
+| `meshy-5` | Improved geometry, multi-image support | `image-to-3d`, `retexture` |
+| `meshy-6` | Latest with best quality | `text-to-3d` |
+| `latest` | Always newest available (currently Meshy-6) | `text-to-3d`, `image-to-3d` |
+
+**Default**: Use `"latest"` for new generation tasks.
+
+## 🔺 Mesh Topology Options
+
+| Topology | Description | Use Case |
+|----------|-------------|----------|
+| `"triangle"` | Triangle mesh - GPU-compatible | **Production assets** for Three.js/WebGL |
+| `"quad"` | Quad-dominant mesh - artist-friendly | Retopology workflows, manual editing |
+
+**Rule**: Always use `"triangle"` for runtime assets. Convert quads to triangles before export.
+
+## 📊 Polycount Guidelines for Three.js Web MMO
+
+| Asset Class | Min Triangles | Max Triangles | Default | Examples |
+|-------------|---------------|---------------|---------|----------|
+| `small_prop` | 500 | 2,000 | 1,000 | coins, potions, keys, gems, runes |
+| `medium_prop` | 2,000 | 5,000 | 3,000 | swords, shields, barrels, crates |
+| `large_prop` | 5,000 | 10,000 | 7,500 | trees, carts, statues, fountains |
+| `npc_character` | 2,000 | 10,000 | 5,000 | players, guards, goblins, dragons |
+| `small_building` | 5,000 | 15,000 | 10,000 | houses, shops, towers, wells |
+| `large_structure` | 15,000 | 50,000 | 30,000 | castles, temples, dungeons |
+
+**Performance Limit**: Keep individual meshes < 100,000 triangles for web performance.
+
+## 🖼️ Image-to-3D API (v1)
+
+Single-stage process - converts images directly to textured 3D models.
+
+### TypeScript Usage
+
+```typescript
+import { startImageTo3D, pollTaskStatus } from "@/lib/meshy/image-to-3d";
+
+const { taskId } = await startImageTo3D(imageUrl, {
+  enable_pbr: true,
+  ai_model: "meshy-4",
+  topology: "triangle",
+  target_polycount: 5000,
+  texture_resolution: 2048,
+});
+
+const result = await pollTaskStatus(taskId, (progress) => {
+  console.log(`Progress: ${progress}%`);
+});
+
+console.log(`Model URL: ${result.modelUrl}`);
+```
+
+### API Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `image_url` | string | required | Source image URL or data URI |
+| `enable_pbr` | boolean | `true` | Generate PBR textures (normal, metallic, roughness) |
+| `ai_model` | MeshyAIModel | `"meshy-4"` | AI model version |
+| `topology` | `"triangle"` \| `"quad"` | `"quad"` | Mesh topology |
+| `target_polycount` | number | `30000` | Target polygon count |
+| `texture_resolution` | number | `2048` | Texture resolution in pixels |
+
+## 📝 Text-to-3D API (v2)
+
+Two-stage process:
+1. **Preview Stage**: Generates mesh without texture
+2. **Refine Stage**: Adds texture to preview mesh
+
+### TypeScript Usage
+
+```typescript
+import { startTextTo3D } from "@/lib/meshy/text-to-3d";
+
+const result = await startTextTo3D(
+  "A medieval sword with golden hilt",
+  {
+    art_style: "realistic",
+    ai_model: "latest",
+    topology: "triangle",
+    target_polycount: 3000,
+    enable_pbr: true,
+    symmetry_mode: "auto",
+    pose_mode: "",
+  },
+  (stage, progress) => {
+    console.log(`${stage}: ${progress}%`);
+  }
+);
+
+console.log(`Model URL: ${result.modelUrl}`);
+```
+
+### Preview Stage Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `prompt` | string | required | Text description of 3D model |
+| `art_style` | `"realistic"` \| `"sculpture"` | `"realistic"` | Art style |
+| `ai_model` | MeshyAIModel | `"latest"` | AI model version |
+| `topology` | `"triangle"` \| `"quad"` | `"triangle"` | Mesh topology |
+| `target_polycount` | number | `30000` | Target polygon count |
+| `should_remesh` | boolean | `true` | Clean topology remeshing |
+| `symmetry_mode` | `"off"` \| `"auto"` \| `"on"` | `"auto"` | Symmetry enforcement |
+| `pose_mode` | `"a-pose"` \| `"t-pose"` \| `""` | `""` | Character pose for rigging |
+| `seed` | number | - | Seed for reproducible generation |
+
+### Refine Stage Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `enable_pbr` | boolean | `true` | Generate PBR textures |
+| `texture_prompt` | string | - | Custom texture guidance (optional) |
+| `texture_image_url` | string | - | Reference image for texture style |
+| `ai_model` | MeshyAIModel | - | Must match preview model |
+
+**Note**: `texture_resolution` is NOT valid for refine stage.
+
+## 🎨 Retexture API (v1)
+
+Apply new textures to existing 3D models.
+
+```typescript
+import { createRetextureTask } from "@/lib/meshy/client";
+
+const taskId = await createRetextureTask({
+  input_task_id: "existing-task-id", // OR model_url
+  text_style_prompt: "Ancient stone texture with moss",
+  art_style: "realistic",
+  ai_model: "meshy-5",
+  enable_original_uv: true,
+});
+```
+
+## 🦴 Rigging API (v1)
+
+Add skeleton and basic animations to character meshes.
+
+```typescript
+import { createRiggingTask, getRiggingTaskStatus } from "@/lib/meshy/client";
+
+const taskId = await createRiggingTask({
+  input_task_id: "character-task-id", // OR model_url
+  height_meters: 1.7,
+});
+
+const result = await getRiggingTaskStatus(taskId);
+// Rigged model: result.result.rigged_character_glb_url
+// Animations: result.result.basic_animations.walking_glb_url
+```
+
+## 📋 Task Status Polling
+
+All Meshy tasks return immediately with a task ID. Poll for completion:
+
+```typescript
+import { pollTaskStatus } from "@/lib/meshy/poll-task";
+
+const result = await pollTaskStatus(taskId, {
+  pollIntervalMs: 5000,  // 5 seconds
+  timeoutMs: 300000,     // 5 minutes max
+  onProgress: (progress, precedingTasks) => {
+    console.log(`Progress: ${progress}%, Queue: ${precedingTasks}`);
+  },
+});
+```
+
+### Task Status Values
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Task queued, waiting to start |
+| `IN_PROGRESS` | Generation in progress |
+| `SUCCEEDED` | Completed successfully |
+| `FAILED` | Generation failed |
+| `CANCELED` | Task was canceled |
+
+## 🎯 Asset Class Presets
+
+Use presets from `packages/hyperforge/lib/meshy/constants.ts`:
+
+```typescript
+import {
+  getPolycountPreset,
+  createGenerationConfig,
+  validatePolycount,
+} from "@/lib/meshy/constants";
+
+// Get preset for asset class
+const preset = getPolycountPreset("npc_character");
+console.log(preset.defaultPolycount); // 5000
+
+// Create full generation config
+const config = createGenerationConfig("medium_prop", {
+  enablePBR: true,
+  aiModel: "latest",
+});
+
+// Validate polycount
+const validation = validatePolycount("small_prop", 5000);
+if (validation.warning) {
+  console.warn(validation.warning);
+}
+```
+
+## 🚀 Best Practices for Three.js Web MMO
+
+### 1. LOD (Level of Detail) Setup
+```typescript
+const lodDistances = {
+  high: 0,      // Full detail at close range
+  medium: 50,   // 50% polycount at 50 units
+  low: 150,     // 25% polycount at 150 units
+  billboard: 300, // Sprite at 300+ units
+};
+```
+
+### 2. Instancing for Repeated Objects
+Objects to instance: trees, rocks, barrels, crates, coins, foliage, grass
+
+### 3. Bake Details into Textures
+- **Normal maps**: Encode high-frequency detail
+- **AO maps**: Bake ambient occlusion
+- **Roughness maps**: Material variation
+
+### 4. Export Settings
+- Format: GLB (embedded textures)
+- Always triangulate
+- Optimize mesh
+
+### 5. Texture Recommendations
+
+| Asset Class | Texture Resolution | Enable PBR |
+|-------------|-------------------|------------|
+| `small_prop` | 1024 | No (save bandwidth) |
+| `medium_prop` | 2048 | Yes |
+| `large_prop` | 2048 | Yes |
+| `npc_character` | 2048 | Yes |
+| `small_building` | 2048 | Yes |
+| `large_structure` | 4096 | Yes |
+
+## ⚠️ Common Pitfalls
+
+1. **Don't use quad topology for runtime assets** - Always convert to triangles
+2. **Don't exceed 100k triangles per mesh** - Causes web performance issues
+3. **Refine stage can't change topology** - Must be set in preview stage
+4. **ai_model must match between preview and refine** - For meshy-5/latest
+5. **texture_resolution is preview-only** - Not valid for refine stage
+
+## 🔗 Presets JSON Location
+
+Asset class presets and AI model configs:
+`packages/hyperforge/public/prompts/meshy-presets.json`
+
+## 📖 Related HyperForge Files
+
+| File | Purpose |
+|------|---------|
+| `lib/ai/concept-art-service.ts` | Concept art → 3D pipeline |
+| `lib/ai/openai-service.ts` | GPT-4 prompt enhancement |
+| `lib/cdn/` | CDN caching for generated assets |
+| `lib/db/` | Database for task tracking |

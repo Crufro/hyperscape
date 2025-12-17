@@ -845,13 +845,29 @@ export interface ForgeAsset {
   hasVRM?: boolean;
   vrmPath?: string;
   vrmUrl?: string;
+  previewUrl?: string;
   hasModel?: boolean;
   createdAt?: string;
   metadata?: Record<string, unknown>;
 }
 
 /**
+ * Get public URL for a specific bucket
+ */
+function getBucketPublicUrl(bucketName: string, storagePath: string): string {
+  const supabase = getSupabaseClient();
+  const { data } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
+  return data.publicUrl;
+}
+
+/**
  * Get a single forge asset with all its info
+ *
+ * Storage locations:
+ * - Models: meshy-models/{assetId}/model.glb
+ * - Thumbnails: concept-art-pipeline/forge/models/{assetId}/thumbnail.png
+ * - VRM: vrm-conversion/{assetId}/model.vrm
+ * - Preview: meshy-models/{assetId}/preview.glb
  */
 export async function getForgeAsset(
   assetId: string,
@@ -861,7 +877,30 @@ export async function getForgeAsset(
     if (!metadata) return null;
 
     const hasVRM = (metadata.hasVRM as boolean) || false;
-    const baseUrl = getPublicUrl(FORGE_MODELS_FOLDER);
+
+    // Build correct URLs for each bucket
+    // Models are in meshy-models bucket
+    const modelUrl = getBucketPublicUrl(
+      MESHY_MODELS_BUCKET,
+      `${assetId}/model.glb`,
+    );
+
+    // Thumbnails are in concept-art-pipeline bucket under forge/models folder
+    const thumbnailUrl = getBucketPublicUrl(
+      CONCEPT_ART_BUCKET,
+      `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`,
+    );
+
+    // VRM is in vrm-conversion bucket
+    const vrmUrl = hasVRM
+      ? getBucketPublicUrl(VRM_CONVERSION_BUCKET, `${assetId}/model.vrm`)
+      : undefined;
+
+    // Preview is in meshy-models bucket
+    const previewUrl = getBucketPublicUrl(
+      MESHY_MODELS_BUCKET,
+      `${assetId}/preview.glb`,
+    );
 
     return {
       id: assetId,
@@ -869,14 +908,13 @@ export async function getForgeAsset(
       source: "FORGE",
       type: (metadata.type as string) || "object",
       category: (metadata.category as string) || "misc",
-      thumbnailUrl: `${baseUrl}/${assetId}/thumbnail.png`,
-      modelUrl: `${baseUrl}/${assetId}/model.glb`,
-      modelPath: `${FORGE_MODELS_FOLDER}/${assetId}/model.glb`,
+      thumbnailUrl,
+      modelUrl,
+      modelPath: `${assetId}/model.glb`,
       hasVRM,
-      vrmPath: hasVRM
-        ? `${FORGE_MODELS_FOLDER}/${assetId}/model.vrm`
-        : undefined,
-      vrmUrl: hasVRM ? `${baseUrl}/${assetId}/model.vrm` : undefined,
+      vrmPath: hasVRM ? `${assetId}/model.vrm` : undefined,
+      vrmUrl,
+      previewUrl,
       hasModel: true,
       createdAt:
         (metadata.createdAt as string) ||
@@ -910,4 +948,367 @@ export async function listForgeAssets(): Promise<ForgeAsset[]> {
       const dateB = new Date(b.createdAt || 0).getTime();
       return dateB - dateA;
     });
+}
+
+// ============================================================================
+// BUCKET-SPECIFIC LISTING FUNCTIONS
+// Each bucket serves a specific purpose in the asset pipeline
+// ============================================================================
+
+export interface ImageAsset {
+  id: string;
+  filename: string;
+  url: string;
+  folder: string;
+  type: "concept-art" | "sprite" | "reference-image" | "texture";
+  createdAt?: string;
+  size?: number;
+}
+
+export interface AudioAsset {
+  id: string;
+  filename: string;
+  url: string;
+  folder: string;
+  type: "voice" | "sfx" | "music";
+  createdAt?: string;
+  size?: number;
+}
+
+export interface ContentAsset {
+  id: string;
+  filename: string;
+  url: string;
+  folder: string;
+  type: "quest" | "npc" | "dialogue" | "item" | "area" | "general";
+  createdAt?: string;
+  size?: number;
+}
+
+/**
+ * List images from image-generation bucket
+ * Folders: /concept-art/, /sprites/, /reference-images/, /textures/
+ */
+export async function listImageAssets(): Promise<ImageAsset[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = getSupabaseClient();
+  const assets: ImageAsset[] = [];
+
+  const folders = [
+    { path: CONCEPT_ART_FOLDER, type: "concept-art" as const },
+    { path: "sprites", type: "sprite" as const },
+    { path: REFERENCE_IMAGES_FOLDER, type: "reference-image" as const },
+    { path: "textures", type: "texture" as const },
+  ];
+
+  for (const folder of folders) {
+    try {
+      const { data, error } = await supabase.storage
+        .from(IMAGE_GENERATION_BUCKET)
+        .list(folder.path, { limit: 100 });
+
+      if (error) {
+        console.warn(
+          `[Supabase] Failed to list ${folder.path}:`,
+          error.message,
+        );
+        continue;
+      }
+
+      for (const file of data || []) {
+        if (file.id === null) continue; // Skip folders
+
+        const storagePath = `${folder.path}/${file.name}`;
+        const url = getBucketPublicUrl(IMAGE_GENERATION_BUCKET, storagePath);
+
+        assets.push({
+          id: file.name.replace(/\.[^.]+$/, ""),
+          filename: file.name,
+          url,
+          folder: folder.path,
+          type: folder.type,
+          createdAt: file.created_at,
+          size: file.metadata?.size as number | undefined,
+        });
+      }
+    } catch (error) {
+      console.warn(`[Supabase] Error listing ${folder.path}:`, error);
+    }
+  }
+
+  return assets.sort((a, b) => {
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+/**
+ * List audio from audio-generations bucket
+ * Folder: /generated/
+ */
+export async function listAudioAssets(): Promise<AudioAsset[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = getSupabaseClient();
+  const assets: AudioAsset[] = [];
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(AUDIO_GENERATIONS_BUCKET)
+      .list("generated", { limit: 100 });
+
+    if (error) {
+      console.warn("[Supabase] Failed to list audio:", error.message);
+      return [];
+    }
+
+    for (const file of data || []) {
+      if (file.id === null) continue; // Skip folders
+
+      const storagePath = `generated/${file.name}`;
+      const url = getBucketPublicUrl(AUDIO_GENERATIONS_BUCKET, storagePath);
+
+      // Determine type from filename
+      let type: AudioAsset["type"] = "sfx";
+      if (file.name.includes("voice") || file.name.includes("speech")) {
+        type = "voice";
+      } else if (file.name.includes("music") || file.name.includes("theme")) {
+        type = "music";
+      }
+
+      assets.push({
+        id: file.name.replace(/\.[^.]+$/, ""),
+        filename: file.name,
+        url,
+        folder: "generated",
+        type,
+        createdAt: file.created_at,
+        size: file.metadata?.size as number | undefined,
+      });
+    }
+  } catch (error) {
+    console.warn("[Supabase] Error listing audio:", error);
+  }
+
+  return assets.sort((a, b) => {
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+/**
+ * List content from content-generations bucket
+ * Folders: /generated/, /game/quests/, /game/npcs/, /game/dialogues/, /game/items/, /game/areas/
+ */
+export async function listContentAssets(): Promise<ContentAsset[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = getSupabaseClient();
+  const assets: ContentAsset[] = [];
+
+  const folders = [
+    { path: "generated", type: "general" as const },
+    { path: "game/quests", type: "quest" as const },
+    { path: "game/npcs", type: "npc" as const },
+    { path: "game/dialogues", type: "dialogue" as const },
+    { path: "game/items", type: "item" as const },
+    { path: "game/areas", type: "area" as const },
+  ];
+
+  for (const folder of folders) {
+    try {
+      const { data, error } = await supabase.storage
+        .from(CONTENT_GENERATIONS_BUCKET)
+        .list(folder.path, { limit: 100 });
+
+      if (error) {
+        // Folder might not exist yet
+        continue;
+      }
+
+      for (const file of data || []) {
+        if (file.id === null) continue; // Skip folders
+
+        const storagePath = `${folder.path}/${file.name}`;
+        const url = getBucketPublicUrl(CONTENT_GENERATIONS_BUCKET, storagePath);
+
+        assets.push({
+          id: file.name.replace(/\.[^.]+$/, ""),
+          filename: file.name,
+          url,
+          folder: folder.path,
+          type: folder.type,
+          createdAt: file.created_at,
+          size: file.metadata?.size as number | undefined,
+        });
+      }
+    } catch (error) {
+      console.warn(`[Supabase] Error listing ${folder.path}:`, error);
+    }
+  }
+
+  return assets.sort((a, b) => {
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+/**
+ * List 3D models from both meshy-models and vrm-conversion buckets
+ * This is an alternative to listForgeAssets that doesn't require metadata
+ *
+ * Bucket structure:
+ * - meshy-models/{assetId}/model.glb      → Main textured/rigged GLB
+ * - meshy-models/{assetId}/preview.glb    → Untextured preview
+ * - vrm-conversion/{assetId}/model.vrm    → VRM 1.0 converted model
+ * - vrm-conversion/{assetId}/model.glb    → GLB version of VRM (for previewing)
+ */
+export async function listMeshyModels(): Promise<ForgeAsset[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = getSupabaseClient();
+  const assetsMap = new Map<string, ForgeAsset>();
+
+  // 1. List assets from meshy-models bucket
+  try {
+    const { data, error } = await supabase.storage
+      .from(MESHY_MODELS_BUCKET)
+      .list("", { limit: 100 });
+
+    if (error) {
+      console.warn("[Supabase] Failed to list meshy-models:", error.message);
+    } else {
+      for (const item of data || []) {
+        // Folders have id === null
+        if (item.id !== null) continue;
+
+        const assetId = item.name;
+        const modelUrl = getBucketPublicUrl(
+          MESHY_MODELS_BUCKET,
+          `${assetId}/model.glb`,
+        );
+        const previewUrl = getBucketPublicUrl(
+          MESHY_MODELS_BUCKET,
+          `${assetId}/preview.glb`,
+        );
+        const thumbnailUrl = getBucketPublicUrl(
+          CONCEPT_ART_BUCKET,
+          `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`,
+        );
+        const vrmUrl = getBucketPublicUrl(
+          VRM_CONVERSION_BUCKET,
+          `${assetId}/model.vrm`,
+        );
+
+        assetsMap.set(assetId, {
+          id: assetId,
+          name: assetId,
+          source: "FORGE",
+          type: "object",
+          category: "item",
+          modelUrl,
+          modelPath: `${assetId}/model.glb`,
+          thumbnailUrl,
+          previewUrl,
+          vrmUrl,
+          hasVRM: false, // Will be updated if found in vrm-conversion
+          hasModel: true,
+          createdAt: item.created_at,
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("[Supabase] Error listing meshy-models:", error);
+  }
+
+  // 2. List assets from vrm-conversion bucket (may have assets not in meshy-models)
+  try {
+    const { data, error } = await supabase.storage
+      .from(VRM_CONVERSION_BUCKET)
+      .list("", { limit: 100 });
+
+    if (error) {
+      console.warn("[Supabase] Failed to list vrm-conversion:", error.message);
+    } else {
+      for (const item of data || []) {
+        // Folders have id === null
+        if (item.id !== null) continue;
+
+        const assetId = item.name;
+        const vrmUrl = getBucketPublicUrl(
+          VRM_CONVERSION_BUCKET,
+          `${assetId}/model.vrm`,
+        );
+        // VRM bucket may also have GLB versions for preview
+        const vrmGlbUrl = getBucketPublicUrl(
+          VRM_CONVERSION_BUCKET,
+          `${assetId}/model.glb`,
+        );
+
+        if (assetsMap.has(assetId)) {
+          // Update existing asset to mark it has VRM
+          const existing = assetsMap.get(assetId)!;
+          existing.hasVRM = true;
+          existing.vrmUrl = vrmUrl;
+          existing.vrmPath = `${assetId}/model.vrm`;
+        } else {
+          // New asset only in vrm-conversion bucket
+          // For VRM-only assets, the VRM IS the primary model (like CDN avatars)
+          const thumbnailUrl = getBucketPublicUrl(
+            CONCEPT_ART_BUCKET,
+            `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`,
+          );
+
+          assetsMap.set(assetId, {
+            id: assetId,
+            name: assetId,
+            source: "FORGE",
+            type: "character", // VRM-only assets are likely characters
+            category: "npc",
+            // For VRM-only assets, use VRM as the primary model (matches CDN avatar format)
+            modelUrl: vrmUrl, // VRM file IS the model
+            modelPath: `${assetId}/model.vrm`,
+            thumbnailUrl,
+            vrmUrl,
+            vrmPath: `${assetId}/model.vrm`,
+            hasVRM: true,
+            hasModel: true,
+            createdAt: item.created_at,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("[Supabase] Error listing vrm-conversion:", error);
+  }
+
+  const assets = Array.from(assetsMap.values());
+  return assets.sort((a, b) => {
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+/**
+ * Get bucket names for external use
+ */
+export const BUCKET_NAMES = {
+  IMAGE_GENERATION: IMAGE_GENERATION_BUCKET,
+  AUDIO_GENERATIONS: AUDIO_GENERATIONS_BUCKET,
+  CONTENT_GENERATIONS: CONTENT_GENERATIONS_BUCKET,
+  MESHY_MODELS: MESHY_MODELS_BUCKET,
+  VRM_CONVERSION: VRM_CONVERSION_BUCKET,
+  CONCEPT_ART: CONCEPT_ART_BUCKET,
+} as const;
+
+/**
+ * Get public URL for any bucket/path combination
+ */
+export function getSupabasePublicUrl(bucket: string, path: string): string {
+  return getBucketPublicUrl(bucket, path);
 }

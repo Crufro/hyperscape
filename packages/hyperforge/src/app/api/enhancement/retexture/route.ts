@@ -4,8 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createRetextureTask } from "@/lib-core/meshy/client";
-import { pollTaskStatus } from "@/lib-core/meshy/poll-task";
+import { createRetextureTask } from "@/lib/meshy/client";
+import { pollTaskStatus } from "@/lib/meshy/poll-task";
 import {
   getAssetById,
   createAsset,

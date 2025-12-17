@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   generateTextWithProvider,
   generateImageWithProvider,
-} from "@/lib-core/ai/gateway";
+} from "@/lib/ai/gateway";
 import type { GenerationPipeline } from "@/types/generation";
 
 export async function POST(request: NextRequest) {

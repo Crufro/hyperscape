@@ -4,10 +4,29 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
     remotePatterns: [
+      // Local development CDN
       {
         protocol: 'http',
         hostname: 'localhost',
         port: '8080',
+        pathname: '/**',
+      },
+      // Supabase Storage (HyperForge generations)
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/**',
+      },
+      // Specific Supabase project
+      {
+        protocol: 'https',
+        hostname: 'vshfuoglbnbeyzmnhbxe.supabase.co',
+        pathname: '/**',
+      },
+      // Meshy assets (temporary URLs from generation)
+      {
+        protocol: 'https',
+        hostname: 'assets.meshy.ai',
         pathname: '/**',
       },
     ],

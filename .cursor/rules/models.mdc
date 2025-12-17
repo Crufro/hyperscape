@@ -2,21 +2,87 @@
 description: When using LLM models like OpenAI or Anthropic, for image recogntion, image generation,text generation and embeddnigs
 alwaysApply: false
 ---
-For text and image generation, as well as image desciption, use gpt-4o and gpt-4o-mini from OpenAI.
+# AI Models Reference
 
-For 3D item generation, remeshing, retexturing, avatar creation and rigging, we are using meshy.ai
+## Environment Variables
 
-The API keys for these are available in the root project .env, so use dotenv to access environment variables
+API keys are in the root project `.env` - use dotenv to access:
+- `OPENAI_API_KEY` - OpenAI (GPT-4, DALL-E)
+- `ANTHROPIC_API_KEY` - Anthropic (Claude)
+- `MESHY_API_KEY` - Meshy.ai (3D generation)
 
-Current Anthropic models:
-Claude Opus 4 claude-opus-4-20250514
-Claude Sonnet 4	claude-sonnet-4-20250514
+---
 
-Current OpenAI models:
-'gpt-4o'
-'gpt-4o-mini'
-'o1-2024-12-17'
+## Text & Image Generation
 
-Current OpenAI image models:
-'gpt-image-1' // newer and better, more controllable but needs special API key access / KYC
-'dall-e-3'
+Use **OpenAI GPT-4** for text/image generation and image description.
+
+### Current OpenAI Models
+
+| Model | Purpose |
+|-------|---------|
+| `gpt-4o` | Best quality text + vision |
+| `gpt-4o-mini` | Fast, cost-effective |
+| `o1-2024-12-17` | Reasoning model |
+
+### Current OpenAI Image Models
+
+| Model | Notes |
+|-------|-------|
+| `gpt-image-1` | Newer, better controllable (requires KYC) |
+| `dall-e-3` | Standard image generation |
+
+---
+
+## Anthropic Claude Models
+
+| Model | ID |
+|-------|-----|
+| Claude Opus 4 | `claude-opus-4-20250514` |
+| Claude Sonnet 4 | `claude-sonnet-4-20250514` |
+
+---
+
+## Meshy.ai - 3D Generation
+
+Use **Meshy.ai** for all 3D asset generation in HyperForge.
+
+**See full documentation**: `.cursor/rules/meshy.mdc`
+
+### Meshy AI Model Versions
+
+| Model | Recommended For |
+|-------|-----------------|
+| `meshy-4` | Image-to-3D (stable) |
+| `meshy-5` | Image-to-3D, Retexture (improved geometry) |
+| `meshy-6` | Text-to-3D (latest, best quality) |
+| `latest` | Always newest (currently Meshy-6) |
+
+### Meshy API Capabilities
+
+| Feature | API Version | Description |
+|---------|-------------|-------------|
+| Image-to-3D | v1 | Convert images to 3D models |
+| Text-to-3D | v2 | Generate 3D from text prompts (two-stage) |
+| Retexture | v1 | Apply new textures to models |
+| Rigging | v1 | Add skeleton + animations |
+
+### Meshy Documentation URLs
+
+- API Overview: https://www.meshy.ai/api
+- Image-to-3D: https://docs.meshy.ai/en/api/image-to-3d
+- Text-to-3D: https://docs.meshy.ai/api/text-to-3d
+- Quickstart: https://docs.meshy.ai/en/api/quick-start
+- Changelog: https://docs.meshy.ai/en/api/changelog
+
+### Polycount Guidelines (Three.js Web MMO)
+
+| Asset Class | Triangles | Examples |
+|-------------|-----------|----------|
+| Small Props | 500 - 2,000 | coins, potions, keys |
+| Medium Props | 2,000 - 5,000 | weapons, barrels |
+| Large Props | 5,000 - 10,000 | trees, statues |
+| NPCs | 2,000 - 10,000 | characters, monsters |
+| Buildings | 5,000 - 50,000 | houses to castles |
+
+**Max per mesh**: 100,000 triangles for web performance

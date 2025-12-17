@@ -1,6 +1,8 @@
 /**
  * API Route: Generate Voice Audio
  * Text-to-Speech using ElevenLabs
+ *
+ * Storage order: Supabase audio-generations bucket (primary), local fallback
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +14,10 @@ import {
   GAME_VOICE_PRESETS,
   getPresetVoiceSettings,
 } from "@/lib/audio/elevenlabs-service";
+import {
+  uploadAudio,
+  isSupabaseConfigured,
+} from "@/lib/storage/supabase-storage";
 import type { VoiceAsset } from "@/types/audio";
 
 export async function POST(request: NextRequest) {
@@ -102,23 +108,51 @@ export async function POST(request: NextRequest) {
       generatedAt: new Date().toISOString(),
     };
 
-    // Save to disk if requested
+    // Save audio file
     if (saveToAsset) {
-      const assetsDir =
-        process.env.HYPERFORGE_ASSETS_DIR || path.join(process.cwd(), "assets");
-      const audioDir = path.join(assetsDir, "audio", "voice");
+      const filename = `voice_${assetId}.mp3`;
 
-      // Create directory if needed
-      await fs.mkdir(audioDir, { recursive: true });
+      // Try Supabase first (primary storage)
+      if (isSupabaseConfigured()) {
+        try {
+          const uploadResult = await uploadAudio(
+            result.audio,
+            filename,
+            "audio/mpeg",
+          );
+          if (uploadResult.success) {
+            asset.url = uploadResult.url;
+            console.log("[API] Voice saved to Supabase:", uploadResult.url);
+          } else {
+            throw new Error(uploadResult.error || "Upload failed");
+          }
+        } catch (error) {
+          console.warn(
+            "[API] Supabase upload failed, falling back to local:",
+            error,
+          );
+          // Fall through to local storage
+        }
+      }
 
-      // Save audio file
-      const filename = `${assetId}.mp3`;
-      const filepath = path.join(audioDir, filename);
-      await fs.writeFile(filepath, result.audio);
+      // Local fallback if Supabase not configured or failed
+      if (!asset.url) {
+        const assetsDir =
+          process.env.HYPERFORGE_ASSETS_DIR ||
+          path.join(process.cwd(), "assets");
+        const audioDir = path.join(assetsDir, "audio", "voice");
 
-      asset.url = `/api/assets/audio/voice/${filename}`;
+        // Create directory if needed
+        await fs.mkdir(audioDir, { recursive: true });
 
-      console.log("[API] Voice saved:", filepath);
+        // Save audio file
+        const filepath = path.join(audioDir, filename);
+        await fs.writeFile(filepath, result.audio);
+
+        asset.url = `/api/audio/file/voice/${filename}`;
+
+        console.log("[API] Voice saved locally:", filepath);
+      }
     }
 
     // Return audio as base64 for immediate playback

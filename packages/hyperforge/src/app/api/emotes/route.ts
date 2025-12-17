@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadVRMEmotes } from "@/lib-core/cdn/loader";
+import { loadVRMEmotes } from "@/lib/cdn/loader";
 
 /**
  * GET /api/emotes - Get available emotes for VRM animation testing

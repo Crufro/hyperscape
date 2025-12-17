@@ -32,7 +32,7 @@ import {
 import {
   convertGLBToVRM,
   type VRMConversionResult,
-} from "@/services/retargeting/VRMConverter";
+} from "@/services/vrm/VRMConverter";
 
 interface Asset {
   id: string;

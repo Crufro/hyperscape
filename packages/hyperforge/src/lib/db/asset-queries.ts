@@ -5,12 +5,7 @@
 
 import { eq, desc, and, like, inArray } from "drizzle-orm";
 import { db } from "./client";
-import {
-  assets,
-  publishHistory,
-  type Asset,
-  type NewAsset,
-} from "../../../lib/db/schema";
+import { assets, publishHistory, type Asset, type NewAsset } from "./schema";
 
 // Default user ID for internal dev use (no auth required)
 const DEFAULT_USER_ID = "hyperforge-dev";
