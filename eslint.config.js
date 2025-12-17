@@ -1,7 +1,6 @@
 import js from "@eslint/js";
 import typescript from "@typescript-eslint/eslint-plugin";
 import typescriptParser from "@typescript-eslint/parser";
-import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   js.configs.recommended,
@@ -114,31 +113,10 @@ export default [
         URL: "readonly",
         URLSearchParams: "readonly",
         HTMLImageElement: "readonly",
-        HTMLAudioElement: "readonly",
-        HTMLHeadingElement: "readonly",
-        HTMLParagraphElement: "readonly",
-        HTMLLabelElement: "readonly",
-        HTMLButtonElement: "readonly",
-        SVGSVGElement: "readonly",
         ImageBitmap: "readonly",
         TexImageSource: "readonly",
         AudioBuffer: "readonly",
         CSSStyleDeclaration: "readonly",
-        FileReader: "readonly",
-        AbortController: "readonly",
-        AbortSignal: "readonly",
-        DOMException: "readonly",
-        ProgressEvent: "readonly",
-        ProgressEventInit: "readonly",
-        EventTarget: "readonly",
-        ImageData: "readonly",
-        RequestInit: "readonly",
-        alert: "readonly",
-        confirm: "readonly",
-        atob: "readonly",
-        cancelAnimationFrame: "readonly",
-        globalThis: "readonly",
-        require: "readonly",
 
         // Cloudflare Workers / Web Platform API globals
         Request: "readonly",
@@ -166,7 +144,6 @@ export default [
     },
     plugins: {
       "@typescript-eslint": typescript,
-      "react-hooks": reactHooks,
     },
     rules: {
       // TypeScript rules - Strong typing enforcement
@@ -203,10 +180,6 @@ export default [
       "no-constant-condition": "warn",
       "no-cond-assign": "warn",
       "no-fallthrough": "warn",
-
-      // React hooks rules
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
     },
   },
   {
@@ -220,18 +193,6 @@ export default [
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-var-requires": "off",
       "no-undef": "off",
-    },
-  },
-  {
-    // Relax rules for test files - common to have imports for setup that aren't directly used
-    files: [
-      "**/__tests__/**/*.{js,ts,tsx}",
-      "**/*.test.{js,ts,tsx}",
-      "**/*.spec.{js,ts,tsx}",
-    ],
-    rules: {
-      "@typescript-eslint/no-unused-vars": "off",
-      "prefer-const": "off",
     },
   },
   {

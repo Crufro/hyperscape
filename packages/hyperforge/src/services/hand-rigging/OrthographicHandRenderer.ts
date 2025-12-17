@@ -3,6 +3,7 @@
  * Captures orthographic views of hands from 3D models for pose detection
  */
 
+/* global ImageData */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
@@ -39,10 +40,11 @@ export interface WristBoneInfo {
 }
 
 export class OrthographicHandRenderer {
-  private renderer: THREE.WebGLRenderer;
-  private scene: THREE.Scene;
-  private camera: THREE.OrthographicCamera;
-  private loader: GLTFLoader;
+  private renderer: THREE.WebGLRenderer | null = null;
+  private scene: THREE.Scene | null = null;
+  private camera: THREE.OrthographicCamera | null = null;
+  private loader: GLTFLoader | null = null;
+  private initialized = false;
 
   // Default capture settings
   private readonly DEFAULT_RESOLUTION = 512;
@@ -50,6 +52,16 @@ export class OrthographicHandRenderer {
   private readonly CAPTURE_DISTANCE = 1.0;
 
   constructor() {
+    // Lazy initialization - WebGL is only created when first needed
+    // This allows the class to be instantiated in Node.js for testing pure logic
+  }
+
+  /**
+   * Initialize WebGL components (called lazily on first use)
+   */
+  private ensureInitialized(): void {
+    if (this.initialized) return;
+
     // Create WebGL renderer
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -94,6 +106,7 @@ export class OrthographicHandRenderer {
 
     // Create loader
     this.loader = new GLTFLoader();
+    this.initialized = true;
   }
 
   /**
@@ -186,22 +199,25 @@ export class OrthographicHandRenderer {
     wristInfo: WristBoneInfo,
     options: CaptureOptions = {},
   ): Promise<HandCaptureResult> {
+    // Initialize WebGL components on first use
+    this.ensureInitialized();
+
     const resolution = options.resolution || this.DEFAULT_RESOLUTION;
     const padding = options.padding || this.DEFAULT_PADDING;
     const backgroundColor = options.backgroundColor || "#000000";
 
     // Update renderer size
-    this.renderer.setSize(resolution, resolution);
+    this.renderer!.setSize(resolution, resolution);
 
     // Clear scene
-    while (this.scene.children.length > 2) {
+    while (this.scene!.children.length > 2) {
       // Keep lights
-      const child = this.scene.children[2];
-      this.scene.remove(child);
+      const child = this.scene!.children[2];
+      this.scene!.remove(child);
     }
 
     // Set background
-    this.scene.background = new THREE.Color(backgroundColor);
+    this.scene!.background = new THREE.Color(backgroundColor);
 
     // Clone and add model to scene
     const modelClone = model.clone(true);
@@ -234,7 +250,7 @@ export class OrthographicHandRenderer {
       }
     });
 
-    this.scene.add(modelClone);
+    this.scene!.add(modelClone);
 
     // Ensure the model is at world scale
     modelClone.updateMatrixWorld(true);
@@ -247,14 +263,14 @@ export class OrthographicHandRenderer {
     );
 
     // Position camera
-    this.camera.position.copy(cameraPos);
+    this.camera!.position.copy(cameraPos);
 
     // Look at a point forward from the wrist (towards fingers)
     const lookAtPoint = wristInfo.position.clone();
     lookAtPoint.add(wristInfo.normal.clone().multiplyScalar(0.08));
 
-    this.camera.lookAt(lookAtPoint);
-    this.camera.up.set(0, 1, 0);
+    this.camera!.lookAt(lookAtPoint);
+    this.camera!.up.set(0, 1, 0);
 
     // Update camera projection to frame the hand region
     const handBounds = this.estimateHandBounds(
@@ -264,21 +280,21 @@ export class OrthographicHandRenderer {
     this.updateCameraFrustum(handBounds, padding);
 
     // Update matrices
-    this.camera.updateProjectionMatrix();
-    this.camera.updateMatrixWorld();
+    this.camera!.updateProjectionMatrix();
+    this.camera!.updateMatrixWorld();
 
     // Add debug axes if requested
     if (options.showAxes) {
       const axesHelper = new THREE.AxesHelper(0.1);
       axesHelper.position.copy(wristInfo.position);
-      this.scene.add(axesHelper);
+      this.scene!.add(axesHelper);
     }
 
     // Render
-    this.renderer.render(this.scene, this.camera);
+    this.renderer!.render(this.scene!, this.camera!);
 
     // Get canvas and create a 2D copy for image data extraction
-    const webglCanvas = this.renderer.domElement;
+    const webglCanvas = this.renderer!.domElement;
 
     // Ensure the WebGL canvas has content
     if (!webglCanvas || webglCanvas.width === 0 || webglCanvas.height === 0) {
@@ -302,13 +318,13 @@ export class OrthographicHandRenderer {
     const imageData = resultCtx.getImageData(0, 0, resolution, resolution);
 
     // Clean up cloned model
-    this.scene.remove(modelClone);
+    this.scene!.remove(modelClone);
 
     return {
       canvas: resultCanvas,
       imageData,
-      cameraMatrix: this.camera.matrixWorld.clone(),
-      projectionMatrix: this.camera.projectionMatrix.clone(),
+      cameraMatrix: this.camera!.matrixWorld.clone(),
+      projectionMatrix: this.camera!.projectionMatrix.clone(),
       worldBounds: handBounds,
       wristPosition: wristInfo.position.clone(),
       handNormal: wristInfo.normal.clone(),
@@ -410,7 +426,7 @@ export class OrthographicHandRenderer {
     padding: number,
   ): void {
     // Project bounds to camera space
-    const cameraMatrixInverse = this.camera.matrixWorldInverse;
+    const cameraMatrixInverse = this.camera!.matrixWorldInverse;
 
     const minCamera = bounds.min.clone().applyMatrix4(cameraMatrixInverse);
     const maxCamera = bounds.max.clone().applyMatrix4(cameraMatrixInverse);
@@ -423,12 +439,12 @@ export class OrthographicHandRenderer {
 
     // Update camera frustum
     const aspect = 1;
-    this.camera.left = (-frustumSize * aspect) / 2;
-    this.camera.right = (frustumSize * aspect) / 2;
-    this.camera.top = frustumSize / 2;
-    this.camera.bottom = -frustumSize / 2;
+    this.camera!.left = (-frustumSize * aspect) / 2;
+    this.camera!.right = (frustumSize * aspect) / 2;
+    this.camera!.top = frustumSize / 2;
+    this.camera!.bottom = -frustumSize / 2;
 
-    this.camera.updateProjectionMatrix();
+    this.camera!.updateProjectionMatrix();
   }
 
   /**
@@ -487,17 +503,22 @@ export class OrthographicHandRenderer {
    * Cleanup resources
    */
   dispose(): void {
-    this.renderer.dispose();
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
     // Dispose of any geometries, materials, textures in the scene
-    this.scene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry?.dispose();
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat) => mat.dispose());
-        } else {
-          child.material?.dispose();
+    if (this.scene) {
+      this.scene.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry?.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((mat) => mat.dispose());
+          } else {
+            child.material?.dispose();
+          }
         }
-      }
-    });
+      });
+    }
+    this.initialized = false;
   }
 }

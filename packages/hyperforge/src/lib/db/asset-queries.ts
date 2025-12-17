@@ -3,7 +3,7 @@
  * CRUD operations for assets using Drizzle ORM
  */
 
-import { eq, desc, and, like, inArray } from "drizzle-orm";
+import { eq, desc, and, like, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./client";
 import { assets, publishHistory, type Asset, type NewAsset } from "./schema";
 
@@ -297,4 +297,29 @@ export async function getAssetCountByStatus(): Promise<Record<string, number>> {
   }
 
   return counts;
+}
+
+/**
+ * Get generation history - assets that have generation metadata (prompt)
+ * Returns most recent generations first
+ */
+export async function getGenerationHistory(
+  limit: number = 50,
+  offset: number = 0,
+): Promise<Asset[]> {
+  return db
+    .select()
+    .from(assets)
+    .where(isNotNull(assets.prompt))
+    .orderBy(desc(assets.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/**
+ * Get generation history count
+ */
+export async function getGenerationHistoryCount(): Promise<number> {
+  const result = await db.select().from(assets).where(isNotNull(assets.prompt));
+  return result.length;
 }

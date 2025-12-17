@@ -1,3 +1,4 @@
+/* global RequestInit */
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -59,12 +60,23 @@ interface RedPixelBounds {
 }
 
 export class WeaponHandleDetector {
-  private renderer: THREE.WebGLRenderer;
-  private scene: THREE.Scene;
-  private camera: THREE.OrthographicCamera;
-  private loader: GLTFLoader;
+  private renderer: THREE.WebGLRenderer | null = null;
+  private scene: THREE.Scene | null = null;
+  private camera: THREE.OrthographicCamera | null = null;
+  private loader: GLTFLoader | null = null;
+  private initialized = false;
 
   constructor() {
+    // Lazy initialization - WebGL is only created when first needed
+    // This allows the class to be instantiated in Node.js for testing pure logic
+  }
+
+  /**
+   * Initialize WebGL components (called lazily on first use)
+   */
+  private ensureInitialized(): void {
+    if (this.initialized) return;
+
     // Initialize Three.js components
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -80,6 +92,7 @@ export class WeaponHandleDetector {
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
 
     this.loader = new GLTFLoader();
+    this.initialized = true;
   }
 
   async detectHandleArea(
@@ -88,6 +101,9 @@ export class WeaponHandleDetector {
   ): Promise<HandleDetectionResult> {
     log.info("Starting weapon handle detection", { modelUrl });
     log.debug("Consensus mode", { useConsensus });
+
+    // Initialize WebGL components on first use
+    this.ensureInitialized();
 
     // Ensure everything is initialized
     if (!this.scene || !this.camera || !this.renderer || !this.loader) {
@@ -1334,28 +1350,34 @@ export class WeaponHandleDetector {
 
   // Cleanup method
   dispose(): void {
-    // Clean up Three.js resources
-    this.scene.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        if (object.geometry) {
-          object.geometry.dispose();
-        }
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
-          } else {
-            object.material.dispose();
+    // Clean up Three.js resources (only if initialized)
+    if (this.scene) {
+      this.scene.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          if (object.geometry) {
+            object.geometry.dispose();
+          }
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose());
+            } else {
+              object.material.dispose();
+            }
           }
         }
-      }
-    });
+      });
 
-    // Clear the scene
-    while (this.scene.children.length > 0) {
-      this.scene.remove(this.scene.children[0]);
+      // Clear the scene
+      while (this.scene.children.length > 0) {
+        this.scene.remove(this.scene.children[0]);
+      }
     }
 
-    this.renderer.dispose();
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
+
+    this.initialized = false;
   }
 
   /**

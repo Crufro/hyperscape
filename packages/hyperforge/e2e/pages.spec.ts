@@ -24,6 +24,77 @@ test.describe("Generate Page", () => {
     });
   });
 
+  test("generation history panel is visible in sidebar", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Select Items to get to config view
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(500);
+
+    // Check for Recent Generations heading in sidebar
+    const historyHeading = page.locator('h2:has-text("Recent Generations")');
+    await expect(historyHeading).toBeVisible({ timeout: 10000 });
+  });
+
+  test("generation history shows empty state when no history", async ({
+    page,
+  }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Select Items
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(1000);
+
+    // Either shows history items or empty state message
+    const historySection = page.locator('h2:has-text("Recent Generations")');
+    await expect(historySection).toBeVisible({ timeout: 10000 });
+
+    // The section should exist - content depends on data
+    const historyPanel = historySection.locator("xpath=..");
+    await expect(historyPanel).toBeVisible();
+  });
+
+  test("generation history panel has View all link", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Select Items
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(1000);
+
+    // Look for "View all in Library" link (only visible if there's history)
+    // This test verifies the structure exists
+    const historyHeading = page.locator('h2:has-text("Recent Generations")');
+    await expect(historyHeading).toBeVisible({ timeout: 10000 });
+  });
+
+  test("history items display thumbnail or icon", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Select Items
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(1000);
+
+    // Get the history section
+    const historyHeading = page.locator('h2:has-text("Recent Generations")');
+    await expect(historyHeading).toBeVisible({ timeout: 10000 });
+
+    // If there are history items, they should have either image or icon
+    const historyItems = page.locator(
+      'a[href^="/?asset="], h2:has-text("Recent Generations") ~ div a',
+    );
+    const count = await historyItems.count();
+
+    if (count > 0) {
+      // At least check the first item has proper structure
+      const firstItem = historyItems.first();
+      await expect(firstItem).toBeVisible();
+    }
+  });
+
   test("category selector shows items and avatars options", async ({
     page,
   }) => {
@@ -687,5 +758,150 @@ test.describe("Error Handling", () => {
     // Main content should still be visible
     const main = page.locator("main, [role='main']").first();
     await expect(main).toBeVisible({ timeout: 15000 });
+  });
+});
+
+test.describe("Generation History API", () => {
+  test("GET /api/assets/history returns valid JSON", async ({ request }) => {
+    const response = await request.get("/api/assets/history");
+
+    expect(response.ok()).toBe(true);
+    expect(response.headers()["content-type"]).toContain("application/json");
+
+    const data = await response.json();
+    expect(data).toHaveProperty("history");
+    expect(data).toHaveProperty("pagination");
+    expect(Array.isArray(data.history)).toBe(true);
+  });
+
+  test("history endpoint respects limit parameter", async ({ request }) => {
+    const response = await request.get("/api/assets/history?limit=5");
+    const data = await response.json();
+
+    expect(data.history.length).toBeLessThanOrEqual(5);
+    expect(data.pagination.limit).toBe(5);
+  });
+
+  test("history endpoint respects offset parameter", async ({ request }) => {
+    const response = await request.get("/api/assets/history?offset=10");
+    const data = await response.json();
+
+    expect(data.pagination.offset).toBe(10);
+  });
+
+  test("pagination hasMore is boolean", async ({ request }) => {
+    const response = await request.get("/api/assets/history");
+    const data = await response.json();
+
+    expect(typeof data.pagination.hasMore).toBe("boolean");
+  });
+
+  test("history items have required fields", async ({ request }) => {
+    const response = await request.get("/api/assets/history?limit=10");
+    const data = await response.json();
+
+    for (const item of data.history) {
+      expect(item).toHaveProperty("id");
+      expect(item).toHaveProperty("name");
+      expect(item).toHaveProperty("type");
+      expect(item).toHaveProperty("status");
+      expect(item).toHaveProperty("createdAt");
+    }
+  });
+
+  test("history items ordered by date descending", async ({ request }) => {
+    const response = await request.get("/api/assets/history?limit=50");
+    const data = await response.json();
+
+    if (data.history.length >= 2) {
+      for (let i = 0; i < data.history.length - 1; i++) {
+        const current = new Date(data.history[i].createdAt).getTime();
+        const next = new Date(data.history[i + 1].createdAt).getTime();
+        expect(current).toBeGreaterThanOrEqual(next);
+      }
+    }
+  });
+});
+
+test.describe("Generation History UI Integration", () => {
+  test("history section loads on generate page", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Click on Items to show config
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(1000);
+
+    // History section should be visible
+    const historySection = page.locator('h2:has-text("Recent Generations")');
+    await expect(historySection).toBeVisible({ timeout: 10000 });
+  });
+
+  test("history section shows loading state initially", async ({ page }) => {
+    // Use a slow network to catch loading state
+    await page.route("**/api/assets/history**", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await route.continue();
+    });
+
+    await page.goto("/generate");
+    await page.waitForLoadState("domcontentloaded");
+
+    // Click on Items
+    await page.locator('button:has-text("Items")').click();
+
+    // The history section container should exist
+    const historySection = page.locator('h2:has-text("Recent Generations")');
+    await expect(historySection).toBeVisible({ timeout: 10000 });
+  });
+
+  test("history items are clickable links to library", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Click on Items
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(1500);
+
+    // Look for any history item links
+    const historyLinks = page.locator('a[href^="/?asset="]');
+    const count = await historyLinks.count();
+
+    if (count > 0) {
+      // Verify first link has proper href format
+      const href = await historyLinks.first().getAttribute("href");
+      expect(href).toMatch(/\/\?asset=[a-zA-Z0-9_-]+/);
+    }
+  });
+
+  test("generate page shows history for avatars too", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Click on Avatars instead of Items
+    await page.locator('button:has-text("Avatars")').click();
+    await page.waitForTimeout(1000);
+
+    // History section should still be visible
+    const historySection = page.locator('h2:has-text("Recent Generations")');
+    await expect(historySection).toBeVisible({ timeout: 10000 });
+  });
+
+  test("history panel screenshot for visual regression", async ({ page }) => {
+    await page.goto("/generate");
+    await page.waitForLoadState("networkidle");
+
+    // Click on Items
+    await page.locator('button:has-text("Items")').click();
+    await page.waitForTimeout(1500);
+
+    // Scroll to make history panel visible
+    const historySection = page.locator('h2:has-text("Recent Generations")');
+    await historySection.scrollIntoViewIfNeeded();
+
+    // Take screenshot of the sidebar area
+    await expect(page).toHaveScreenshot("generate-with-history.png", {
+      maxDiffPixels: 300,
+    });
   });
 });

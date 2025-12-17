@@ -16,9 +16,6 @@ import { useVariantStore } from "@/stores/variant-store";
 import type { AssetData } from "@/types/asset";
 import type { TextureVariant } from "@/components/generation/GenerationFormRouter";
 import { Palette, X, Package } from "lucide-react";
-import { logger } from "@/lib/utils";
-
-const log = logger.child("AssetLibrary");
 
 interface AssetLibraryProps {
   onAssetSelect?: (asset: AssetData) => void;
@@ -61,10 +58,10 @@ export function AssetLibrary({ onAssetSelect }: AssetLibraryProps) {
 
       if (response.ok) {
         const result = await response.json();
-        log.info("Variants created:", result);
+        console.log("Variants created:", result);
       }
     } catch (error) {
-      log.error("Failed to create variants:", error);
+      console.error("Failed to create variants:", error);
     } finally {
       setIsCreatingVariants(false);
       setShowVariantModal(false);

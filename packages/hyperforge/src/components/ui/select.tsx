@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { GlassPanel } from "./glass-panel";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion as _motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 interface Option {
   value: string;

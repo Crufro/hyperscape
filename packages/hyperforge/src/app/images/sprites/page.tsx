@@ -6,9 +6,9 @@ import {
   Sparkles,
   Download,
   Loader2,
+  Image as ImageIcon,
   Check,
   Wand2,
-  Image as ImageIcon,
 } from "lucide-react";
 import { StudioPageLayout } from "@/components/layout/StudioPageLayout";
 import { SpectacularButton } from "@/components/ui/spectacular-button";

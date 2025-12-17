@@ -22,6 +22,8 @@ import {
   Upload,
   X,
   ImageIcon,
+  History,
+  Clock,
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
@@ -76,6 +78,19 @@ interface MaterialPreset {
 
 type GenerationType = "item" | "avatar" | null;
 type ActiveView = "config" | "progress" | "results";
+
+interface GenerationHistoryItem {
+  id: string;
+  name: string;
+  type: string;
+  category: string | null;
+  prompt: string | null;
+  aiModel: string | null;
+  status: string;
+  thumbnailUrl: string | null;
+  modelUrl: string | null;
+  createdAt: string;
+}
 
 export default function GeneratePage() {
   // Generation type state
@@ -142,6 +157,12 @@ export default function GeneratePage() {
   >(null);
   const [generateConceptArt, setGenerateConceptArt] = useState(true); // AI-generated concept art
 
+  // Generation history state
+  const [generationHistory, setGenerationHistory] = useState<
+    GenerationHistoryItem[]
+  >([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
   // Load prompts on mount
   useEffect(() => {
     async function loadPrompts() {
@@ -160,6 +181,38 @@ export default function GeneratePage() {
     }
     loadPrompts();
   }, []);
+
+  // Load generation history on mount
+  useEffect(() => {
+    async function loadHistory() {
+      setIsLoadingHistory(true);
+      try {
+        const res = await fetch("/api/assets/history?limit=20");
+        if (res.ok) {
+          const data = await res.json();
+          setGenerationHistory(data.history || []);
+        }
+      } catch (error) {
+        log.error({ error }, "Failed to load generation history");
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    }
+    loadHistory();
+  }, []);
+
+  // Refresh history after generation completes
+  const refreshHistory = async () => {
+    try {
+      const res = await fetch("/api/assets/history?limit=20");
+      if (res.ok) {
+        const data = await res.json();
+        setGenerationHistory(data.history || []);
+      }
+    } catch (error) {
+      log.error({ error }, "Failed to refresh history");
+    }
+  };
 
   // Update asset type when generation type changes
   useEffect(() => {
@@ -211,7 +264,7 @@ export default function GeneratePage() {
     if (file) {
       setReferenceImageFile(file);
       // Create preview URL
-      const reader = new FileReader();
+      const reader = new window.FileReader();
       reader.onload = (event) => {
         setReferenceImagePreview(event.target?.result as string);
       };
@@ -232,7 +285,7 @@ export default function GeneratePage() {
   // Handle generation with streaming progress
   const handleStartGeneration = async () => {
     if (!assetName || !description) {
-      alert("Please fill in all required fields");
+      window.alert("Please fill in all required fields");
       return;
     }
 
@@ -378,6 +431,8 @@ export default function GeneratePage() {
 
                   setIsGenerating(false);
                   setActiveView("results");
+                  // Refresh history to include the new asset
+                  refreshHistory();
                 } else if (data.type === "error") {
                   throw new Error(data.error);
                 }
@@ -392,7 +447,7 @@ export default function GeneratePage() {
       log.error({ error }, "Generation failed");
       setIsGenerating(false);
       setActiveView("config");
-      alert(
+      window.alert(
         `Generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
@@ -489,7 +544,7 @@ export default function GeneratePage() {
   // Generate concept art preview
   const handleGenerateConceptArt = async () => {
     if (!description) {
-      alert("Please enter a description first");
+      window.alert("Please enter a description first");
       return;
     }
 
@@ -519,11 +574,11 @@ export default function GeneratePage() {
           setReferenceImagePreview(null);
         }
       } else {
-        alert("Failed to generate concept art");
+        window.alert("Failed to generate concept art");
       }
     } catch (error) {
       log.error({ error }, "Concept art generation failed");
-      alert("Failed to generate concept art");
+      window.alert("Failed to generate concept art");
     } finally {
       setIsGeneratingConceptArt(false);
     }
@@ -896,7 +951,7 @@ export default function GeneratePage() {
                             Mesh Topology
                           </label>
                           <div className="grid grid-cols-2 gap-2">
-                            <button className="p-3 rounded-lg border border-glass-border hover:border-cyan-500/50 bg-cyan-500/10 border-cyan-500/50 text-left">
+                            <button className="p-3 rounded-lg border border-cyan-500/50 hover:border-cyan-400/70 bg-cyan-500/10 text-left">
                               <div className="text-sm font-medium">
                                 Quad Mesh
                               </div>
@@ -1195,6 +1250,82 @@ export default function GeneratePage() {
                     </>
                   )}
                 </SpectacularButton>
+
+                {/* Generation History */}
+                <GlassPanel className="p-6">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <History className="w-5 h-5 text-cyan-400" />
+                    Recent Generations
+                  </h2>
+
+                  {isLoadingHistory ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : generationHistory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No generations yet. Create your first asset!
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {generationHistory.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={`/?asset=${item.id}`}
+                          className="flex items-center gap-3 p-2 rounded-lg border border-glass-border hover:border-cyan-500/50 hover:bg-glass-bg/50 transition-all"
+                        >
+                          {item.thumbnailUrl ? (
+                            <Image
+                              src={item.thumbnailUrl}
+                              alt={item.name}
+                              width={40}
+                              height={40}
+                              className="w-10 h-10 rounded object-cover bg-glass-bg"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-glass-bg flex items-center justify-center">
+                              {item.type === "npc" ||
+                              item.type === "character" ? (
+                                <User className="w-5 h-5 text-purple-400" />
+                              ) : (
+                                <Package className="w-5 h-5 text-cyan-400" />
+                              )}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {item.name}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              {new Date(item.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div
+                            className={cn(
+                              "w-2 h-2 rounded-full",
+                              item.status === "completed"
+                                ? "bg-green-400"
+                                : item.status === "failed"
+                                  ? "bg-red-400"
+                                  : "bg-yellow-400",
+                            )}
+                          />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {generationHistory.length > 0 && (
+                    <Link
+                      href="/"
+                      className="block text-center text-sm text-cyan-400 hover:text-cyan-300 mt-4 transition-colors"
+                    >
+                      View all in Library →
+                    </Link>
+                  )}
+                </GlassPanel>
               </div>
             </div>
           )}
