@@ -6,7 +6,7 @@
  * - CSS fireworks animation
  * - Placeholder audio fanfare (Web Audio API)
  * - Chat message integration (OSRS-style game message)
- * - Skill unlock display (Phase 5)
+ * - Skill unlock display
  */
 
 // Main component
@@ -15,6 +15,7 @@ export { LevelUpNotification } from "./LevelUpNotification";
 // Sub-components
 export { LevelUpPopup } from "./LevelUpPopup";
 export { FireworksEffect } from "./FireworksEffect";
+export { UnlocksSection } from "./UnlocksSection";
 
 // Hooks
 export { useLevelUpState } from "./useLevelUpState";

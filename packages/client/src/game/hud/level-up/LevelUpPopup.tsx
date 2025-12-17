@@ -4,11 +4,10 @@
  * Features:
  * - Centered modal with skill icon and level
  * - CSS fireworks animation celebration
+ * - Skill unlock display (what's new at this level)
  * - Auto-dismiss after 5 seconds
  * - Click anywhere to dismiss early
  * - Non-blocking (player can continue actions)
- *
- * Unlocks section added in Phase 5.
  */
 
 import { useEffect } from "react";
@@ -17,6 +16,7 @@ import { SKILL_ICONS } from "@hyperscape/shared";
 import type { LevelUpEvent } from "./useLevelUpState";
 import { capitalizeSkill } from "./utils";
 import { FireworksEffect } from "./FireworksEffect";
+import { UnlocksSection } from "./UnlocksSection";
 
 /** Auto-dismiss duration in milliseconds */
 const AUTO_DISMISS_MS = 5000;
@@ -175,7 +175,7 @@ export function LevelUpPopup({ event, onDismiss }: LevelUpPopupProps) {
         <CongratsText>Congratulations!</CongratsText>
         <LevelText>You've advanced a {capitalizeSkill(skill)} level!</LevelText>
         <NewLevelBadge>Level {newLevel}</NewLevelBadge>
-        {/* UnlocksSection added in Phase 5 */}
+        <UnlocksSection skill={skill} level={newLevel} />
         <ClickToContinue>Click anywhere to continue</ClickToContinue>
       </PopupContainer>
     </>
