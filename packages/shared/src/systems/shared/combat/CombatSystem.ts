@@ -1787,6 +1787,71 @@ export class CombatSystem extends SystemBase {
       tickNumber + COMBAT_CONSTANTS.COMBAT_TIMEOUT_TICKS;
     this.nextAttackTicks.set(typedAttackerId, combatState.nextAttackTick);
 
+    // FIX: Auto-retaliate check for ongoing combat
+    // When a mob attacks a player via ongoing combat, the player may not have a
+    // combat state (e.g., they just killed their previous target). Check if we
+    // need to create a new retaliation state for the player.
+    if (combatState.targetType === "player") {
+      const targetPlayerState = this.stateService.getCombatData(targetId);
+      const shouldRetaliate =
+        this.playerSystem?.getPlayerAutoRetaliate(targetId) ?? true;
+
+      // Player needs a new retaliation state if:
+      // 1. They have auto-retaliate ON, AND
+      // 2. They have no combat state, OR their current target is dead/invalid
+      if (shouldRetaliate) {
+        const needsNewTarget =
+          !targetPlayerState ||
+          !targetPlayerState.inCombat ||
+          !this.isEntityAlive(
+            this.getEntity(
+              String(targetPlayerState.targetId),
+              targetPlayerState.targetType,
+            ),
+            targetPlayerState.targetType,
+          );
+
+        if (needsNewTarget) {
+          // Create retaliation state for player targeting this attacker
+          const playerAttackSpeed = this.getAttackSpeedTicks(
+            createEntityID(targetId),
+            "player",
+          );
+          const retaliationDelay = calculateRetaliationDelay(playerAttackSpeed);
+
+          this.stateService.createRetaliatorState(
+            createEntityID(targetId),
+            typedAttackerId,
+            "player",
+            combatState.attackerType,
+            tickNumber,
+            retaliationDelay,
+            playerAttackSpeed,
+          );
+
+          // Sync combat state to player entity
+          this.stateService.syncCombatStateToEntity(
+            targetId,
+            attackerId,
+            "player",
+          );
+
+          // Face the attacker
+          this.rotationManager.rotateTowardsTarget(
+            targetId,
+            attackerId,
+            "player",
+            combatState.attackerType,
+          );
+
+          // Clear any server face target since player now has combat target
+          this.emitTypedEvent(EventType.COMBAT_CLEAR_FACE_TARGET, {
+            playerId: targetId,
+          });
+        }
+      }
+    }
+
     // MVP: Emit melee attack event for visual feedback
     this.emitTypedEvent(EventType.COMBAT_MELEE_ATTACK, {
       attackerId,
