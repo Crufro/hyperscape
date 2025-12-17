@@ -85,7 +85,11 @@ import { InitializationManager } from "./initialization";
 import { ConnectionHandler } from "./connection-handler";
 import { InteractionSessionManager } from "./InteractionSessionManager";
 import { handleChatAdded } from "./handlers/chat";
-import { handleAttackMob, handleChangeAttackStyle } from "./handlers/combat";
+import {
+  handleAttackMob,
+  handleChangeAttackStyle,
+  handleSetAutoRetaliate,
+} from "./handlers/combat";
 import {
   handlePickupItem,
   handleDropItem,
@@ -698,6 +702,9 @@ export class ServerNetwork extends System implements NetworkWithSocket {
 
     this.handlers["onChangeAttackStyle"] = (socket, data) =>
       handleChangeAttackStyle(socket, data, this.world);
+
+    this.handlers["onSetAutoRetaliate"] = (socket, data) =>
+      handleSetAutoRetaliate(socket, data, this.world);
 
     this.handlers["onPickupItem"] = (socket, data) =>
       handlePickupItem(socket, data, this.world);
