@@ -603,6 +603,13 @@ export class PlayerLocal extends Entity implements HotReloadable {
     };
     this.hyperscapePlayerId = data.id || "";
 
+    // Apply auto-retaliate setting from server if provided (persisted from DB)
+    const autoRetaliateFromData = (data as { autoRetaliate?: boolean })
+      .autoRetaliate;
+    if (typeof autoRetaliateFromData === "boolean") {
+      this.combat.autoRetaliate = autoRetaliateFromData;
+    }
+
     // Initialize emote to idle if not provided
     if (!this.emote && !data.e) {
       this.emote = "idle";

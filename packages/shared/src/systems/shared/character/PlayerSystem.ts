@@ -1900,8 +1900,23 @@ export class PlayerSystem extends SystemBase {
     playerId: string;
     callback?: (enabled: boolean) => void;
   }): void {
-    // Default to true if player not found (fail-safe)
-    const enabled = this.playerAutoRetaliate.get(data.playerId) ?? true;
+    // First try server-side Map (populated during enterWorld on server)
+    let enabled = this.playerAutoRetaliate.get(data.playerId);
+
+    // Client-side fallback: read from PlayerLocal.combat.autoRetaliate
+    // The client's Map is not populated, but PlayerLocal has the correct value from entity data
+    if (enabled === undefined && !this.world.isServer) {
+      const localPlayer = this.world.entities?.player;
+      if (localPlayer && localPlayer.id === data.playerId) {
+        // Access combat.autoRetaliate from PlayerLocal
+        const combat = (localPlayer as { combat?: { autoRetaliate?: boolean } })
+          .combat;
+        enabled = combat?.autoRetaliate ?? true;
+      }
+    }
+
+    // Final fallback: default to true (OSRS behavior)
+    enabled = enabled ?? true;
 
     if (data.callback) {
       data.callback(enabled);

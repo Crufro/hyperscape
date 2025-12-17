@@ -126,6 +126,9 @@ export interface Player {
 
   // Loading state - true while client is loading assets, player immune to aggro/combat
   isLoading?: boolean;
+
+  // Auto-retaliate initialization - top-level for entity creation, used to initialize combat.autoRetaliate
+  autoRetaliate?: boolean;
 }
 
 /**

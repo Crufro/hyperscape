@@ -33,9 +33,17 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
   const [targetHealth, setTargetHealth] = useState<PlayerHealth | null>(null);
   // Auto-retaliate state (OSRS default is ON)
   const [autoRetaliate, setAutoRetaliate] = useState<boolean>(() => {
-    const playerId = world.entities?.player?.id;
+    const player = world.entities?.player;
+    const playerId = player?.id;
+    // First check cache (for instant display on panel reopen)
     if (playerId && autoRetaliateCache.has(playerId)) {
       return autoRetaliateCache.get(playerId)!;
+    }
+    // Read directly from player entity (set from server data during entity creation)
+    const playerCombat = (player as { combat?: { autoRetaliate?: boolean } })
+      ?.combat;
+    if (typeof playerCombat?.autoRetaliate === "boolean") {
+      return playerCombat.autoRetaliate;
     }
     return true; // OSRS default: ON
   });
@@ -101,6 +109,18 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       autoRetaliateCache.set(playerId, enabled);
       setAutoRetaliate(enabled);
     });
+
+    // Direct fallback: read from player entity if callback doesn't fire
+    // This ensures we get the correct value even if the event system has issues
+    const player = world.entities?.player;
+    if (player) {
+      const playerCombat = (player as { combat?: { autoRetaliate?: boolean } })
+        ?.combat;
+      if (typeof playerCombat?.autoRetaliate === "boolean") {
+        autoRetaliateCache.set(playerId, playerCombat.autoRetaliate);
+        setAutoRetaliate(playerCombat.autoRetaliate);
+      }
+    }
 
     const onUpdate = (data: unknown) => {
       console.log("[CombatPanel] onUpdate event received:", data);
