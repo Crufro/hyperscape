@@ -215,11 +215,13 @@ export class ChaseState implements AIState {
   }
 
   update(context: AIStateContext, deltaTime: number): MobAIState | null {
-    // Check wander radius boundary (leashing)
+    // OSRS-ACCURATE LEASHING: Check against leashRange, not wanderRadius
+    // When leashed, NPC stops in place and resumes wandering (no walk-back)
     const spawnDistance = context.getDistanceFromSpawn();
-    if (spawnDistance > context.getWanderRadius()) {
+    if (spawnDistance > context.getLeashRange()) {
       context.setTarget(null);
-      return MobAIState.RETURN;
+      context.exitCombat(); // Reset combat state for immediate re-aggro
+      return MobAIState.IDLE; // Stop in place, resume wandering
     }
 
     // Validate target still exists
@@ -231,7 +233,7 @@ export class ChaseState implements AIState {
     const targetPlayer = context.getPlayer(targetId);
     if (!targetPlayer) {
       context.setTarget(null);
-      return MobAIState.RETURN;
+      return MobAIState.IDLE;
     }
 
     // TILE-BASED COMBAT RANGE CHECK (OSRS-style)
@@ -303,11 +305,13 @@ export class AttackState implements AIState {
   }
 
   update(context: AIStateContext, _deltaTime: number): MobAIState | null {
-    // Check wander radius boundary (can leash even while attacking)
+    // OSRS-ACCURATE LEASHING: Check against leashRange, not wanderRadius
+    // When leashed, NPC stops in place and resumes wandering (no walk-back)
     const spawnDistance = context.getDistanceFromSpawn();
-    if (spawnDistance > context.getWanderRadius()) {
+    if (spawnDistance > context.getLeashRange()) {
       context.setTarget(null);
-      return MobAIState.RETURN;
+      context.exitCombat(); // Reset combat state for immediate re-aggro
+      return MobAIState.IDLE; // Stop in place, resume wandering
     }
 
     // Validate target
@@ -363,12 +367,20 @@ export class AttackState implements AIState {
 }
 
 /**
- * RETURN State - Walking back to spawn (leashed)
+ * RETURN State - Walking back to spawn (RETREAT ONLY, not for leashing)
  *
- * IMPORTANT: Uses TILE-BASED distance check for arrival detection.
+ * IMPORTANT: This state is for EXPLICIT RETREAT scenarios only:
+ * - Mob stuck for too long (production safety)
+ * - Low HP retreat behavior (future feature)
+ * - Scripted boss retreat mechanics (future feature)
+ *
+ * Normal LEASHING does NOT use this state. When an NPC exceeds its leash range:
+ * - OSRS behavior: NPC stops in place → IDLE → resumes wandering
+ * - Our implementation: CHASE/ATTACK → IDLE (not RETURN)
+ *
+ * Uses TILE-BASED distance check for arrival detection.
  * Movement is tile-based (600ms ticks), so we must check if we're on the
- * same tile as spawn, not world-space distance. This prevents infinite
- * loops when spawn is on the same tile but different world position.
+ * same tile as spawn, not world-space distance.
  */
 export class ReturnState implements AIState {
   readonly name = MobAIState.RETURN;
