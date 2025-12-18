@@ -476,9 +476,10 @@ describe("OSRS Auto-Retaliate Movement", () => {
     });
   });
 
-  describe("RS3-style movement priority", () => {
-    it("does NOT emit COMBAT_FOLLOW_TARGET when player is actively moving", () => {
+  describe("OSRS-accurate auto-retaliate interrupts movement", () => {
+    it("ALWAYS emits COMBAT_FOLLOW_TARGET when auto-retaliate triggers (even if moving)", () => {
       // Player is actively moving (tileMovementActive = true)
+      // In OSRS, auto-retaliate INTERRUPTS movement and redirects player toward attacker
       const player = createTestPlayer("player1", {
         position: { x: 5.5, y: 0, z: 5.5 },
         autoRetaliate: true,
@@ -503,15 +504,21 @@ describe("OSRS Auto-Retaliate Movement", () => {
         targetType: "player",
       });
 
-      // Should NOT emit COMBAT_FOLLOW_TARGET - player keeps walking
+      // OSRS-ACCURATE: COMBAT_FOLLOW_TARGET should be emitted even when moving
+      // This replaces the player's current movement destination with the attacker
+      // Wiki: "the player's character walks/runs towards the monster attacking and fights back"
       const followEvent = world.emittedEvents.find(
         (e) => e.event === EventType.COMBAT_FOLLOW_TARGET,
       );
 
-      expect(followEvent).toBeUndefined();
+      expect(followEvent).toBeDefined();
+      expect(followEvent?.data).toMatchObject({
+        playerId: "player1",
+        targetId: "mob1",
+      });
     });
 
-    it("still creates combat state when player is moving", () => {
+    it("creates combat state when player is moving", () => {
       // Player is actively moving
       const player = createTestPlayer("player1", {
         position: { x: 5.5, y: 0, z: 5.5 },
@@ -535,7 +542,7 @@ describe("OSRS Auto-Retaliate Movement", () => {
         targetType: "player",
       });
 
-      // Combat should still be started (state created) even though follow is deferred
+      // Combat should be started and player redirected toward attacker
       const combatStartedEvent = world.emittedEvents.find(
         (e) => e.event === EventType.COMBAT_STARTED,
       );
@@ -543,7 +550,7 @@ describe("OSRS Auto-Retaliate Movement", () => {
       expect(combatStartedEvent).toBeDefined();
     });
 
-    it("emits COMBAT_FOLLOW_TARGET when player stops moving", () => {
+    it("emits COMBAT_FOLLOW_TARGET when player is standing still", () => {
       // Player starts stationary (tileMovementActive = false or undefined)
       const player = createTestPlayer("player1", {
         position: { x: 5.5, y: 0, z: 5.5 },
@@ -568,7 +575,7 @@ describe("OSRS Auto-Retaliate Movement", () => {
         targetType: "player",
       });
 
-      // Should emit COMBAT_FOLLOW_TARGET since player is standing still
+      // Should emit COMBAT_FOLLOW_TARGET to follow the attacker
       const followEvent = world.emittedEvents.find(
         (e) => e.event === EventType.COMBAT_FOLLOW_TARGET,
       );

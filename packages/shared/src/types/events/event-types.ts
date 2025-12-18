@@ -189,6 +189,7 @@ export enum EventType {
   COMBAT_LEVEL_CHANGED = "combat:level:changed",
   COMBAT_FOLLOW_TARGET = "combat:follow_target",
   COMBAT_PLAYER_DISENGAGE = "combat:player_disengage", // Player clicked away, cancel their attacking combat
+  PENDING_ATTACK_CANCEL = "combat:pending_attack_cancel", // Player clicked elsewhere, cancel pending attack
 
   // Server-controlled combat visuals (Phase 5 - Client display-only)
   // These events are sent from server to client to control combat visuals

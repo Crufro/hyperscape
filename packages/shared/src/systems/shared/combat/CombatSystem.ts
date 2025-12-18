@@ -719,12 +719,9 @@ export class CombatSystem extends SystemBase {
     // If auto-retaliate is ON and mob catches up and hits, player will start fighting again
     this.stateService.markInCombatWithoutTarget(playerId, targetId);
 
-    // Phase 5: Player should still face the mob that's attacking them
-    // Server-controlled face target (client is display-only)
-    this.emitTypedEvent(EventType.COMBAT_FACE_TARGET, {
-      playerId: playerId,
-      targetId: targetId,
-    });
+    // OSRS-ACCURATE: Do NOT face the mob when walking away
+    // Player should face their walking direction (handled by tile movement)
+    // Only face mob when auto-retaliate triggers (handled by enterCombat)
   }
 
   /**
@@ -1097,41 +1094,32 @@ export class CombatSystem extends SystemBase {
         targetAttackSpeedTicks,
       );
 
-      // RS3-STYLE MOVEMENT PRIORITY (Issue #321):
-      // Only rotate and follow if player is NOT actively moving.
-      // If moving, combat state is set but attacks/following are suppressed.
-      // Player will start following/attacking when they stop moving.
-      // checkRangeAndFollow() handles this when player stops.
-      const isMoving =
-        targetType === "player" && this.isPlayerMoving(String(targetId));
+      // OSRS-ACCURATE: Auto-retaliate ALWAYS redirects player toward attacker
+      // When hit with auto-retaliate ON, player stops any current movement and turns to fight
+      // The COMBAT_FOLLOW_TARGET event replaces any existing movement destination
+      // Wiki: "the player's character walks/runs towards the monster attacking and fights back"
 
-      if (!isMoving) {
-        // Player is standing still - rotate to face attacker
-        this.rotationManager.rotateTowardsTarget(
-          String(targetId),
-          String(attackerId),
-          targetType,
-          attackerType,
-        );
+      // NOTE: We do NOT call rotateTowardsTarget() here because:
+      // 1. COMBAT_FOLLOW_TARGET triggers movePlayerToward() which handles rotation
+      // 2. Having two rotation updates causes visual jank (quick turn-around-then-back)
+      // 3. Client's TileInterpolator will slerp smoothly to the new path direction
 
-        // Follow the attacker if this is a player target
-        if (targetType === "player" && attackerEntity) {
-          const attackerPos = getEntityPosition(attackerEntity);
-          if (attackerPos) {
-            this.emitTypedEvent(EventType.COMBAT_FOLLOW_TARGET, {
-              playerId: String(targetId),
-              targetId: String(attackerId),
-              targetPosition: {
-                x: attackerPos.x,
-                y: attackerPos.y,
-                z: attackerPos.z,
-              },
-            });
-          }
+      // Always emit follow event - this REPLACES any existing movement
+      // Player was walking to tile A, now walks to attacker instead
+      if (targetType === "player" && attackerEntity) {
+        const attackerPos = getEntityPosition(attackerEntity);
+        if (attackerPos) {
+          this.emitTypedEvent(EventType.COMBAT_FOLLOW_TARGET, {
+            playerId: String(targetId),
+            targetId: String(attackerId),
+            targetPosition: {
+              x: attackerPos.x,
+              y: attackerPos.y,
+              z: attackerPos.z,
+            },
+          });
         }
       }
-      // If moving: combat state is created but follow/rotation deferred
-      // checkRangeAndFollow will handle this when player stops
     }
 
     // Sync combat state to player entities for client-side combat awareness
@@ -1638,14 +1626,13 @@ export class CombatSystem extends SystemBase {
     // Only process player attackers (not players being attacked)
     if (combatState.attackerType !== "player") return;
 
-    // RS3-STYLE: Skip attack processing while player is moving
-    // Movement suppresses attacks, but combat state persists
-    if (this.isPlayerMoving(playerId)) {
-      // Extend combat timeout so it doesn't expire while moving
-      combatState.combatEndTick =
-        tickNumber + COMBAT_CONSTANTS.COMBAT_TIMEOUT_TICKS;
-      return; // Skip attack processing this tick
-    }
+    // OSRS-ACCURATE: No movement suppression needed
+    // If player has combat state, they're either:
+    // 1. Standing still fighting
+    // 2. Combat following (chasing their target)
+    // In both cases, attacks should happen when in range and cooldown ready
+    // Wiki: "follow and attack while chasing it"
+    // The disengage event handles the "escape" case by clearing combat state
 
     // Process emote resets for this player
     this.animationManager.processEntityEmoteReset(playerId, tickNumber);
@@ -1670,19 +1657,10 @@ export class CombatSystem extends SystemBase {
     const attackerId = String(combatState.attackerId);
     const targetId = String(combatState.targetId);
 
-    // RS3-STYLE: Don't follow while player is actively moving
-    // Movement takes priority - only follow when player stops
-    if (
-      combatState.attackerType === "player" &&
-      this.isPlayerMoving(attackerId)
-    ) {
-      // Player is walking - skip follow this tick
-      // Combat state persists, they'll follow when they stop
-      // Extend combat timeout so it doesn't expire while moving
-      combatState.combatEndTick =
-        tickNumber + COMBAT_CONSTANTS.COMBAT_TIMEOUT_TICKS;
-      return;
-    }
+    // OSRS-ACCURATE: No movement suppression for following
+    // If player has combat state, they should continuously pursue their target
+    // Wiki: "follow and attack while chasing it"
+    // Movement during combat follow is normal - player is chasing their target
 
     const attacker = this.getEntity(attackerId, combatState.attackerType);
     const target = this.getEntity(targetId, combatState.targetType);

@@ -65,6 +65,14 @@ export interface CombatPlayerDisengagePayload {
   playerId: string;
 }
 
+/**
+ * OSRS-accurate: Player clicked elsewhere, cancel their pending attack
+ * (e.g., player was walking to mob to attack, but clicked ground instead)
+ */
+export interface PendingAttackCancelPayload {
+  playerId: string;
+}
+
 export interface InventoryItemAddedPayload {
   playerId: string;
   item: InventoryItem;
@@ -750,6 +758,7 @@ export type EventPayloads = {
   [EventType.COMBAT_STARTED]: CombatStartedPayload;
   [EventType.COMBAT_FOLLOW_TARGET]: CombatFollowTargetPayload;
   [EventType.COMBAT_PLAYER_DISENGAGE]: CombatPlayerDisengagePayload;
+  [EventType.PENDING_ATTACK_CANCEL]: PendingAttackCancelPayload;
   [EventType.INVENTORY_ITEM_ADDED]: InventoryItemAddedPayload;
   [EventType.NPC_DIED]: NPCDiedPayload;
 };

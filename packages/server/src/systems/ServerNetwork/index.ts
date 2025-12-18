@@ -508,6 +508,12 @@ export class ServerNetwork extends System implements NetworkWithSocket {
       );
     });
 
+    // OSRS-accurate: Cancel pending attack when player clicks elsewhere
+    this.world.on(EventType.PENDING_ATTACK_CANCEL, (event) => {
+      const { playerId } = event as { playerId: string };
+      this.pendingAttackManager.cancelPendingAttack(playerId);
+    });
+
     // Save manager
     this.saveManager = new SaveManager(this.world, this.db);
 

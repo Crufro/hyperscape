@@ -16,6 +16,7 @@ import {
   THREE,
   TerrainSystem,
   World,
+  EventType,
   // Tile movement utilities
   TILES_PER_TICK_WALK,
   TILES_PER_TICK_RUN,
@@ -207,9 +208,22 @@ export class TileMovementManager {
     // Client uses this to ignore stale packets from previous movements
     state.moveSeq = (state.moveSeq || 0) + 1;
 
-    // RS3-style: Set movement flag to suppress combat while moving
+    // Set movement flag for tracking active tile movement
     if (path.length > 0) {
       playerEntity.data.tileMovementActive = true;
+
+      // OSRS-accurate: Clicking ground cancels your attack
+      // Player is walking away - they're no longer attacking their target
+      // The mob continues chasing them, and auto-retaliate can trigger if hit
+      this.world.emit(EventType.COMBAT_PLAYER_DISENGAGE, {
+        playerId: playerId,
+      });
+
+      // Cancel any pending attack - player chose a different destination
+      // This handles the case where player was walking to a mob but changed their mind
+      this.world.emit(EventType.PENDING_ATTACK_CANCEL, {
+        playerId: playerId,
+      });
     }
 
     // Immediately rotate player toward destination and send first tile update
