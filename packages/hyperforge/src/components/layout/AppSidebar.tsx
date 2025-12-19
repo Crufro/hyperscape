@@ -19,6 +19,7 @@ import {
   Palette,
   Grid3X3,
   Layers,
+  Map,
   type LucideIcon,
 } from "lucide-react";
 
@@ -199,6 +200,36 @@ export function AppSidebar({
                 </Link>
               );
             })}
+          </nav>
+        </div>
+
+        {/* World Section */}
+        <div
+          className={`mt-6 pt-4 border-t border-glass-border ${collapsed ? "px-0" : ""}`}
+        >
+          {!collapsed && (
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+              World
+            </div>
+          )}
+          <nav className="space-y-1">
+            <Link
+              href="/world"
+              title={collapsed ? "World Editor" : "Visual world editor"}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                transition-all duration-200
+                ${collapsed ? "justify-center" : ""}
+                ${
+                  pathname === "/world"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                }
+              `}
+            >
+              <Map className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>World Editor</span>}
+            </Link>
           </nav>
         </div>
 
