@@ -310,7 +310,7 @@ export function AssetListItem({
         {/* Context Menu Dropdown */}
         {showContextMenu && (
           <div
-            className="absolute right-0 top-full mt-1 z-50 w-48 py-1 rounded-lg bg-glass-bg/95 border border-glass-border backdrop-blur-sm shadow-lg"
+            className="absolute right-0 top-full mt-1 z-50 w-48 py-1 rounded-lg bg-zinc-900 border border-zinc-700 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Create Texture Variant */}
@@ -395,7 +395,7 @@ export function AssetListItem({
       {/* Store Info Popup */}
       {showStoreInfo && storeInfo && storeInfo.length > 0 && (
         <div
-          className="absolute right-0 top-full mt-1 z-50 w-64 p-3 rounded-lg bg-glass-bg/95 border border-glass-border backdrop-blur-sm shadow-lg"
+          className="absolute right-0 top-full mt-1 z-50 w-64 p-3 rounded-lg bg-zinc-900 border border-zinc-700 shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-glass-border">
