@@ -256,34 +256,6 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
     link.click();
   }, [selectedAsset]);
 
-  // #region agent log - Debug instrumentation
-  if (typeof window !== "undefined") {
-    fetch("http://127.0.0.1:7242/ingest/ef06d7d2-0f29-426d-9574-6692c61c9819", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "Viewport3D.tsx:162",
-        message: "Viewport3D render POST-FIX-v4",
-        data: {
-          isVRM,
-          vrmUrl: vrmUrl?.slice(-50),
-          validExplicitVrmUrl: validExplicitVrmUrl?.slice(-50),
-          explicitVrmUrl: explicitVrmUrl?.slice(-50),
-          modelUrl: selectedAsset?.modelUrl?.slice(-50),
-          modelUrlIsVrm,
-          assetId: selectedAsset?.id,
-          willUseVRMViewer: !!(isVRM && vrmUrl),
-          showModel,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "post-fix-v4",
-        hypothesisId: "A",
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
-
   // Use VRMViewer for VRM assets (standalone component with its own canvas)
   if (isVRM && vrmUrl && showModel) {
     return (

@@ -25,16 +25,6 @@ import { retargetAnimation } from "@/services/retargeting/AnimationRetargeting";
 
 const log = logger.child("VRMViewer");
 
-/**
- * Material type for VRM models that may have texture maps
- * Covers both MeshStandardMaterial and MToonMaterial properties
- */
-interface VRMMaterialWithMaps extends THREE.Material {
-  map?: THREE.Texture | null;
-  shadeMultiplyTexture?: THREE.Texture | null;
-  color?: THREE.Color;
-}
-
 export interface VRMViewerRef {
   loadAnimation: (url: string) => Promise<void>;
   playAnimation: (name?: string) => void;
@@ -229,52 +219,6 @@ export const VRMViewer = forwardRef<VRMViewerRef, VRMViewerProps>(
           }
 
           log.info("VRM loaded:", vrm);
-
-          // #region agent log
-          const vrmMaterialDetails: {
-            name: string;
-            type: string;
-            hasMap: boolean;
-            color: string;
-          }[] = [];
-          vrm.scene.traverse((child: THREE.Object3D) => {
-            if (child instanceof THREE.Mesh) {
-              const mats = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              mats.forEach((m: THREE.Material) => {
-                const vrmMat = m as VRMMaterialWithMaps;
-                vrmMaterialDetails.push({
-                  name: m.name || "unnamed",
-                  type: m.type,
-                  hasMap: !!(vrmMat.map || vrmMat.shadeMultiplyTexture),
-                  color: vrmMat.color
-                    ? `#${vrmMat.color.getHexString()}`
-                    : "none",
-                });
-              });
-            }
-          });
-          fetch(
-            "http://127.0.0.1:7242/ingest/ef06d7d2-0f29-426d-9574-6692c61c9819",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                location: "VRMViewer.tsx:218",
-                message: "VRM materials via VRMLoaderPlugin",
-                data: {
-                  vrmUrl,
-                  materialCount: vrmMaterialDetails.length,
-                  materials: vrmMaterialDetails.slice(0, 5),
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                hypothesisId: "D",
-              }),
-            },
-          ).catch(() => {});
-          // #endregion
 
           // Handle VRM 0.0 rotation
           // VRM meta can be VRM0Meta or VRM1Meta - check for metaVersion first
