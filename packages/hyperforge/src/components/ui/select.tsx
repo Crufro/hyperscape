@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { GlassPanel } from "./glass-panel";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface Option {
   value: string;
@@ -22,6 +23,12 @@ export interface SelectProps {
   disabled?: boolean;
 }
 
+interface DropdownPosition {
+  top: number;
+  left: number;
+  width: number;
+}
+
 export function Select({
   value,
   onChange,
@@ -33,14 +40,56 @@ export function Select({
   disabled = false,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition>({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<globalThis.HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Calculate dropdown position when opening
+  const updatePosition = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = 240; // max-h-60 = 15rem = 240px
+
+      // Check if dropdown would go off-screen at the bottom
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const shouldOpenUp = openUp || spaceBelow < dropdownHeight;
+
+      setDropdownPosition({
+        top: shouldOpenUp ? rect.top - 4 : rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, [openUp]);
+
+  // Update position when opening
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      // Also update on scroll/resize
+      window.addEventListener("scroll", updatePosition, true);
+      window.addEventListener("resize", updatePosition);
+      return () => {
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
+      };
+    }
+  }, [isOpen, updatePosition]);
 
   // Close when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target)
       ) {
         setIsOpen(false);
       }
@@ -50,6 +99,17 @@ export function Select({
   }, []);
 
   const selectedOption = options.find((opt) => opt.value === value);
+
+  // Check if we should open up based on space
+  const shouldOpenUp = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = 240;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      return openUp || spaceBelow < dropdownHeight;
+    }
+    return openUp;
+  }, [openUp]);
 
   return (
     <div
@@ -63,6 +123,7 @@ export function Select({
       )}
       <div className="relative">
         <button
+          ref={buttonRef}
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
@@ -88,42 +149,57 @@ export function Select({
           />
         </button>
 
-        <AnimatePresence>
-          {isOpen && (
-            <div
-              className={cn(
-                "absolute z-50 w-full",
-                openUp ? "bottom-full mb-1" : "top-full mt-1",
-              )}
-            >
-              <GlassPanel
-                intensity="high"
-                className="py-1 max-h-60 overflow-auto custom-scrollbar"
-              >
-                {options.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      onChange(option.value);
-                      setIsOpen(false);
-                    }}
-                    className={cn(
-                      "flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-foreground/10 transition-colors",
-                      option.value === value
-                        ? "text-neon-blue bg-neon-blue/5"
-                        : "text-muted",
-                    )}
+        {/* Render dropdown in a portal to escape overflow containers */}
+        {typeof document !== "undefined" &&
+          createPortal(
+            <AnimatePresence>
+              {isOpen && (
+                <motion.div
+                  ref={dropdownRef}
+                  initial={{ opacity: 0, y: shouldOpenUp() ? 8 : -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: shouldOpenUp() ? 8 : -8 }}
+                  transition={{ duration: 0.15 }}
+                  className="fixed z-[9999]"
+                  style={{
+                    top: shouldOpenUp() ? "auto" : dropdownPosition.top,
+                    bottom: shouldOpenUp()
+                      ? window.innerHeight - dropdownPosition.top + 4
+                      : "auto",
+                    left: dropdownPosition.left,
+                    width: dropdownPosition.width,
+                  }}
+                >
+                  <GlassPanel
+                    intensity="high"
+                    className="py-1 max-h-60 overflow-auto custom-scrollbar"
                   >
-                    {option.label}
-                    {option.value === value && (
-                      <Check className="w-4 h-4 text-neon-blue" />
-                    )}
-                  </button>
-                ))}
-              </GlassPanel>
-            </div>
+                    {options.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          onChange(option.value);
+                          setIsOpen(false);
+                        }}
+                        className={cn(
+                          "flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-foreground/10 transition-colors",
+                          option.value === value
+                            ? "text-neon-blue bg-neon-blue/5"
+                            : "text-muted",
+                        )}
+                      >
+                        {option.label}
+                        {option.value === value && (
+                          <Check className="w-4 h-4 text-neon-blue" />
+                        )}
+                      </button>
+                    ))}
+                  </GlassPanel>
+                </motion.div>
+              )}
+            </AnimatePresence>,
+            document.body,
           )}
-        </AnimatePresence>
       </div>
     </div>
   );

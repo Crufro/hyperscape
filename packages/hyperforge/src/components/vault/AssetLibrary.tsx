@@ -8,6 +8,9 @@ import { Modal } from "@/components/ui/modal";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { VariantDefinitionPanel } from "@/components/generation/VariantDefinitionPanel";
 import { useCDNAssets, type LibraryAsset } from "@/hooks/useCDNAssets";
+import { useFavorites } from "@/hooks/useFavorites";
+import { useThumbnailOverrides } from "@/hooks/useThumbnailOverrides";
+import { useHiddenAssets } from "@/hooks/useHiddenAssets";
 import {
   cdnAssetToAssetData,
   type CDNAssetInput,
@@ -19,11 +22,80 @@ import { Palette, X, Package } from "lucide-react";
 
 interface AssetLibraryProps {
   onAssetSelect?: (asset: AssetData) => void;
+  searchQuery?: string;
+  categoryFilter?: string;
 }
 
-export function AssetLibrary({ onAssetSelect }: AssetLibraryProps) {
+export function AssetLibrary({
+  onAssetSelect,
+  searchQuery = "",
+  categoryFilter = "all",
+}: AssetLibraryProps) {
   const { assets, loading, error } = useCDNAssets();
   const { setBaseModel } = useVariantStore();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const { getThumbnailUrl } = useThumbnailOverrides();
+  const {
+    isHidden,
+    hideAsset,
+    unhideAsset,
+    hiddenCount: _hiddenCount,
+  } = useHiddenAssets();
+
+  // Filter assets based on search, category, and hidden status
+  const filteredAssets = assets.filter((asset) => {
+    // Hidden filter - always exclude hidden assets (unless showing hidden category)
+    if (categoryFilter !== "hidden" && isHidden(asset.id)) {
+      return false;
+    }
+
+    // Hidden category filter - only show hidden assets
+    if (categoryFilter === "hidden") {
+      return isHidden(asset.id);
+    }
+
+    // Favorites filter
+    if (categoryFilter === "favorites") {
+      if (!isFavorite(asset.id)) return false;
+    }
+
+    // Search filter - check name, type, category
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        asset.name.toLowerCase().includes(query) ||
+        asset.type?.toLowerCase().includes(query) ||
+        asset.category?.toLowerCase().includes(query) ||
+        asset.rarity?.toLowerCase().includes(query) ||
+        asset.equipSlot?.toLowerCase().includes(query) ||
+        asset.weaponType?.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+
+    // Category filter (skip for "all" and "favorites" which are handled above)
+    if (categoryFilter !== "all" && categoryFilter !== "favorites") {
+      // Check both category and type fields
+      const assetCategory = asset.category?.toLowerCase();
+      const assetType = asset.type?.toLowerCase();
+      const filterValue = categoryFilter.toLowerCase();
+
+      if (assetCategory !== filterValue && assetType !== filterValue) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Handle hide asset
+  const handleHideAsset = (asset: LibraryAsset) => {
+    hideAsset(asset.id);
+  };
+
+  // Handle unhide asset
+  const handleUnhideAsset = (asset: LibraryAsset) => {
+    unhideAsset(asset.id);
+  };
 
   // Variant creation modal state
   const [showVariantModal, setShowVariantModal] = useState(false);
@@ -96,20 +168,40 @@ export function AssetLibrary({ onAssetSelect }: AssetLibraryProps) {
     );
   }
 
+  if (filteredAssets.length === 0) {
+    return (
+      <EmptyState
+        icon={Package}
+        title="No Results"
+        description={
+          searchQuery
+            ? `No assets match "${searchQuery}"`
+            : "No assets in this category"
+        }
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-2">
         <div className="space-y-1">
-          {assets.map((asset) => (
+          {filteredAssets.map((asset) => (
             <AssetListItem
               key={asset.id}
               asset={asset}
+              isFavorite={isFavorite(asset.id)}
+              isHidden={isHidden(asset.id)}
+              thumbnailOverride={getThumbnailUrl(asset.id, undefined)}
               onSelect={(selectedAsset) =>
                 onAssetSelect?.(
                   cdnAssetToAssetData(selectedAsset as CDNAssetInput),
                 )
               }
+              onFavorite={(a) => toggleFavorite(a.id)}
               onCreateVariant={handleCreateVariant}
+              onHide={handleHideAsset}
+              onUnhide={handleUnhideAsset}
             />
           ))}
         </div>

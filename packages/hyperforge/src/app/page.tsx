@@ -17,19 +17,13 @@ import {
   MessageSquare,
   Plus,
   ExternalLink,
-  Loader2,
-  Mic,
   Volume2,
   Upload,
-  Users,
-  Scroll,
   Map,
-  Sword,
   Settings,
   Box,
   Image as ImageIcon,
   Palette,
-  Grid3X3,
   Layers,
   type LucideIcon,
 } from "lucide-react";
@@ -37,7 +31,10 @@ import { Viewport3D } from "@/components/viewer/Viewport3D";
 import { AssetLibrary } from "@/components/vault/AssetLibrary";
 import { AssetUploadModal } from "@/components/vault/AssetUploadModal";
 import { WorldView } from "@/components/world/WorldView";
+import { GenerationQueuePanel } from "@/components/generation/GenerationQueuePanel";
 import { useAppStore, type ModuleView } from "@/stores/app-store";
+import { useGenerationStore } from "@/stores/generation-store";
+import { useHiddenAssets } from "@/hooks/useHiddenAssets";
 import type { AssetData } from "@/types/asset";
 
 // Modules that are just state toggles (stay on this page)
@@ -90,9 +87,36 @@ export default function HomePage() {
     toggleVault,
   } = useAppStore();
 
+  const { hiddenCount } = useHiddenAssets();
+  const { progress, batchQueue } = useGenerationStore();
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, _setCategoryFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [queuePanelOpen, setQueuePanelOpen] = useState(false);
+
+  // Count for queue badge
+  const activeJobCount = batchQueue.filter(
+    (j) => j.status === "processing" || j.status === "pending",
+  ).length;
+  const isGenerating = progress.status === "generating";
+
+  // Available categories for 3D assets
+  const assetCategories = [
+    { value: "all", label: "All Categories" },
+    { value: "favorites", label: "⭐ Favorites" },
+    { value: "weapon", label: "Weapons" },
+    { value: "armor", label: "Armor" },
+    { value: "tool", label: "Tools" },
+    { value: "avatar", label: "Avatars" },
+    { value: "npc", label: "NPCs" },
+    { value: "resource", label: "Resources" },
+    { value: "item", label: "Items" },
+    ...(hiddenCount > 0
+      ? [{ value: "hidden", label: `👁️‍🗨️ Hidden (${hiddenCount})` }]
+      : []),
+  ];
   const [worldViewOpen, setWorldViewOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [assetRefreshKey, setAssetRefreshKey] = useState(0);
@@ -101,6 +125,22 @@ export default function HomePage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Close category dropdown when clicking outside
+  useEffect(() => {
+    if (!showCategoryDropdown) return;
+
+    const handleClickOutside = () => setShowCategoryDropdown(false);
+    // Small delay to avoid closing immediately on the button click
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [showCategoryDropdown]);
 
   const handleAssetSelect = (asset: AssetData) => {
     setSelectedAsset(asset);
@@ -122,12 +162,14 @@ export default function HomePage() {
   };
 
   // Show a minimal skeleton during SSR to avoid hydration mismatch with Lucide icons
+  // Using CSS-only spinner to prevent attribute mismatches
   if (!mounted) {
     return (
       <div className="flex h-screen bg-background overflow-hidden">
         <aside className="w-56 border-r border-glass-border bg-glass-bg/30 flex flex-col flex-shrink-0">
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            {/* CSS-only spinner to avoid Lucide hydration mismatch */}
+            <div className="w-6 h-6 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
           </div>
         </aside>
         <main className="flex-1 relative overflow-hidden bg-gradient-to-b from-zinc-900 to-zinc-950" />
@@ -219,8 +261,12 @@ export default function HomePage() {
 
             {/* Audio Assets Link */}
             <Link
-              href="/assets/audio"
-              title={sidebarCollapsed ? "Audio Assets" : "Browse audio assets"}
+              href="/audio"
+              title={
+                sidebarCollapsed
+                  ? "Audio Studio"
+                  : "Voice, SFX, Music generation"
+              }
               className={`
                 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
                 text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
@@ -229,17 +275,16 @@ export default function HomePage() {
             >
               <Volume2 className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && (
-                <>
-                  <span className="truncate flex-1">Audio Assets</span>
-                  <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                </>
+                <span className="truncate flex-1">Audio</span>
               )}
             </Link>
 
             {/* Image Assets Link */}
             <Link
-              href="/assets/images"
-              title={sidebarCollapsed ? "Image Assets" : "Browse image assets"}
+              href="/images/concept-art"
+              title={
+                sidebarCollapsed ? "Images" : "Concept art, textures, sprites"
+              }
               className={`
                 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
                 text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
@@ -248,18 +293,15 @@ export default function HomePage() {
             >
               <ImageIcon className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && (
-                <>
-                  <span className="truncate flex-1">Image Assets</span>
-                  <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                </>
+                <span className="truncate flex-1">Images</span>
               )}
             </Link>
 
-            {/* Content Assets Link */}
+            {/* Content Generator Link */}
             <Link
-              href="/assets/content"
+              href="/content"
               title={
-                sidebarCollapsed ? "Content Assets" : "Browse content assets"
+                sidebarCollapsed ? "Content" : "NPC dialogues, quests, lore"
               }
               className={`
                 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
@@ -269,10 +311,7 @@ export default function HomePage() {
             >
               <MessageSquare className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && (
-                <>
-                  <span className="truncate flex-1">Content Assets</span>
-                  <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                </>
+                <span className="truncate flex-1">Content</span>
               )}
             </Link>
           </nav>
@@ -310,22 +349,20 @@ export default function HomePage() {
             </nav>
           </div>
 
-          {/* Content Generation Links */}
+          {/* Create Section - consolidated generation tools */}
           <div
             className={`mt-6 pt-4 border-t border-glass-border ${sidebarCollapsed ? "px-0" : ""}`}
           >
             {!sidebarCollapsed && (
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-                Content
+                Create
               </div>
             )}
             <nav className="space-y-1">
               <Link
                 href="/content"
                 title={
-                  sidebarCollapsed
-                    ? "NPCs & Dialogue"
-                    : "Generate NPC dialogue trees"
+                  sidebarCollapsed ? "Content" : "NPCs, Quests, Dialogue, Items"
                 }
                 className={`
                   w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
@@ -333,89 +370,14 @@ export default function HomePage() {
                   ${sidebarCollapsed ? "justify-center" : ""}
                 `}
               >
-                <Users className="w-4 h-4 flex-shrink-0" />
+                <MessageSquare className="w-4 h-4 flex-shrink-0" />
                 {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">NPCs & Dialogue</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
+                  <span className="truncate flex-1">Content</span>
                 )}
               </Link>
-              <Link
-                href="/content?tab=quest"
-                title={sidebarCollapsed ? "Quests" : "Generate quest chains"}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Scroll className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Quests</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-              <Link
-                href="/content?tab=area"
-                title={
-                  sidebarCollapsed ? "World Areas" : "Generate world areas"
-                }
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Map className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">World Areas</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-              <Link
-                href="/content?tab=item"
-                title={
-                  sidebarCollapsed ? "Items" : "Generate items & equipment"
-                }
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Sword className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Items</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-            </nav>
-          </div>
-
-          {/* Audio Section */}
-          <div
-            className={`mt-4 pt-4 border-t border-glass-border ${sidebarCollapsed ? "px-0" : ""}`}
-          >
-            {!sidebarCollapsed && (
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-                Audio
-              </div>
-            )}
-            <nav className="space-y-1">
               <Link
                 href="/audio"
-                title={
-                  sidebarCollapsed
-                    ? "Audio Studio"
-                    : "Generate voice, SFX, and music"
-                }
+                title={sidebarCollapsed ? "Audio" : "Voice, SFX, Music"}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
                   text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
@@ -424,86 +386,13 @@ export default function HomePage() {
               >
                 <Music className="w-4 h-4 flex-shrink-0" />
                 {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Audio Studio</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-              <Link
-                href="/audio/voice"
-                title={
-                  sidebarCollapsed
-                    ? "Voice Generator"
-                    : "Generate NPC dialogue audio"
-                }
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Mic className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Voice Generator</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-              <Link
-                href="/audio/sfx"
-                title={sidebarCollapsed ? "Sound Effects" : "Generate game SFX"}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Volume2 className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Sound Effects</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-            </nav>
-          </div>
-
-          {/* Images Section */}
-          <div
-            className={`mt-4 pt-4 border-t border-glass-border ${sidebarCollapsed ? "px-0" : ""}`}
-          >
-            {!sidebarCollapsed && (
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-                Images
-              </div>
-            )}
-            <nav className="space-y-1">
-              <Link
-                href="/images"
-                title={
-                  sidebarCollapsed ? "Image Library" : "Browse generated images"
-                }
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <ImageIcon className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Image Library</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
+                  <span className="truncate flex-1">Audio</span>
                 )}
               </Link>
               <Link
                 href="/images/concept-art"
                 title={
-                  sidebarCollapsed ? "Concept Art" : "Generate AI concept art"
+                  sidebarCollapsed ? "Images" : "Concept Art, Sprites, Textures"
                 }
                 className={`
                   w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
@@ -513,48 +402,7 @@ export default function HomePage() {
               >
                 <Palette className="w-4 h-4 flex-shrink-0" />
                 {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Concept Art</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-              <Link
-                href="/images/sprites"
-                title={
-                  sidebarCollapsed ? "Sprites" : "Generate 2D game sprites"
-                }
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Grid3X3 className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Sprites</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
-                )}
-              </Link>
-              <Link
-                href="/images/textures"
-                title={
-                  sidebarCollapsed ? "Textures" : "Generate seamless textures"
-                }
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  text-muted-foreground hover:text-foreground hover:bg-glass-bg transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                `}
-              >
-                <Layers className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate flex-1">Textures</span>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground/50" />
-                  </>
+                  <span className="truncate flex-1">Images</span>
                 )}
               </Link>
             </nav>
@@ -581,6 +429,21 @@ export default function HomePage() {
             {!sidebarCollapsed && <span>Vault</span>}
           </button>
 
+          {/* World Editor Link */}
+          <Link
+            href="/world"
+            title={sidebarCollapsed ? "World Editor" : "Visual world editor"}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+              transition-all duration-200
+              ${sidebarCollapsed ? "justify-center" : ""}
+              text-muted-foreground hover:text-foreground hover:bg-glass-bg
+            `}
+          >
+            <Map className="w-4 h-4 flex-shrink-0" />
+            {!sidebarCollapsed && <span>World Editor</span>}
+          </Link>
+
           {/* World View Button */}
           <button
             onClick={() => setWorldViewOpen(true)}
@@ -594,6 +457,39 @@ export default function HomePage() {
           >
             <Globe className="w-4 h-4 flex-shrink-0" />
             {!sidebarCollapsed && <span>World View</span>}
+          </button>
+
+          {/* Generation Queue Button */}
+          <button
+            onClick={() => setQueuePanelOpen(true)}
+            title={sidebarCollapsed ? "Queue" : "View generation queue"}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+              transition-all duration-200
+              ${sidebarCollapsed ? "justify-center" : ""}
+              ${
+                isGenerating || activeJobCount > 0
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+              }
+            `}
+          >
+            <div className="relative flex-shrink-0">
+              <Layers className="w-4 h-4" />
+              {(isGenerating || activeJobCount > 0) && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+              )}
+            </div>
+            {!sidebarCollapsed && (
+              <span className="flex items-center gap-2">
+                Queue
+                {activeJobCount > 0 && (
+                  <span className="text-xs bg-cyan-500/20 px-1.5 py-0.5 rounded">
+                    {activeJobCount}
+                  </span>
+                )}
+              </span>
+            )}
           </button>
 
           {/* Settings Link */}
@@ -654,15 +550,45 @@ export default function HomePage() {
             </div>
 
             {/* Filter Dropdown */}
-            <button className="w-full flex items-center justify-between px-3 py-2 bg-glass-bg border border-glass-border rounded-lg text-sm hover:bg-glass-bg/80 transition-colors">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <span>
-                  {categoryFilter === "all" ? "All Categories" : categoryFilter}
-                </span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-glass-bg border border-glass-border rounded-lg text-sm hover:bg-glass-bg/80 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="capitalize">
+                    {assetCategories.find((c) => c.value === categoryFilter)
+                      ?.label || "All Categories"}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-muted-foreground transition-transform ${showCategoryDropdown ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {/* Dropdown Menu */}
+              {showCategoryDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-1 z-50 py-1 bg-glass-bg/95 border border-glass-border rounded-lg backdrop-blur-sm shadow-lg max-h-64 overflow-y-auto">
+                  {assetCategories.map((category) => (
+                    <button
+                      key={category.value}
+                      onClick={() => {
+                        setCategoryFilter(category.value);
+                        setShowCategoryDropdown(false);
+                      }}
+                      className={`w-full px-3 py-2 text-sm text-left hover:bg-glass-bg transition-colors ${
+                        categoryFilter === category.value
+                          ? "text-cyan-400 bg-cyan-500/10"
+                          : ""
+                      }`}
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Asset List */}
@@ -670,6 +596,8 @@ export default function HomePage() {
             <AssetLibrary
               key={assetRefreshKey}
               onAssetSelect={handleAssetSelect}
+              searchQuery={searchQuery}
+              categoryFilter={categoryFilter}
             />
           </div>
         </div>
@@ -687,6 +615,12 @@ export default function HomePage() {
       <WorldView
         isOpen={worldViewOpen}
         onClose={() => setWorldViewOpen(false)}
+      />
+
+      {/* === GENERATION QUEUE PANEL === */}
+      <GenerationQueuePanel
+        isOpen={queuePanelOpen}
+        onClose={() => setQueuePanelOpen(false)}
       />
     </div>
   );

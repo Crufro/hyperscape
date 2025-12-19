@@ -19,7 +19,6 @@ import {
 } from "@/lib/meshy/poll-task";
 import { createRiggingTask, getRiggingTaskStatus } from "@/lib/meshy/client";
 import {
-  POLYCOUNT_PRESETS,
   DEFAULT_TEXTURE_RESOLUTION,
   DEFAULT_CHARACTER_HEIGHT,
 } from "@/lib/meshy/constants";
@@ -252,10 +251,15 @@ export async function generate3DModel(
   // - NPC Characters: 2,000 - 10,000 triangles
   // - Large props: 5,000 - 10,000 triangles
   // - Small buildings: 5,000 - 15,000 triangles
-  // - Large structures: 15,000 - 50,000 triangles
+  // - Large structures: 4,000 - 15,000 triangles (with LOD)
   //
-  // These quality presets provide reasonable defaults for most use cases.
-  // For asset-specific polycount, use POLYCOUNT_PRESETS based on category.
+  // GAME-OPTIMIZED for 60fps RuneScape-style gameplay:
+  // - Items/Props: 500-3K (RuneScape assets are ~1K or less)
+  // - Avatars/NPCs: 5K-10K (ideally ~5K for mobs)
+  // - Buildings: 2K-8K (with LOD for distance)
+  //
+  // These quality presets now prioritize game performance over raw detail.
+  // The MeshQualityControls UI allows users to fine-tune polycount per asset.
   const qualityOptions: Record<
     string,
     {
@@ -266,36 +270,49 @@ export async function generate3DModel(
       textureRichness: string;
     }
   > = {
-    // Preview / Meshy-4: Fast, lower quality (for quick iterations)
-    // ~10K polys good for small buildings or detailed props
+    // Preview / Meshy-4: Ultra-fast, game-ready output
+    // ~1K polys - perfect for quick item iterations
     preview: {
-      targetPolycount: POLYCOUNT_PRESETS.small_building.defaultPolycount, // 10000
+      targetPolycount: 1000,
       textureResolution: 1024,
       enablePBR: true,
       aiModel: "meshy-4",
       textureRichness: "medium",
     },
-    // Medium / Meshy-6: High quality with latest model
-    // ~30K polys good for large structures or high-detail characters
+    // Medium / Meshy-6: Balanced quality for most game assets
+    // ~2K polys - weapons, armor, props
     medium: {
-      targetPolycount: POLYCOUNT_PRESETS.large_structure.defaultPolycount, // 30000
+      targetPolycount: 2000,
       textureResolution: DEFAULT_TEXTURE_RESOLUTION, // 2048
       enablePBR: true,
       aiModel: "latest", // Meshy-6 - best quality
       textureRichness: "high",
     },
-    // High / Meshy-6: Maximum quality settings
-    // ~50K polys for hero assets (use LOD for runtime)
+    // High / Meshy-6: Characters and hero assets
+    // ~5K polys - NPCs, player avatars, boss monsters
     high: {
-      targetPolycount: POLYCOUNT_PRESETS.large_structure.maxPolycount, // 50000
-      textureResolution: 4096,
+      targetPolycount: 5000,
+      textureResolution: 2048,
       enablePBR: true,
       aiModel: "latest", // Meshy-6 - best quality
       textureRichness: "high",
     },
   };
 
-  const options = qualityOptions[quality] || qualityOptions.medium;
+  const baseOptions = qualityOptions[quality] || qualityOptions.medium;
+
+  // Allow overrides from config for mesh quality settings
+  const options = {
+    ...baseOptions,
+    // Use custom polycount if provided, otherwise use quality preset
+    targetPolycount: config.targetPolycount ?? baseOptions.targetPolycount,
+    // Use custom PBR setting if provided
+    enablePBR: config.enablePBR ?? baseOptions.enablePBR,
+  };
+
+  // Get topology from config or default based on asset type
+  const isAvatar = config.category === "npc" || config.category === "character";
+  const topology = config.topology ?? (isAvatar ? "quad" : "triangle");
 
   try {
     // Stage 0: GPT-4 Prompt Enhancement (if enabled)
@@ -415,7 +432,7 @@ export async function generate3DModel(
       // Stage 1: Preview
       const { previewTaskId } = await startTextTo3DPreview(effectivePrompt, {
         ai_model: options.aiModel,
-        topology: "triangle",
+        topology: topology,
         target_polycount: options.targetPolycount,
         art_style: "realistic",
       });
@@ -621,7 +638,7 @@ export async function generate3DModel(
       const { taskId } = await startImageTo3D(imageUrl, {
         enable_pbr: options.enablePBR,
         ai_model: options.aiModel,
-        topology: "quad",
+        topology: topology,
         target_polycount: options.targetPolycount,
         texture_resolution: options.textureResolution,
       });

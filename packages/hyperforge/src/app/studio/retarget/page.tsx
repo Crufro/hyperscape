@@ -39,13 +39,14 @@ import {
 interface Asset {
   id: string;
   name: string;
-  source: "LOCAL" | "CDN";
+  source: "LOCAL" | "CDN" | "FORGE";
   category: string;
   type: string;
   thumbnailUrl?: string;
   modelUrl?: string;
   hasVRM?: boolean;
   vrmPath?: string;
+  vrmUrl?: string; // Full URL to VRM (e.g., Supabase URL)
   modelPath?: string;
 }
 
@@ -108,16 +109,33 @@ function RetargetContent() {
 
         const all = [...localAssets, ...cdnAssets];
 
-        // Filter for VRM avatars and characters
-        const avatarAssets = all.filter(
-          (a) =>
-            a.hasVRM ||
-            a.vrmPath ||
-            a.type === "avatar" ||
-            a.type === "character" ||
-            a.category === "avatar" ||
-            (a.category === "npc" && a.modelPath?.endsWith(".vrm")),
-        );
+        // Filter for VRM-ready avatars - models that have verified VRM files
+        const avatarAssets = all.filter((a) => {
+          // Check if model path is already a .vrm file
+          const modelIsVRM =
+            a.modelPath?.toLowerCase().endsWith(".vrm") ||
+            a.modelUrl?.toLowerCase().endsWith(".vrm");
+
+          // Check if there's a verified VRM URL (full http/https URL)
+          const hasVerifiedVrmUrl =
+            (a.vrmPath?.startsWith("http") &&
+              a.vrmPath?.toLowerCase().endsWith(".vrm")) ||
+            (a.vrmUrl?.startsWith("http") &&
+              a.vrmUrl?.toLowerCase().endsWith(".vrm"));
+
+          // CDN assets with .vrm extension in vrmPath
+          const cdnVrm =
+            a.source === "CDN" && a.vrmPath?.toLowerCase().endsWith(".vrm");
+
+          // LOCAL/FORGE assets generated with VRM conversion enabled
+          // These have hasVRM: true and the VRM is stored in Supabase or local storage
+          const localVrm =
+            (a.source === "LOCAL" || a.source === "FORGE" || !a.source) &&
+            a.hasVRM === true &&
+            a.vrmPath?.toLowerCase().endsWith(".vrm");
+
+          return modelIsVRM || hasVerifiedVrmUrl || cdnVrm || localVrm;
+        });
 
         setAvatars(avatarAssets);
         setEmotes(emotesData);
@@ -129,33 +147,46 @@ function RetargetContent() {
             all.find((a) => a.id === preSelectedAssetId);
           if (preSelected) {
             setSelectedAvatar(preSelected);
-            // If it's already a VRM, set it directly
+            // Only pre-load VRM if we have a VERIFIED URL (http/https)
+            const explicitVrmUrl = preSelected.vrmUrl;
+            const vrmPath = preSelected.vrmPath || preSelected.modelPath;
+
+            let vrmUrlToSet: string | null = null;
+
+            // Priority 1: Explicit Supabase URL ending with .vrm
             if (
-              preSelected.vrmPath ||
-              preSelected.modelPath?.endsWith(".vrm")
+              explicitVrmUrl?.startsWith("http") &&
+              explicitVrmUrl.endsWith(".vrm")
             ) {
-              const vrmPath = preSelected.vrmPath || preSelected.modelPath;
-              if (vrmPath) {
-                // Determine the correct URL based on path type
-                let vrmUrlToSet: string;
-                if (vrmPath.startsWith("/api/")) {
-                  // Local API path - use directly
-                  vrmUrlToSet = vrmPath;
-                } else if (vrmPath.startsWith("asset://")) {
-                  // Asset CDN path
-                  vrmUrlToSet = vrmPath.replace("asset://", `${CDN_URL}/`);
-                } else if (vrmPath.startsWith("http")) {
-                  // Full URL
-                  vrmUrlToSet = vrmPath;
-                } else {
-                  // Relative path - prepend CDN
-                  vrmUrlToSet = `${CDN_URL}/${vrmPath}`;
-                }
-                log.info("Pre-selecting VRM:", vrmUrlToSet);
-                setVrmUrl(vrmUrlToSet);
-                setVrmConverted(true);
-              }
+              vrmUrlToSet = explicitVrmUrl;
             }
+            // Priority 2: vrmPath/modelPath that is already a full URL
+            else if (vrmPath?.startsWith("http") && vrmPath.endsWith(".vrm")) {
+              vrmUrlToSet = vrmPath;
+            }
+            // Priority 3: CDN asset:// protocol for VRM files
+            else if (
+              vrmPath?.startsWith("asset://") &&
+              vrmPath.endsWith(".vrm")
+            ) {
+              vrmUrlToSet = vrmPath.replace("asset://", `${CDN_URL}/`);
+            }
+            // Priority 4: CDN relative path for VRM (source === "CDN")
+            else if (
+              preSelected.source === "CDN" &&
+              vrmPath?.endsWith(".vrm")
+            ) {
+              vrmUrlToSet = `${CDN_URL}/${vrmPath}`;
+            }
+            // Note: We NO LONGER construct /api/assets/{id}/model.vrm
+            // because those VRMs often don't exist in storage
+
+            if (vrmUrlToSet) {
+              log.info("Pre-selecting VRM (verified URL):", vrmUrlToSet);
+              setVrmUrl(vrmUrlToSet);
+              setVrmConverted(true);
+            }
+            // If no valid VRM URL, don't pre-load - user can convert
           }
         }
 
@@ -211,14 +242,24 @@ function RetargetContent() {
         if (!modelPath) {
           throw new Error("No model URL found for selected asset");
         }
-        // Handle different URL formats
+        // Handle different URL formats based on source
         if (modelPath.startsWith("http")) {
+          // Full URL (Supabase or external)
           modelUrl = modelPath;
-        } else if (modelPath.startsWith("/")) {
-          modelUrl = modelPath; // Local API paths
+        } else if (modelPath.startsWith("/api/")) {
+          // Local API paths
+          modelUrl = modelPath;
         } else if (modelPath.startsWith("asset://")) {
+          // Asset CDN protocol (game assets from hyperscape repo)
           modelUrl = modelPath.replace("asset://", `${CDN_URL}/`);
+        } else if (
+          selectedAvatar.source === "LOCAL" ||
+          selectedAvatar.source !== "CDN"
+        ) {
+          // Forge/Local assets - use API route
+          modelUrl = `/api/assets/${selectedAvatar.id}/model.glb`;
         } else {
+          // CDN assets - prepend CDN URL
           modelUrl = `${CDN_URL}/${modelPath}`;
         }
       } else {
@@ -257,7 +298,30 @@ function RetargetContent() {
       setVrmConverted(true);
     } catch (error) {
       log.error("VRM conversion failed:", error);
-      setConversionWarnings([`Conversion failed: ${(error as Error).message}`]);
+      const errorMsg = (error as Error).message;
+
+      // Detect common Three.js/GLB loading errors and provide friendly messages
+      let friendlyError: string;
+      if (
+        errorMsg.includes("normalizeSkinWeights") ||
+        errorMsg.includes("reading 'count'")
+      ) {
+        friendlyError =
+          "This model cannot be converted to VRM: Invalid or incomplete skin weights. " +
+          "The model appears to have a skeleton but the mesh vertices are not properly weighted to the bones. " +
+          "This is common with AI-generated models that have rigging issues.";
+      } else if (errorMsg.includes("No SkinnedMesh")) {
+        friendlyError =
+          "This model cannot be converted to VRM: No rigged character found. " +
+          "VRM conversion only works with humanoid models that have bones/skeleton.";
+      } else if (errorMsg.includes("cannot be converted")) {
+        // Already a friendly error from VRMConverter
+        friendlyError = errorMsg;
+      } else {
+        friendlyError = `Conversion failed: ${errorMsg}`;
+      }
+
+      setConversionWarnings([friendlyError]);
     } finally {
       setIsConverting(false);
     }
@@ -334,36 +398,57 @@ function RetargetContent() {
         setUploadedFileUrl(null);
       }
 
-      // If already a VRM (has vrmPath or hasVRM flag), load directly
-      if (
-        avatar.vrmPath ||
-        avatar.hasVRM ||
-        avatar.modelPath?.endsWith(".vrm")
-      ) {
-        const vrmPath = avatar.vrmPath || avatar.modelPath;
-        if (vrmPath) {
-          // Determine the correct URL based on path type
-          let vrmUrlToSet: string;
-          if (vrmPath.startsWith("/api/")) {
-            // Local API path - use directly
-            vrmUrlToSet = vrmPath;
-          } else if (vrmPath.startsWith("asset://")) {
-            // Asset CDN path
-            vrmUrlToSet = vrmPath.replace("asset://", `${CDN_URL}/`);
-          } else if (vrmPath.startsWith("http")) {
-            // Full URL
-            vrmUrlToSet = vrmPath;
-          } else {
-            // Relative path - prepend CDN
-            vrmUrlToSet = `${CDN_URL}/${vrmPath}`;
-          }
+      // Load VRM if we have a verified URL
+      const explicitVrmUrl = avatar.vrmUrl;
+      const vrmPath = avatar.vrmPath || avatar.modelPath;
 
-          log.info("Loading VRM directly:", vrmUrlToSet);
-          setVrmUrl(vrmUrlToSet);
-          setVrmConverted(true);
-          setConversionWarnings([]);
-        }
+      let vrmUrlToSet: string | null = null;
+
+      // Priority 1: Explicit Supabase URL (full http/https)
+      if (
+        explicitVrmUrl?.startsWith("http") &&
+        explicitVrmUrl.endsWith(".vrm")
+      ) {
+        vrmUrlToSet = explicitVrmUrl;
+      }
+      // Priority 2: Local API path for VRM (generated with VRM conversion enabled)
+      else if (
+        explicitVrmUrl?.startsWith("/api/") &&
+        explicitVrmUrl.endsWith(".vrm")
+      ) {
+        vrmUrlToSet = explicitVrmUrl;
+      }
+      // Priority 3: vrmPath/modelPath that is already a full URL
+      else if (vrmPath?.startsWith("http") && vrmPath.endsWith(".vrm")) {
+        vrmUrlToSet = vrmPath;
+      }
+      // Priority 4: CDN asset:// protocol for VRM files
+      else if (vrmPath?.startsWith("asset://") && vrmPath.endsWith(".vrm")) {
+        vrmUrlToSet = vrmPath.replace("asset://", `${CDN_URL}/`);
+      }
+      // Priority 5: CDN relative path for VRM files (source === "CDN")
+      else if (avatar.source === "CDN" && vrmPath?.endsWith(".vrm")) {
+        vrmUrlToSet = `${CDN_URL}/${vrmPath}`;
+      }
+      // Priority 6: Local/Forge asset with hasVRM flag AND vrmPath
+      else if (
+        (avatar.source === "LOCAL" ||
+          avatar.source === "FORGE" ||
+          !avatar.source) &&
+        avatar.hasVRM &&
+        vrmPath?.endsWith(".vrm")
+      ) {
+        // Construct local API path
+        vrmUrlToSet = `/api/assets/${avatar.id}/model.vrm`;
+      }
+
+      if (vrmUrlToSet) {
+        log.info("Loading VRM directly (verified URL):", vrmUrlToSet);
+        setVrmUrl(vrmUrlToSet);
+        setVrmConverted(true);
+        setConversionWarnings([]);
       } else {
+        // No valid VRM URL - user needs to convert
         handleReset();
       }
     },
@@ -373,12 +458,13 @@ function RetargetContent() {
   const modelName = selectedAvatar?.name || uploadedFile?.name || "No model";
 
   // Show minimal loading state during SSR to avoid hydration mismatch with Lucide icons
+  // Use CSS-only spinner instead of Lucide icon
   if (!mounted) {
     return (
       <div className="flex h-screen bg-background overflow-hidden">
         <aside className="w-56 border-r border-glass-border bg-glass-bg/30" />
         <main className="flex-1 relative overflow-hidden bg-gradient-to-b from-zinc-900 to-zinc-950 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </main>
       </div>
     );
@@ -531,20 +617,41 @@ function RetargetContent() {
           </div>
         )}
 
-        {/* Conversion Warnings */}
-        {conversionWarnings.length > 0 && (
-          <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-medium mb-2">
-              <AlertTriangle className="w-3 h-3" />
-              Notes
-            </div>
-            {conversionWarnings.map((warning, idx) => (
-              <p key={idx} className="text-xs text-amber-300/70">
-                • {warning}
-              </p>
-            ))}
-          </div>
-        )}
+        {/* Conversion Warnings/Errors */}
+        {conversionWarnings.length > 0 &&
+          (() => {
+            const hasError = conversionWarnings.some(
+              (w) =>
+                w.includes("Conversion failed") ||
+                w.includes("cannot be converted"),
+            );
+            return (
+              <div
+                className={`mt-3 p-3 rounded-lg ${
+                  hasError
+                    ? "bg-red-500/10 border border-red-500/30"
+                    : "bg-amber-500/10 border border-amber-500/30"
+                }`}
+              >
+                <div
+                  className={`flex items-center gap-2 text-xs font-medium mb-2 ${
+                    hasError ? "text-red-400" : "text-amber-400"
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  {hasError ? "Error" : "Notes"}
+                </div>
+                {conversionWarnings.map((warning, idx) => (
+                  <p
+                    key={idx}
+                    className={`text-xs ${hasError ? "text-red-300/70" : "text-amber-300/70"}`}
+                  >
+                    • {warning}
+                  </p>
+                ))}
+              </div>
+            );
+          })()}
       </div>
 
       {/* Step 2: Test Animations */}
@@ -691,7 +798,8 @@ export default function RetargetAnimatePage() {
     <Suspense
       fallback={
         <div className="h-screen flex items-center justify-center bg-background">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+          {/* CSS-only spinner to avoid Lucide hydration mismatch */}
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </div>
       }
     >

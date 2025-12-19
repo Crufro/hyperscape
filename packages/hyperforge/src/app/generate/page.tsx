@@ -29,6 +29,12 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn, logger } from "@/lib/utils";
+import { addRecentGeneration } from "@/components/ui/command-palette";
+import {
+  MeshQualityControls,
+  MeshQualitySettings,
+  getMeshQualityForCategory,
+} from "@/components/enhancement/MeshQualityControls";
 
 const log = logger.child("GeneratePage");
 
@@ -112,6 +118,11 @@ export default function GeneratePage() {
   const [enableHandRigging, setEnableHandRigging] = useState(false); // Add hand bones for finger animation
   const [quality, setQuality] = useState<"preview" | "medium" | "high">(
     "medium",
+  );
+
+  // Mesh quality settings (polycount, topology)
+  const [meshQuality, setMeshQuality] = useState<MeshQualitySettings>(() =>
+    getMeshQualityForCategory("weapon"),
   );
 
   // Result state for navigating to VRM viewer
@@ -214,14 +225,25 @@ export default function GeneratePage() {
     }
   };
 
-  // Update asset type when generation type changes
+  // Update asset type and mesh quality when generation type changes
   useEffect(() => {
     if (generationType === "avatar") {
       setAssetType("character");
+      // Avatars need higher polycount and quad topology for rigging
+      setMeshQuality(getMeshQualityForCategory("npc"));
     } else if (generationType === "item") {
       setAssetType("weapon");
+      // Items use triangle topology for runtime performance
+      setMeshQuality(getMeshQualityForCategory("weapon"));
     }
   }, [generationType]);
+
+  // Update mesh quality when asset type changes within a generation type
+  useEffect(() => {
+    if (!generationType) return;
+    // Update mesh quality based on more specific asset type
+    setMeshQuality(getMeshQualityForCategory(assetType));
+  }, [assetType, generationType]);
 
   // Get current asset types for the generation type
   const currentAssetTypes = useMemo(() => {
@@ -343,6 +365,12 @@ export default function GeneratePage() {
             convertToVRM: generationType === "avatar" && enableVRMConversion,
             enableHandRigging: generationType === "avatar" && enableHandRigging,
             useGPT4Enhancement,
+            // Mesh quality settings (polycount, topology)
+            targetPolycount: meshQuality.targetPolycount,
+            topology: meshQuality.topology,
+            shouldRemesh: meshQuality.shouldRemesh,
+            enablePBR: meshQuality.enablePBR,
+            assetClass: meshQuality.assetClass,
             // Reference image options
             referenceImageUrl: effectiveReferenceUrl, // Custom uploaded or pre-generated concept art URL
             referenceImageDataUrl:
@@ -382,10 +410,13 @@ export default function GeneratePage() {
 
       if (reader) {
         let buffer = "";
-
-        while (true) {
+        let reading = true;
+        while (reading) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            reading = false;
+            continue;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n\n");
@@ -433,6 +464,18 @@ export default function GeneratePage() {
                   setActiveView("results");
                   // Refresh history to include the new asset
                   refreshHistory();
+
+                  // Save to command palette recent generations
+                  if (result.metadata?.assetId) {
+                    addRecentGeneration({
+                      id: result.metadata.assetId,
+                      name: assetName || result.metadata.assetId,
+                      category: generationType || "item",
+                      prompt: description,
+                      thumbnailUrl:
+                        result.localThumbnailUrl || result.thumbnailUrl,
+                    });
+                  }
                 } else if (data.type === "error") {
                   throw new Error(data.error);
                 }
@@ -944,36 +987,22 @@ export default function GeneratePage() {
                         </p>
                       </div>
 
-                      {/* Topology Settings (for avatars) */}
-                      {generationType === "avatar" && (
-                        <div>
-                          <label className="block text-sm font-medium mb-2">
-                            Mesh Topology
-                          </label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button className="p-3 rounded-lg border border-cyan-500/50 hover:border-cyan-400/70 bg-cyan-500/10 text-left">
-                              <div className="text-sm font-medium">
-                                Quad Mesh
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Better for animation
-                              </div>
-                            </button>
-                            <button className="p-3 rounded-lg border border-glass-border hover:border-glass-border/80 text-left opacity-50">
-                              <div className="text-sm font-medium">
-                                Triangle Mesh
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Faster generation
-                              </div>
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      {/* Mesh Quality Controls - Polycount, Topology, etc */}
+                      <div>
+                        <label className="block text-sm font-medium mb-3 text-white">
+                          Mesh Quality Settings
+                        </label>
+                        <MeshQualityControls
+                          value={meshQuality}
+                          onChange={setMeshQuality}
+                          compact={false}
+                          showAdvanced={true}
+                        />
+                      </div>
 
                       {/* Symmetry Settings (for items) */}
                       {generationType === "item" && (
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between pt-4 border-t border-glass-border">
                           <div>
                             <label className="text-sm font-medium">
                               Enforce Symmetry

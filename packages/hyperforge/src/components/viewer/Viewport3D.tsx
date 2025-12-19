@@ -7,11 +7,17 @@ import { OrbitControls, Environment, Grid } from "@react-three/drei";
 import { Suspense } from "react";
 import { X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { ModelViewer } from "./ModelViewer";
+import { ModelViewer, type ModelInfo } from "./ModelViewer";
 import { VRMViewer } from "./VRMViewer";
 import { ViewportControls } from "./ViewportControls";
 import { EnvironmentControls } from "./EnvironmentControls";
 import { ViewportShortcuts } from "./ViewportShortcuts";
+import {
+  ViewportSettingsModal,
+  DEFAULT_VIEWPORT_SETTINGS,
+  type ViewportSettings,
+} from "./ViewportSettingsModal";
+import { useToast } from "@/components/ui";
 import { EnhancementPanel } from "@/components/enhancement/EnhancementPanel";
 import { GenerationPanel } from "@/components/generation/GenerationPanel";
 import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
@@ -23,6 +29,7 @@ import {
   AudioStudioPanel,
 } from "@/components/modules";
 import { useAppStore, type ViewportPanelType } from "@/stores/app-store";
+import { useThumbnailOverrides } from "@/hooks/useThumbnailOverrides";
 import type { AssetData } from "@/types/asset";
 
 const log = logger.child("Viewport3D");
@@ -35,10 +42,19 @@ interface Viewport3DProps {
 export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
   const { viewportPanel, closeViewportPanel, setViewportPanel } = useAppStore();
   const { theme, setTheme } = useTheme();
-  const [environment, setEnvironment] = useState("studio");
-  const [showGrid, setShowGrid] = useState(true);
+  const { toast } = useToast();
+  const { setThumbnailOverride } = useThumbnailOverrides();
   const [showModel, setShowModel] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [viewportSettings, setViewportSettings] = useState<ViewportSettings>(
+    DEFAULT_VIEWPORT_SETTINGS,
+  );
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+
+  // Derived state from settings
+  const environment = viewportSettings.environment;
+  const showGrid = viewportSettings.showGrid;
 
   const environmentPresets: Record<
     string,
@@ -61,55 +77,92 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
   };
 
   // Check if current asset is a VRM file and get VRM URL
-  const hasVRMFlag =
-    (selectedAsset as { hasVRM?: boolean } | undefined)?.hasVRM === true;
-  const isVRM =
-    selectedAsset?.modelUrl?.toLowerCase().includes(".vrm") ||
-    selectedAsset?.modelUrl?.includes("/model.vrm") ||
-    hasVRMFlag;
-
-  // Get the VRM URL - prioritize explicit vrmUrl (if it's actually a .vrm), then construct from asset ID if hasVRM
+  // Only trust VRM if we have a full URL (Supabase) - not just hasVRM flag
   const explicitVrmUrl = (selectedAsset as { vrmUrl?: string } | undefined)
     ?.vrmUrl;
-  // Only use explicitVrmUrl if it actually ends with .vrm (some assets have wrong vrmUrl pointing to .glb)
-  const validExplicitVrmUrl = explicitVrmUrl?.toLowerCase().endsWith(".vrm")
-    ? explicitVrmUrl
-    : null;
-  const vrmUrl =
-    validExplicitVrmUrl ||
-    (selectedAsset?.modelUrl?.toLowerCase().endsWith(".vrm")
-      ? selectedAsset.modelUrl
-      : null) ||
-    (hasVRMFlag && selectedAsset?.id
-      ? `/api/assets/${selectedAsset.id}/model.vrm`
-      : null);
+
+  // Only use explicit vrmUrl if it's a full HTTP URL ending with .vrm
+  // Don't trust hasVRM flag alone as VRMs might not have been uploaded
+  const validExplicitVrmUrl =
+    explicitVrmUrl?.startsWith("http") &&
+    explicitVrmUrl?.toLowerCase().endsWith(".vrm")
+      ? explicitVrmUrl
+      : null;
+
+  // Check if modelUrl itself is a VRM
+  const modelUrlIsVrm = selectedAsset?.modelUrl?.toLowerCase().endsWith(".vrm");
+  const modelUrlVrm = modelUrlIsVrm ? selectedAsset?.modelUrl : null;
+
+  // Determine if this is a VRM asset - only if we have a valid VRM URL
+  const vrmUrl = validExplicitVrmUrl || modelUrlVrm;
+  const isVRM = !!vrmUrl;
 
   // Handle retexture - calls real API
   const handleRetexture = useCallback(async () => {
-    if (!selectedAsset?.id || isVRM) return;
+    if (!selectedAsset?.id) {
+      toast({
+        title: "No asset selected",
+        description: "Select an asset from the vault to retexture it.",
+        variant: "default",
+      });
+      return;
+    }
+    if (isVRM) {
+      toast({
+        title: "Not available for VRM",
+        description: "Retexturing is not available for character assets.",
+        variant: "default",
+      });
+      return;
+    }
 
     // Open enhancement panel with retexture tab
     setViewportPanel("enhancement");
     log.info("Opening retexture panel for asset:", selectedAsset.id);
-  }, [selectedAsset, isVRM, setViewportPanel]);
+  }, [selectedAsset, isVRM, setViewportPanel, toast]);
 
   // Handle regenerate - calls real API
   const handleRegenerate = useCallback(async () => {
-    if (!selectedAsset?.id || isVRM) return;
+    if (!selectedAsset?.id) {
+      toast({
+        title: "No asset selected",
+        description: "Select an asset from the vault to regenerate it.",
+        variant: "default",
+      });
+      return;
+    }
+    if (isVRM) {
+      toast({
+        title: "Not available for VRM",
+        description: "Regeneration is not available for character assets.",
+        variant: "default",
+      });
+      return;
+    }
 
     // Open enhancement panel with regenerate tab
     setViewportPanel("enhancement");
     log.info("Opening regenerate panel for asset:", selectedAsset.id);
-  }, [selectedAsset, isVRM, setViewportPanel]);
+  }, [selectedAsset, isVRM, setViewportPanel, toast]);
 
   // Handle sprites generation
   const handleSprites = useCallback(async () => {
-    if (!selectedAsset?.id || !selectedAsset?.name) return;
+    if (!selectedAsset?.id || !selectedAsset?.name) {
+      toast({
+        title: "No asset selected",
+        description: "Select an asset from the vault to generate sprites.",
+        variant: "default",
+      });
+      return;
+    }
 
     setIsProcessing(true);
     log.info("Generating sprites for asset:", selectedAsset.id);
 
     try {
+      // Get asset source to determine storage location
+      const assetSource = (selectedAsset as { source?: string }).source;
+
       const response = await fetch("/api/sprites/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,6 +174,7 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
           views: ["front", "side", "back", "isometric"],
           style: "clean",
           updateThumbnail: true,
+          source: assetSource, // Pass source for proper storage handling
         }),
       });
 
@@ -131,29 +185,50 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
           `Generated ${result.sprites.length} sprites`,
           result.thumbnailUrl ? `Thumbnail: ${result.thumbnailUrl}` : "",
         );
-        alert(
-          `Successfully generated ${result.sprites.length} sprites!${result.thumbnailUrl ? " Thumbnail updated." : ""}`,
-        );
+
+        // Save thumbnail override for this asset (for CDN assets with local sprites)
+        if (result.thumbnailUrl && selectedAsset.id) {
+          setThumbnailOverride(selectedAsset.id, result.thumbnailUrl);
+          log.info(
+            `Saved thumbnail override for ${selectedAsset.id}: ${result.thumbnailUrl}`,
+          );
+        }
+
+        toast({
+          title: "Sprites generated",
+          description: `Successfully generated ${result.sprites.length} sprites!${result.thumbnailUrl ? " Thumbnail updated." : ""}`,
+          variant: "success",
+        });
       } else {
         log.error("Sprite generation failed:", result.error);
-        alert(`Sprite generation failed: ${result.error}`);
+        toast({
+          title: "Sprite generation failed",
+          description: result.error,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       log.error("Sprite generation error:", error);
-      alert(
-        `Sprite generation error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      toast({
+        title: "Sprite generation error",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedAsset]);
+  }, [selectedAsset, toast]);
 
-  // Handle edit - open properties panel
-  const handleEdit = useCallback(() => {
-    if (selectedAsset) {
-      setViewportPanel("properties");
-    }
-  }, [selectedAsset, setViewportPanel]);
+  // Handle settings modal
+  const handleSettings = useCallback(() => {
+    setSettingsModalOpen(true);
+  }, []);
+
+  // Handle model load - capture mesh stats
+  const handleModelLoad = useCallback((info: ModelInfo) => {
+    setModelInfo(info);
+    log.info("Model loaded with stats:", info);
+  }, []);
 
   // Handle toggle visibility
   const handleToggleVisibility = useCallback(() => {
@@ -188,21 +263,21 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         location: "Viewport3D.tsx:162",
-        message: "Viewport3D render POST-FIX-v3",
+        message: "Viewport3D render POST-FIX-v4",
         data: {
           isVRM,
           vrmUrl: vrmUrl?.slice(-50),
           validExplicitVrmUrl: validExplicitVrmUrl?.slice(-50),
           explicitVrmUrl: explicitVrmUrl?.slice(-50),
           modelUrl: selectedAsset?.modelUrl?.slice(-50),
-          hasVRMFlag,
+          modelUrlIsVrm,
           assetId: selectedAsset?.id,
           willUseVRMViewer: !!(isVRM && vrmUrl),
           showModel,
         },
         timestamp: Date.now(),
         sessionId: "debug-session",
-        runId: "post-fix-v3",
+        runId: "post-fix-v4",
         hypothesisId: "A",
       }),
     }).catch(() => {});
@@ -214,6 +289,7 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
     return (
       <div className="relative h-full w-full bg-gradient-to-b from-zinc-900 to-zinc-950">
         <VRMViewer
+          key={vrmUrl} // Force remount when VRM URL changes to clean up old model
           vrmUrl={vrmUrl}
           className="h-full w-full"
           onLoad={(vrm, info) => {
@@ -231,19 +307,22 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
           onRetexture={handleRetexture}
           onRegenerate={handleRegenerate}
           onSprites={handleSprites}
-          onEdit={handleEdit}
           onToggleVisibility={handleToggleVisibility}
-          onToggleGrid={() => setShowGrid(!showGrid)}
+          onToggleGrid={() =>
+            setViewportSettings((s) => ({ ...s, showGrid: !s.showGrid }))
+          }
           onToggleTheme={handleToggleTheme}
           onRefresh={() => window.location.reload()}
           onCapture={handleCapture}
-          onSettings={() => setViewportPanel("properties")}
+          onSettings={handleSettings}
         />
 
         {/* Environment Controls - Bottom Right */}
         <EnvironmentControls
           environment={environment}
-          onEnvironmentChange={setEnvironment}
+          onEnvironmentChange={(env) =>
+            setViewportSettings((s) => ({ ...s, environment: env }))
+          }
         />
 
         {/* Shortcuts - Bottom Left */}
@@ -257,8 +336,17 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
             onClose={closeViewportPanel}
             onSwitchPanel={setViewportPanel}
             onAssetDeleted={onAssetDeleted}
+            modelInfo={null}
           />
         )}
+
+        {/* Viewport Settings Modal */}
+        <ViewportSettingsModal
+          isOpen={settingsModalOpen}
+          onClose={() => setSettingsModalOpen(false)}
+          settings={viewportSettings}
+          onSettingsChange={setViewportSettings}
+        />
       </div>
     );
   }
@@ -267,12 +355,16 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
   return (
     <div className="relative h-full w-full bg-gradient-to-b from-zinc-900 to-zinc-950">
       <Canvas
-        camera={{ position: [3, 2, 3], fov: 50 }}
+        camera={{ position: [3, 2, 3], fov: viewportSettings.cameraFov }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
       >
         <Suspense fallback={null}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
+          <ambientLight intensity={viewportSettings.ambientIntensity} />
+          <directionalLight
+            position={[10, 10, 5]}
+            intensity={viewportSettings.directionalIntensity}
+            castShadow
+          />
           <Environment
             preset={
               environmentPresets[
@@ -281,13 +373,19 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
             }
           />
 
-          {/* Model */}
-          {showModel && <ModelViewer modelUrl={selectedAsset?.modelUrl} />}
+          {/* Model - key forces remount when URL changes to clean up old model */}
+          {showModel && (
+            <ModelViewer
+              key={selectedAsset?.modelUrl || "no-model"}
+              modelUrl={selectedAsset?.modelUrl}
+              onModelLoad={handleModelLoad}
+            />
+          )}
 
           {/* Grid */}
           {showGrid && (
             <Grid
-              args={[10, 10]}
+              args={[viewportSettings.gridSize, viewportSettings.gridSize]}
               cellSize={0.5}
               cellThickness={0.5}
               cellColor="#333"
@@ -305,6 +403,8 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
+            autoRotate={viewportSettings.autoRotate}
+            autoRotateSpeed={2}
             minDistance={1}
             maxDistance={20}
             target={[0, 0.5, 0]}
@@ -319,19 +419,22 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
         onRetexture={handleRetexture}
         onRegenerate={handleRegenerate}
         onSprites={handleSprites}
-        onEdit={handleEdit}
         onToggleVisibility={handleToggleVisibility}
-        onToggleGrid={() => setShowGrid(!showGrid)}
+        onToggleGrid={() =>
+          setViewportSettings((s) => ({ ...s, showGrid: !s.showGrid }))
+        }
         onToggleTheme={handleToggleTheme}
         onRefresh={() => window.location.reload()}
         onCapture={handleCapture}
-        onSettings={() => setViewportPanel("properties")}
+        onSettings={handleSettings}
       />
 
       {/* Environment Controls - Bottom Right */}
       <EnvironmentControls
         environment={environment}
-        onEnvironmentChange={setEnvironment}
+        onEnvironmentChange={(env) =>
+          setViewportSettings((s) => ({ ...s, environment: env }))
+        }
       />
 
       {/* Shortcuts - Bottom Left */}
@@ -345,8 +448,17 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
           onClose={closeViewportPanel}
           onSwitchPanel={setViewportPanel}
           onAssetDeleted={onAssetDeleted}
+          modelInfo={modelInfo}
         />
       )}
+
+      {/* Viewport Settings Modal */}
+      <ViewportSettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        settings={viewportSettings}
+        onSettingsChange={setViewportSettings}
+      />
     </div>
   );
 }
@@ -358,12 +470,14 @@ function ViewportPanelOverlay({
   onClose,
   onSwitchPanel,
   onAssetDeleted,
+  modelInfo,
 }: {
   panelType: ViewportPanelType;
   selectedAsset?: AssetData | null;
   onClose: () => void;
   onSwitchPanel: (panel: ViewportPanelType) => void;
   onAssetDeleted?: (assetId: string) => void;
+  modelInfo?: ModelInfo | null;
 }) {
   const panelConfig: Record<
     ViewportPanelType,
@@ -452,6 +566,7 @@ function ViewportPanelOverlay({
             onClose={onClose}
             onAssetDeleted={onAssetDeleted}
             isViewportOverlay
+            modelInfo={modelInfo}
           />
         )}
 

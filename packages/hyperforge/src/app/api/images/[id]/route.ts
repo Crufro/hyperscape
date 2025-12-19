@@ -15,6 +15,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // CDN assets cannot be deleted - they're read-only production assets
+    if (id.startsWith("cdn_")) {
+      return NextResponse.json(
+        { error: "CDN assets are read-only and cannot be deleted" },
+        { status: 403 },
+      );
+    }
+
     const assetsDir =
       process.env.HYPERFORGE_ASSETS_DIR || path.join(process.cwd(), "assets");
     const imagesDir = path.join(assetsDir, "images");

@@ -26,15 +26,73 @@ import {
   RefreshCw,
   Store,
   ShoppingCart,
+  Box,
+  Triangle,
+  Hexagon,
+  Layers,
+  ExternalLink,
+  MapPin,
+  CheckCircle2,
+  Circle,
+  CloudUpload,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { useToast } from "@/components/ui/toast";
 import { cn, logger } from "@/lib/utils";
+import { getCDNBaseUrl } from "@/lib/cdn/url-resolver";
 import type { AssetData } from "@/types/asset";
+import type { ModelInfo } from "@/components/viewer/ModelViewer";
 
 const log = logger.child("PropertiesPanel");
+
+// Game client URL for testing
+const GAME_CLIENT_URL =
+  process.env.NEXT_PUBLIC_GAME_URL || "http://localhost:3333";
+
+// Spawn location presets for testing
+const SPAWN_LOCATIONS = [
+  {
+    id: "near_player",
+    name: "Near Player",
+    position: { x: 2, y: 0, z: 2 },
+    area: "central_haven",
+  },
+  {
+    id: "town_center",
+    name: "Town Center",
+    position: { x: 0, y: 0, z: 0 },
+    area: "central_haven",
+  },
+  {
+    id: "bank_area",
+    name: "Bank Area",
+    position: { x: 5, y: 0, z: -5 },
+    area: "central_haven",
+  },
+  {
+    id: "shop_area",
+    name: "Shop Area",
+    position: { x: -5, y: 0, z: -5 },
+    area: "central_haven",
+  },
+  {
+    id: "training_area",
+    name: "Training Area",
+    position: { x: 10, y: 0, z: 10 },
+    area: "central_haven",
+  },
+  {
+    id: "forest_edge",
+    name: "Forest Edge",
+    position: { x: 15, y: 0, z: -10 },
+    area: "central_haven",
+  },
+] as const;
+
+// Sync status types
+type SyncStatus = "in_game" | "exported" | "draft" | "syncing" | "error";
 
 // Game data types
 interface ResourceGameData {
@@ -125,6 +183,17 @@ interface ItemStoreInfo {
   buybackRate?: number;
 }
 
+interface MeshStats {
+  vertices: number;
+  triangles: number;
+  polycount: number;
+  topology?: "triangle" | "quad" | "mixed";
+  fileSize?: number;
+  textureResolution?: number;
+  hasPBR?: boolean;
+  meshCount?: number;
+}
+
 interface PropertiesPanelProps {
   asset: AssetData | null;
   isOpen: boolean;
@@ -133,6 +202,8 @@ interface PropertiesPanelProps {
   onAssetDuplicated?: (newAsset: { id: string; name: string }) => void;
   /** When true, renders without container styling (used inside viewport overlay) */
   isViewportOverlay?: boolean;
+  /** Model mesh stats from 3D viewer */
+  modelInfo?: ModelInfo | null;
 }
 
 // Rarity colors for drop table
@@ -188,6 +259,7 @@ export function PropertiesPanel({
   onAssetDeleted,
   onAssetDuplicated,
   isViewportOverlay = false,
+  modelInfo,
 }: PropertiesPanelProps) {
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
@@ -196,6 +268,14 @@ export function PropertiesPanel({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isAddingToWorld, setIsAddingToWorld] = useState(false);
+
+  // New: Test in Game functionality
+  const [isTestingInGame, setIsTestingInGame] = useState(false);
+  const [selectedSpawnLocation, setSelectedSpawnLocation] = useState(
+    SPAWN_LOCATIONS[0].id,
+  );
+  const [showSpawnPicker, setShowSpawnPicker] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("draft");
 
   // Game data states
   const [resourceData, setResourceData] = useState<ResourceGameData | null>(
@@ -207,6 +287,10 @@ export function PropertiesPanel({
   const [dropSources, setDropSources] = useState<DropSource[]>([]);
   const [storeInfo, setStoreInfo] = useState<ItemStoreInfo[]>([]);
   const [isLoadingGameData, setIsLoadingGameData] = useState(false);
+
+  // Mesh statistics state
+  const [meshStats, setMeshStats] = useState<MeshStats | null>(null);
+  const [isLoadingMeshStats, setIsLoadingMeshStats] = useState(false);
 
   // Fetch game data when asset changes
   useEffect(() => {
@@ -223,16 +307,23 @@ export function PropertiesPanel({
 
       try {
         // Determine what type of game data to fetch based on asset properties
+        // Note: Only look up game data for assets that exist in the game manifests
+        // CDN avatars are not in game manifests, so exclude them
+        const isAvatar =
+          asset.category === "avatar" ||
+          asset.type === "avatar" ||
+          asset.id?.includes("avatar");
         const isResource =
           asset.category === "resource" ||
           asset.type === "tree" ||
           asset.type === "fishing_spot" ||
           asset.id?.includes("tree");
         const isNPC =
-          asset.category === "npc" ||
-          asset.category === "mob" ||
-          asset.type === "mob" ||
-          asset.id?.includes("goblin");
+          !isAvatar && // Exclude avatars - they're CDN assets, not game NPCs
+          (asset.category === "npc" ||
+            asset.category === "mob" ||
+            asset.type === "mob" ||
+            asset.id?.includes("goblin"));
         const isItem =
           asset.category === "weapon" ||
           asset.category === "armor" ||
@@ -291,10 +382,186 @@ export function PropertiesPanel({
     };
 
     fetchGameData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only refetch on id/category/type change, not every asset update
   }, [asset?.id, asset?.category, asset?.type]);
 
+  // Update mesh statistics from modelInfo (from 3D viewer) or fetch from API
+  useEffect(() => {
+    // If we have modelInfo from the viewer, use it directly (more accurate)
+    if (modelInfo) {
+      setMeshStats({
+        vertices: modelInfo.vertices,
+        triangles: modelInfo.triangles,
+        polycount: modelInfo.triangles, // Polycount = triangle count for GLB
+        topology:
+          modelInfo.meshType === "triangles"
+            ? "triangle"
+            : modelInfo.meshType === "quads"
+              ? "quad"
+              : "mixed",
+        meshCount: modelInfo.meshCount,
+        hasPBR: modelInfo.materials > 0, // Assume PBR if materials exist
+      });
+      setIsLoadingMeshStats(false);
+      return;
+    }
+
+    if (!asset?.modelUrl) {
+      setMeshStats(null);
+      return;
+    }
+
+    const fetchMeshStats = async () => {
+      setIsLoadingMeshStats(true);
+      setMeshStats(null);
+
+      try {
+        // Resolve the model URL properly
+        // If it's already a full URL, use it; otherwise prepend CDN base
+        let resolvedUrl = asset.modelUrl!;
+        if (!resolvedUrl.startsWith("http")) {
+          // Handle asset:// protocol
+          if (resolvedUrl.startsWith("asset://")) {
+            resolvedUrl = resolvedUrl.replace(
+              "asset://",
+              `${getCDNBaseUrl()}/`,
+            );
+          } else if (resolvedUrl.startsWith("/")) {
+            // Absolute path - use window.location.origin for local assets
+            resolvedUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${resolvedUrl}`;
+          } else {
+            // Relative path - prepend CDN URL
+            resolvedUrl = `${getCDNBaseUrl()}/${resolvedUrl}`;
+          }
+        }
+
+        // Try to get mesh stats from API
+        const response = await fetch(
+          `/api/assets/mesh-stats?url=${encodeURIComponent(resolvedUrl)}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setMeshStats(data);
+        } else {
+          // If API fails, try to extract from asset metadata/generation params
+          const genParams = (
+            asset as { generationParams?: Record<string, unknown> }
+          ).generationParams;
+          if (genParams?.targetPolycount || genParams?.topology) {
+            setMeshStats({
+              vertices: 0,
+              triangles: 0,
+              polycount: (genParams.targetPolycount as number) || 0,
+              topology: genParams.topology as "triangle" | "quad" | undefined,
+              hasPBR: genParams.enablePBR as boolean | undefined,
+            });
+          }
+        }
+      } catch (error) {
+        log.debug("Failed to fetch mesh stats:", error);
+      } finally {
+        setIsLoadingMeshStats(false);
+      }
+    };
+
+    fetchMeshStats();
+  }, [asset?.modelUrl, asset?.id, modelInfo]);
+
+  // Check sync status - is asset in game manifests?
+  useEffect(() => {
+    if (!asset) return;
+
+    const checkSyncStatus = async () => {
+      try {
+        // Check if asset exists in game manifests
+        const response = await fetch(
+          `/api/assets/sync-status?assetId=${asset.id}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setSyncStatus(data.status || "draft");
+        } else {
+          // Default to draft if we can't check
+          setSyncStatus(asset.source === "CDN" ? "in_game" : "draft");
+        }
+      } catch {
+        // CDN assets are always in game, others default to draft
+        setSyncStatus(asset.source === "CDN" ? "in_game" : "draft");
+      }
+    };
+
+    checkSyncStatus();
+  }, [asset?.id, asset?.source]);
+
   if (!isOpen || !asset) return null;
+
+  // Get selected spawn location
+  const spawnLocation =
+    SPAWN_LOCATIONS.find((l) => l.id === selectedSpawnLocation) ||
+    SPAWN_LOCATIONS[0];
+
+  // Handle Test in Game - one-click export, spawn, and open game
+  const handleTestInGame = async () => {
+    setIsTestingInGame(true);
+    setSyncStatus("syncing");
+
+    toast({
+      variant: "default",
+      title: "🎮 Preparing Test",
+      description: `Exporting ${asset.name} to game server...`,
+      duration: 2000,
+    });
+
+    try {
+      // Use the unified test-in-game API which handles everything
+      const response = await fetch("/api/test-in-game", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetId: asset.id,
+          assetName: asset.name,
+          category: asset.category,
+          source: asset.source,
+          hasVRM: asset.hasVRM,
+          spawnPosition: spawnLocation.position,
+          spawnArea: spawnLocation.area,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Test failed");
+      }
+
+      setSyncStatus("in_game");
+
+      toast({
+        variant: "default",
+        title: "🎮 Ready to Play!",
+        description: `${asset.name} spawned at ${spawnLocation.name}`,
+        duration: 3000,
+      });
+
+      // Small delay to let server reload, then open game
+      setTimeout(() => {
+        window.open(result.gameUrl || GAME_CLIENT_URL, "_blank");
+      }, 500);
+    } catch (error) {
+      log.error("Test in game failed:", error);
+      setSyncStatus("error");
+      toast({
+        variant: "destructive",
+        title: "Test Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not spawn asset in game",
+        duration: 4000,
+      });
+    } finally {
+      setIsTestingInGame(false);
+    }
+  };
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -654,6 +921,41 @@ export function PropertiesPanel({
 
         {/* Tags */}
         <div className="flex flex-wrap gap-2">
+          {/* Sync Status Badge */}
+          <Badge
+            variant="secondary"
+            className={cn(
+              "text-xs flex items-center gap-1",
+              syncStatus === "in_game" &&
+                "bg-green-500/20 text-green-300 border-green-500/30",
+              syncStatus === "exported" &&
+                "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+              syncStatus === "draft" &&
+                "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+              syncStatus === "syncing" &&
+                "bg-blue-500/20 text-blue-300 border-blue-500/30",
+              syncStatus === "error" &&
+                "bg-red-500/20 text-red-300 border-red-500/30",
+            )}
+          >
+            {syncStatus === "in_game" && <CheckCircle2 className="w-3 h-3" />}
+            {syncStatus === "exported" && <CloudUpload className="w-3 h-3" />}
+            {syncStatus === "draft" && <Circle className="w-3 h-3" />}
+            {syncStatus === "syncing" && (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            )}
+            {syncStatus === "error" && <AlertTriangle className="w-3 h-3" />}
+            {syncStatus === "in_game"
+              ? "In Game"
+              : syncStatus === "exported"
+                ? "Exported"
+                : syncStatus === "draft"
+                  ? "Draft"
+                  : syncStatus === "syncing"
+                    ? "Syncing..."
+                    : "Error"}
+          </Badge>
+
           {asset.hasVRM && (
             <Badge
               variant="secondary"
@@ -716,6 +1018,113 @@ export function PropertiesPanel({
               </div>
             )}
           </div>
+
+          {/* Mesh Statistics */}
+          {isLoadingMeshStats && (
+            <div className="flex items-center py-2">
+              <Loader2 className="w-4 h-4 animate-spin text-cyan-400 mr-2" />
+              <span className="text-xs text-muted-foreground">
+                Loading mesh stats...
+              </span>
+            </div>
+          )}
+
+          {meshStats && (
+            <div className="mt-4 pt-4 border-t border-glass-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Box className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-semibold">Mesh Statistics</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {meshStats.triangles > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                    <Triangle className="w-4 h-4 text-blue-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Triangles</p>
+                      <p className="font-semibold">
+                        {meshStats.triangles.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {meshStats.vertices > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                    <Hexagon className="w-4 h-4 text-purple-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Vertices</p>
+                      <p className="font-semibold">
+                        {meshStats.vertices.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {meshStats.polycount > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                    <Layers className="w-4 h-4 text-green-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Polycount</p>
+                      <p className="font-semibold">
+                        {meshStats.polycount.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {meshStats.meshCount && meshStats.meshCount > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                    <Package className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Meshes</p>
+                      <p className="font-semibold">{meshStats.meshCount}</p>
+                    </div>
+                  </div>
+                )}
+
+                {meshStats.topology && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                    <Triangle className="w-4 h-4 text-orange-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Topology</p>
+                      <p className="font-semibold capitalize">
+                        {meshStats.topology}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {meshStats.textureResolution && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-glass-bg/50">
+                    <Layers className="w-4 h-4 text-pink-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Texture</p>
+                      <p className="font-semibold">
+                        {meshStats.textureResolution}px
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Material info */}
+              <div className="flex flex-wrap gap-2 text-xs">
+                {meshStats.hasPBR && (
+                  <Badge variant="outline" className="text-cyan-400">
+                    PBR Materials
+                  </Badge>
+                )}
+                {meshStats.fileSize && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    {meshStats.fileSize < 1024 * 1024
+                      ? `${(meshStats.fileSize / 1024).toFixed(0)} KB`
+                      : `${(meshStats.fileSize / (1024 * 1024)).toFixed(1)} MB`}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Resource Game Data */}
           {isLoadingGameData && (
@@ -1255,6 +1664,78 @@ export function PropertiesPanel({
               </>
             )}
           </SpectacularButton>
+
+          {/* Test in Game - One-click export, spawn, and open game */}
+          <div className="space-y-2 p-3 rounded-lg bg-gradient-to-br from-green-500/10 via-cyan-500/5 to-transparent border border-green-500/20">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-green-300 flex items-center gap-1.5 uppercase tracking-wide">
+                <Play className="w-3 h-3" />
+                Quick Test
+              </span>
+              <button
+                onClick={() => setShowSpawnPicker(!showSpawnPicker)}
+                className={cn(
+                  "text-xs px-2 py-1 rounded-md flex items-center gap-1 transition-all",
+                  showSpawnPicker
+                    ? "bg-green-500/20 text-green-300"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg",
+                )}
+                title="Choose spawn location"
+              >
+                <MapPin className="w-3 h-3" />
+                {spawnLocation.name}
+              </button>
+            </div>
+
+            {showSpawnPicker && (
+              <div className="grid grid-cols-2 gap-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                {SPAWN_LOCATIONS.map((loc) => (
+                  <button
+                    key={loc.id}
+                    onClick={() => {
+                      setSelectedSpawnLocation(loc.id);
+                      setShowSpawnPicker(false);
+                    }}
+                    className={cn(
+                      "text-xs px-2 py-1.5 rounded-md border transition-all text-left",
+                      selectedSpawnLocation === loc.id
+                        ? "bg-green-500/20 border-green-500/50 text-green-300"
+                        : "bg-glass-bg/50 border-glass-border hover:border-green-500/30 hover:bg-glass-bg",
+                    )}
+                  >
+                    <span className="flex items-center gap-1">
+                      {selectedSpawnLocation === loc.id && (
+                        <CheckCircle2 className="w-3 h-3" />
+                      )}
+                      {loc.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <SpectacularButton
+              className="w-full"
+              variant="default"
+              onClick={handleTestInGame}
+              disabled={isTestingInGame || syncStatus === "syncing"}
+            >
+              {isTestingInGame ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Spawning...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Test in Game
+                </>
+              )}
+            </SpectacularButton>
+            <p className="text-[10px] text-muted-foreground/70 text-center">
+              Export → Spawn → Open Game
+            </p>
+          </div>
 
           {/* Add to World - exports, adds to world.json, and reloads server */}
           <SpectacularButton

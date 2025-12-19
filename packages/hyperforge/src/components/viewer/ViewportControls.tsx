@@ -20,7 +20,6 @@ interface ViewportControlsProps {
   onRetexture?: () => void;
   onRegenerate?: () => void;
   onSprites?: () => void;
-  onEdit?: () => void;
   onToggleVisibility?: () => void;
   onToggleGrid?: () => void;
   onToggleTheme?: () => void;
@@ -35,13 +34,12 @@ export function ViewportControls({
   onRetexture,
   onRegenerate,
   onSprites,
-  onEdit,
   onToggleVisibility,
   onToggleGrid,
   onToggleTheme,
   onRefresh,
   onCapture,
-  onSettings: _onSettings,
+  onSettings,
 }: ViewportControlsProps) {
   // Show action buttons only for non-VRM assets
   const showAssetActions = !isVRM;
@@ -101,8 +99,8 @@ export function ViewportControls({
       <SpectacularButton
         variant="ghost"
         size="sm"
-        onClick={onEdit}
-        title="Edit Properties"
+        onClick={onSettings}
+        title="Viewport Settings"
       >
         <Settings className="w-4 h-4" />
       </SpectacularButton>

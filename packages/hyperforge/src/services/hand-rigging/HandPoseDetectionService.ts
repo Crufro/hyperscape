@@ -91,7 +91,7 @@ export class HandPoseDetectionService {
    * Detect hands in an image
    */
   async detectHands(
-    imageData: ImageData | HTMLCanvasElement,
+    imageData: globalThis.ImageData | HTMLCanvasElement,
   ): Promise<HandDetectionResult> {
     if (!this.isInitialized || !this.detector) {
       await this.initialize();
@@ -104,7 +104,7 @@ export class HandPoseDetectionService {
     try {
       // Convert ImageData to canvas if needed
       let input: HTMLCanvasElement;
-      if (imageData instanceof ImageData) {
+      if (imageData instanceof globalThis.ImageData) {
         const canvas = document.createElement("canvas");
         canvas.width = imageData.width;
         canvas.height = imageData.height;

@@ -55,11 +55,12 @@ CardHeader.displayName = "CardHeader";
 // ============================================================================
 // CardTitle
 // ============================================================================
-export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+export interface CardTitleProps
+  extends HTMLAttributes<globalThis.HTMLHeadingElement> {
   as?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 }
 
-const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
+const CardTitle = forwardRef<globalThis.HTMLHeadingElement, CardTitleProps>(
   ({ className, as = "h3", ...props }, ref) => {
     const Component = as;
     return (
@@ -79,17 +80,19 @@ CardTitle.displayName = "CardTitle";
 // ============================================================================
 // CardDescription
 // ============================================================================
-export type CardDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
+export type CardDescriptionProps =
+  HTMLAttributes<globalThis.HTMLParagraphElement>;
 
-const CardDescription = forwardRef<HTMLParagraphElement, CardDescriptionProps>(
-  ({ className, ...props }, ref) => (
-    <p
-      ref={ref}
-      className={cn("text-sm text-muted mt-1", className)}
-      {...props}
-    />
-  ),
-);
+const CardDescription = forwardRef<
+  globalThis.HTMLParagraphElement,
+  CardDescriptionProps
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn("text-sm text-muted mt-1", className)}
+    {...props}
+  />
+));
 CardDescription.displayName = "CardDescription";
 
 // ============================================================================

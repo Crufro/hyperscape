@@ -38,7 +38,7 @@ export async function startImageTo3D(
     enable_pbr: options?.enable_pbr ?? true,
     ai_model: options?.ai_model ?? "meshy-4",
     topology: options?.topology ?? DEFAULT_TOPOLOGY,
-    target_polycount: options?.target_polycount ?? 30000,
+    target_polycount: options?.target_polycount ?? 2000, // Game-optimized default
     texture_resolution:
       options?.texture_resolution ?? DEFAULT_TEXTURE_RESOLUTION,
     should_remesh: options?.should_remesh,

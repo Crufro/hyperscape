@@ -283,7 +283,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
 
       return () => {
         window.removeEventListener("resize", handleResize);
-        cancelAnimationFrame(animationId);
+        globalThis.cancelAnimationFrame(animationId);
         // Dispose transform controls if they were created
         if (transformControlsRef.current) {
           transformControlsRef.current.detach();
@@ -389,7 +389,6 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       };
 
       loadAvatar();
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- Callbacks called after load, not triggers
     }, [isInitialized, avatarUrl]);
 
     // Load equipment
@@ -461,7 +460,6 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       };
 
       loadEquipment();
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- Callback called after load, not a trigger
     }, [
       isInitialized,
       equipmentUrl,
@@ -918,7 +916,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
 
       // Stop any previous procedural animation
       if (proceduralAnimationRef.current !== null) {
-        cancelAnimationFrame(proceduralAnimationRef.current);
+        globalThis.cancelAnimationFrame(proceduralAnimationRef.current);
         proceduralAnimationRef.current = null;
       }
 
@@ -962,7 +960,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       // Cleanup
       return () => {
         if (proceduralAnimationRef.current !== null) {
-          cancelAnimationFrame(proceduralAnimationRef.current);
+          globalThis.cancelAnimationFrame(proceduralAnimationRef.current);
           proceduralAnimationRef.current = null;
         }
       };

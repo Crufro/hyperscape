@@ -272,10 +272,10 @@ export default function EquipmentFittingPage() {
       if (!response.ok) throw new Error("Failed to save configuration");
 
       log.info("Configuration saved:", config);
-      alert("Configuration saved!");
+      window.alert("Configuration saved!");
     } catch (error) {
       log.error("Save failed:", error);
-      alert("Failed to save configuration");
+      window.alert("Failed to save configuration");
     }
   }, [
     selectedAvatar,
@@ -294,7 +294,7 @@ export default function EquipmentFittingPage() {
     try {
       const glb = await viewerRef.current.exportAlignedEquipment();
       if (glb.byteLength === 0) {
-        alert("No equipment to export");
+        window.alert("No equipment to export");
         return;
       }
 
@@ -307,7 +307,7 @@ export default function EquipmentFittingPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       log.error("Export failed:", error);
-      alert("Export failed");
+      window.alert("Export failed");
     }
   }, [selectedWeapon]);
 
@@ -317,7 +317,7 @@ export default function EquipmentFittingPage() {
     try {
       const glb = await viewerRef.current.exportEquippedModel();
       if (glb.byteLength === 0) {
-        alert("No model to export");
+        window.alert("No model to export");
         return;
       }
 
@@ -330,7 +330,7 @@ export default function EquipmentFittingPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       log.error("Export failed:", error);
-      alert("Export failed");
+      window.alert("Export failed");
     }
   }, [selectedAvatar]);
 

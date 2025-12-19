@@ -1,7 +1,8 @@
 import { ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps
+  extends ButtonHTMLAttributes<globalThis.HTMLButtonElement> {
   variant?:
     | "primary"
     | "secondary"
@@ -15,7 +16,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 // Wrapping motion.button logic manually or using standard button for simplicity first
-export const SpectacularButton = forwardRef<HTMLButtonElement, ButtonProps>(
+export const SpectacularButton = forwardRef<
+  globalThis.HTMLButtonElement,
+  ButtonProps
+>(
   (
     {
       className,

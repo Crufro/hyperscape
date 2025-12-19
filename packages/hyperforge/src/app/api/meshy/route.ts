@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         prompt: params.prompt,
         ai_model: params.aiModel ?? "latest",
         topology: params.topology ?? "triangle",
-        target_polycount: params.targetPolycount ?? 30000,
+        target_polycount: params.targetPolycount ?? 2000, // Game-optimized default
         art_style: params.artStyle ?? "realistic",
         symmetry_mode: params.symmetryMode ?? "auto",
         pose_mode: params.poseMode ?? "",

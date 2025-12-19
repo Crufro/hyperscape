@@ -183,7 +183,7 @@ export const VRMViewer = forwardRef<VRMViewerRef, VRMViewerProps>(
       // Cleanup
       return () => {
         window.removeEventListener("resize", handleResize);
-        cancelAnimationFrame(animationFrameRef.current);
+        globalThis.cancelAnimationFrame(animationFrameRef.current);
         renderer.dispose();
         controls.dispose();
       };

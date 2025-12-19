@@ -6,6 +6,10 @@
  *   const log = logger.child("ModuleName");
  *   log.debug("message", data);
  *
+ * NOTE: We cannot use pino-pretty here because it depends on pino-abstract-transport
+ * which requires worker_threads - not available in Next.js webpack bundled environments.
+ * Instead, we use a custom prettifier that works everywhere.
+ *
  * @see https://github.com/pinojs/pino
  */
 
@@ -65,8 +69,91 @@ const browserConfig: pino.LoggerOptions["browser"] = {
   },
 };
 
+// ANSI color codes for pretty logging
+const colors = {
+  reset: "\x1b[0m",
+  dim: "\x1b[2m",
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  magenta: "\x1b[35m",
+  white: "\x1b[37m",
+};
+
+// Log level names and colors
+const levelConfig: Record<number, { name: string; color: string }> = {
+  10: { name: "TRACE", color: colors.dim },
+  20: { name: "DEBUG", color: colors.cyan },
+  30: { name: "INFO", color: colors.green },
+  40: { name: "WARN", color: colors.yellow },
+  50: { name: "ERROR", color: colors.red },
+  60: { name: "FATAL", color: colors.magenta },
+};
+
+/**
+ * Create a pretty formatting stream for development
+ * This avoids pino-pretty's worker_threads dependency
+ */
+function createPrettyStream(): NodeJS.WritableStream {
+  // eslint-disable-next-line no-undef
+  const { Writable } = require("stream");
+
+  return new Writable({
+    write(
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void,
+    ) {
+      try {
+        const log = JSON.parse(chunk.toString());
+        const time = new Date(log.time).toLocaleTimeString("en-US", {
+          hour12: false,
+        });
+        const levelInfo = levelConfig[log.level] || {
+          name: "???",
+          color: colors.white,
+        };
+        const module = log.module ? `[${log.module}]` : "";
+
+        // Build the log line
+        let line = `${colors.dim}${time}${colors.reset} ${levelInfo.color}${levelInfo.name}${colors.reset}`;
+        if (module) {
+          line += ` ${colors.cyan}${module}${colors.reset}`;
+        }
+        if (log.msg) {
+          line += ` ${log.msg}`;
+        }
+
+        // Add extra data (excluding standard fields)
+        const extraKeys = Object.keys(log).filter(
+          (k) =>
+            !["level", "time", "pid", "hostname", "module", "msg"].includes(k),
+        );
+        if (extraKeys.length > 0) {
+          const extra: Record<string, unknown> = {};
+          for (const k of extraKeys) {
+            extra[k] = log[k];
+          }
+          line += ` ${colors.dim}${JSON.stringify(extra)}${colors.reset}`;
+        }
+
+        process.stdout.write(line + "\n");
+        callback();
+      } catch {
+        // If parsing fails, just output raw
+        process.stdout.write(chunk);
+        callback();
+      }
+    },
+  });
+}
+
 /**
  * Create the base Pino logger instance
+ *
+ * Uses a custom pretty stream in development to avoid pino-pretty's
+ * worker_threads dependency which doesn't work in Next.js webpack.
  */
 function createBaseLogger(): pino.Logger {
   const level = getLogLevel();
@@ -79,23 +166,13 @@ function createBaseLogger(): pino.Logger {
     });
   }
 
-  // Node.js: use pino-pretty in development, JSON in production
+  // Production: use JSON output for structured logging
   if (process.env.NODE_ENV === "production") {
     return pino({ level });
   }
 
-  // Development: pretty print with colors
-  return pino({
-    level,
-    transport: {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "HH:MM:ss",
-        ignore: "pid,hostname",
-      },
-    },
-  });
+  // Development: use custom pretty stream (no worker_threads needed)
+  return pino({ level }, createPrettyStream());
 }
 
 // Create the base logger instance

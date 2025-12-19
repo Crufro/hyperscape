@@ -112,3 +112,141 @@ body {
   }
 }
 
+/* React Flow Custom Styles */
+@layer components {
+  /* React Flow Base Theme */
+  .react-flow {
+    --rf-node-bg: oklch(var(--glass-bg));
+    --rf-node-border: oklch(var(--glass-border));
+    --rf-handle-bg: oklch(var(--neon-blue));
+  }
+
+  /* Controls styling */
+  .react-flow__controls {
+    box-shadow: 0 4px 20px oklch(0 0 0 / 0.3);
+  }
+
+  .react-flow__controls-button {
+    background: oklch(var(--glass-bg)) !important;
+    border: none !important;
+    color: oklch(var(--foreground)) !important;
+    transition: all 0.2s ease;
+  }
+
+  .react-flow__controls-button:hover {
+    background: oklch(var(--neon-blue) / 0.2) !important;
+    color: oklch(var(--neon-blue)) !important;
+  }
+
+  .react-flow__controls-button svg {
+    fill: currentColor !important;
+  }
+
+  /* MiniMap styling */
+  .react-flow__minimap {
+    box-shadow: 0 4px 20px oklch(0 0 0 / 0.3);
+  }
+
+  /* Attribution hidden */
+  .react-flow__attribution {
+    display: none;
+  }
+
+  /* Edge styling */
+  .react-flow__edge-path {
+    stroke-linecap: round;
+  }
+
+  .react-flow__edge.selected .react-flow__edge-path,
+  .react-flow__edge:hover .react-flow__edge-path {
+    stroke-width: 3;
+  }
+
+  /* Handle styling */
+  .react-flow__handle {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .react-flow__handle:hover {
+    transform: scale(1.3);
+    box-shadow: 0 0 10px oklch(var(--neon-blue));
+  }
+
+  /* Connection line */
+  .react-flow__connection-line {
+    stroke: oklch(var(--neon-blue));
+    stroke-width: 2;
+    stroke-dasharray: 5;
+    animation: dash 0.5s linear infinite;
+  }
+
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -10;
+    }
+  }
+
+  /* Selection box */
+  .react-flow__selection {
+    background: oklch(var(--neon-blue) / 0.1);
+    border: 1px dashed oklch(var(--neon-blue));
+  }
+
+  /* Node animations */
+  .react-flow__node {
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+  }
+
+  .react-flow__node.selected {
+    z-index: 10 !important;
+  }
+
+  /* Panel animations */
+  .react-flow__panel {
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Background dots animation on hover */
+  .react-flow__background {
+    transition: opacity 0.3s ease;
+  }
+
+  /* Node toolbar animation */
+  .react-flow__node-toolbar {
+    animation: slideIn 0.2s ease;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Custom scrollbar for flow */
+  .react-flow__renderer {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(var(--glass-border)) transparent;
+  }
+
+  /* Edge label styling */
+  .react-flow__edge-textwrapper {
+    pointer-events: all;
+  }
+}
+

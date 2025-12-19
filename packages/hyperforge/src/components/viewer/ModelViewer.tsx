@@ -14,10 +14,18 @@ interface ModelViewerProps {
 
 export interface ModelInfo {
   vertices: number;
+  triangles: number;
+  /** @deprecated Use triangles instead */
   faces: number;
   materials: number;
   animations: number;
   hasRig: boolean;
+  /** Mesh topology type - GLB/GLTF always uses triangles */
+  meshType: "triangles" | "quads" | "mixed";
+  /** Number of meshes in the model */
+  meshCount: number;
+  /** Estimated file complexity based on vertex/triangle count */
+  complexity: "low" | "medium" | "high" | "very_high";
 }
 
 /**
@@ -75,7 +83,8 @@ function LoadedModel({
   // Calculate model info
   const modelInfo = useMemo(() => {
     let vertices = 0;
-    let faces = 0;
+    let triangles = 0;
+    let meshCount = 0;
     const materials = new Set<THREE.Material>();
     let hasRig = false;
 
@@ -125,14 +134,17 @@ function LoadedModel({
 
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
+        meshCount++;
         const geometry = child.geometry;
         if (geometry.attributes.position) {
           vertices += geometry.attributes.position.count;
         }
+        // GLB/GLTF always uses triangles - count triangles from index or position
         if (geometry.index) {
-          faces += geometry.index.count / 3;
+          triangles += geometry.index.count / 3;
         } else if (geometry.attributes.position) {
-          faces += geometry.attributes.position.count / 3;
+          // Non-indexed geometry: every 3 vertices form a triangle
+          triangles += geometry.attributes.position.count / 3;
         }
         if (Array.isArray(child.material)) {
           child.material.forEach((m) => materials.add(m));
@@ -145,12 +157,28 @@ function LoadedModel({
       }
     });
 
+    // Determine complexity based on triangle count
+    // Based on POLYCOUNT_PRESETS from meshy constants
+    const triCount = Math.floor(triangles);
+    let complexity: "low" | "medium" | "high" | "very_high" = "low";
+    if (triCount > 30000) {
+      complexity = "very_high";
+    } else if (triCount > 10000) {
+      complexity = "high";
+    } else if (triCount > 2000) {
+      complexity = "medium";
+    }
+
     return {
       vertices,
-      faces: Math.floor(faces),
+      triangles: Math.floor(triangles),
+      faces: Math.floor(triangles), // Deprecated alias
       materials: materials.size,
       animations: gltf.animations?.length || 0,
       hasRig,
+      meshType: "triangles" as const, // GLB/GLTF always uses triangles
+      meshCount,
+      complexity,
     };
   }, [gltf, modelUrl]);
 
@@ -179,6 +207,22 @@ function LoadedModel({
 
     return scene;
   }, [gltf]);
+
+  // Cleanup cloned scene on unmount
+  useEffect(() => {
+    return () => {
+      scaledScene.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry?.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((m) => m.dispose());
+          } else if (child.material) {
+            child.material.dispose();
+          }
+        }
+      });
+    };
+  }, [scaledScene]);
 
   if (error) {
     return <ErrorDisplay error={error} />;

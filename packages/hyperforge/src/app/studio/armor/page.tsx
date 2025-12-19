@@ -32,7 +32,8 @@ function LoadingSkeleton() {
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="w-56 border-r border-glass-border bg-glass-bg/30" />
       <main className="flex-1 relative overflow-hidden bg-gradient-to-b from-zinc-900 to-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        {/* CSS-only spinner to avoid Lucide hydration mismatch */}
+        <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
       </main>
     </div>
   );
@@ -249,12 +250,77 @@ export default function ArmorFittingPage() {
     setFittingStats(null);
   }, []);
 
-  const handleExport = useCallback(() => {
-    if (!isArmorBound) return;
-    // TODO: Implement real export
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    if (!isArmorBound || !selectedAvatar || !selectedArmor) return;
+
+    setIsExporting(true);
     console.log("[Armor] Exporting fitted armor...");
-    window.alert("Export functionality coming soon!");
-  }, [isArmorBound]);
+
+    try {
+      const avatarUrl = resolveApiUrl(selectedAvatar);
+      const armorUrl = resolveApiUrl(selectedArmor);
+
+      if (!avatarUrl || !armorUrl) {
+        throw new Error("Missing model URLs");
+      }
+
+      const response = await fetch("/api/armor/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          avatarUrl,
+          armorUrl,
+          config: {
+            equipmentSlot,
+            method: "hull",
+            margin: fittingConfig.margin,
+            iterations: fittingConfig.iterations,
+            targetOffset: fittingConfig.targetOffset,
+            rigidity: fittingConfig.rigidity,
+            smoothingPasses: fittingConfig.smoothingPasses,
+            includeTextures: true,
+            exportMethod: "full",
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Export failed");
+      }
+
+      // Get the GLB blob
+      const blob = await response.blob();
+
+      // Trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${selectedArmor.name || "armor"}-fitted.glb`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      console.log("[Armor] Export complete");
+    } catch (error) {
+      console.error("[Armor] Export failed:", error);
+      window.alert(
+        `Export failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, [
+    isArmorBound,
+    selectedAvatar,
+    selectedArmor,
+    equipmentSlot,
+    fittingConfig,
+    resolveApiUrl,
+  ]);
 
   // Show loading skeleton during SSR to avoid hydration mismatch
   if (!mounted) {
@@ -580,11 +646,20 @@ export default function ArmorFittingPage() {
         </button>
         <button
           onClick={handleExport}
-          disabled={!isArmorBound}
+          disabled={!isArmorBound || isExporting}
           className="w-full py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:from-cyan-400 hover:to-blue-500 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download className="w-4 h-4" />
-          Export Fitted Armor
+          {isExporting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              Export Fitted Armor
+            </>
+          )}
         </button>
       </div>
     </div>

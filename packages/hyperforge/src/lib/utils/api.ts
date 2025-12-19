@@ -25,7 +25,7 @@ export type CaughtError = Error | string | null | undefined;
 /**
  * Request options extending standard fetch options
  */
-export interface ApiRequestOptions extends RequestInit {
+export interface ApiRequestOptions extends globalThis.RequestInit {
   /** Timeout in milliseconds (default: 30000) */
   timeoutMs?: number;
   /** Base URL for relative paths */
@@ -60,9 +60,12 @@ export async function apiFetch(
   const url = baseUrl ? new URL(input, baseUrl).toString() : input;
 
   // Create abort controller for timeout
-  const controller = new AbortController();
+  const controller = new globalThis.AbortController();
   const timeout = setTimeout(
-    () => controller.abort(new DOMException("Request timeout", "AbortError")),
+    () =>
+      controller.abort(
+        new globalThis.DOMException("Request timeout", "AbortError"),
+      ),
     timeoutMs,
   );
 
@@ -266,6 +269,10 @@ export function getErrorMessage(error: CaughtError): string {
 /**
  * Check if an error is an abort error (timeout or manual abort)
  */
-export function isAbortError(error: CaughtError | DOMException): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+export function isAbortError(
+  error: CaughtError | globalThis.DOMException,
+): boolean {
+  return (
+    error instanceof globalThis.DOMException && error.name === "AbortError"
+  );
 }

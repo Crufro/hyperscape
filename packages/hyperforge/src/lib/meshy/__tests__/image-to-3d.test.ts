@@ -271,7 +271,7 @@ describe("Image-to-3D Pipeline", () => {
         image_url: options.image_url,
         ai_model: options.ai_model ?? "meshy-4",
         topology: options.topology ?? DEFAULT_TOPOLOGY,
-        target_polycount: options.target_polycount ?? 30000,
+        target_polycount: options.target_polycount ?? 2000,
         enable_pbr: options.enable_pbr ?? true,
         texture_resolution:
           options.texture_resolution ?? DEFAULT_TEXTURE_RESOLUTION,
@@ -303,7 +303,7 @@ describe("Image-to-3D Pipeline", () => {
         image_url: options.image_url,
         ai_model: options.ai_model ?? "meshy-4",
         topology: options.topology ?? DEFAULT_TOPOLOGY,
-        target_polycount: options.target_polycount ?? 30000,
+        target_polycount: options.target_polycount ?? 2000,
         enable_pbr: options.enable_pbr ?? true,
         texture_resolution:
           options.texture_resolution ?? DEFAULT_TEXTURE_RESOLUTION,
@@ -311,7 +311,7 @@ describe("Image-to-3D Pipeline", () => {
 
       expect(body.ai_model).toBe("meshy-4");
       expect(body.topology).toBe(DEFAULT_TOPOLOGY);
-      expect(body.target_polycount).toBe(30000);
+      expect(body.target_polycount).toBe(2000);
       expect(body.enable_pbr).toBe(true);
       expect(body.texture_resolution).toBe(DEFAULT_TEXTURE_RESOLUTION);
     });

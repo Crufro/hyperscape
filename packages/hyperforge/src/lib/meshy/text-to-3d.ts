@@ -46,7 +46,7 @@ export async function startTextTo3DPreview(
     art_style: options?.art_style ?? "realistic",
     ai_model: options?.ai_model ?? DEFAULT_AI_MODEL,
     topology: options?.topology ?? DEFAULT_TOPOLOGY,
-    target_polycount: options?.target_polycount ?? 30000,
+    target_polycount: options?.target_polycount ?? 2000, // Game-optimized default
     should_remesh: options?.should_remesh ?? true,
     symmetry_mode: options?.symmetry_mode ?? "auto",
     pose_mode: options?.pose_mode ?? "",

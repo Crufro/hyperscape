@@ -16,7 +16,6 @@ import {
   ArrowLeft,
   Music,
   Volume2,
-  Mic,
   Image as ImageIcon,
   Palette,
   Grid3X3,
@@ -312,40 +311,6 @@ export function StudioPageLayout({
                 <Music className="w-4 h-4 flex-shrink-0" />
                 {!sidebarCollapsed && <span>Audio Studio</span>}
               </Link>
-              <Link
-                href="/audio/voice"
-                title={sidebarCollapsed ? "Voice Generator" : undefined}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                  ${
-                    pathname === "/audio/voice"
-                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                  }
-                `}
-              >
-                <Mic className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && <span>Voice Generator</span>}
-              </Link>
-              <Link
-                href="/audio/sfx"
-                title={sidebarCollapsed ? "Sound Effects" : undefined}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                  ${
-                    pathname === "/audio/sfx"
-                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                  }
-                `}
-              >
-                <Volume2 className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && <span>Sound Effects</span>}
-              </Link>
             </nav>
           </div>
 
@@ -359,23 +324,6 @@ export function StudioPageLayout({
               </div>
             )}
             <nav className="space-y-1">
-              <Link
-                href="/images"
-                title={sidebarCollapsed ? "Image Library" : undefined}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                  transition-all duration-200
-                  ${sidebarCollapsed ? "justify-center" : ""}
-                  ${
-                    pathname === "/images"
-                      ? "bg-pink-500/10 text-pink-400 border border-pink-500/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                  }
-                `}
-              >
-                <ImageIcon className="w-4 h-4 flex-shrink-0" />
-                {!sidebarCollapsed && <span>Image Library</span>}
-              </Link>
               <Link
                 href="/images/concept-art"
                 title={sidebarCollapsed ? "Concept Art" : undefined}

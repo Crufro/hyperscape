@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
 import { NPCContentGenerator } from "@/components/content/NPCContentGenerator";
 import { QuestGenerator } from "@/components/content/QuestGenerator";
@@ -15,8 +16,12 @@ import {
   Cuboid,
   MessageSquare,
   Settings,
-  Sparkles,
+  Image,
+  Music,
+  Trash2,
 } from "lucide-react";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { SpectacularButton } from "@/components/ui/spectacular-button";
 import type { GeneratedNPCContent } from "@/types/game/dialogue-types";
 import type {
   GeneratedQuestContent,
@@ -24,12 +29,32 @@ import type {
   GeneratedItemContent,
 } from "@/types/game/content-types";
 
+// Dynamic import for Sparkles to avoid hydration mismatch
+const Sparkles = dynamic(
+  () => import("lucide-react").then((mod) => mod.Sparkles),
+  { ssr: false, loading: () => <div className="w-5 h-5" /> },
+);
+
+const STORAGE_KEY = "hyperforge-generated-content";
+
 const mainNavItems = [
   {
     href: "/",
     label: "3D Assets",
     icon: Cuboid,
     description: "Generate 3D models",
+  },
+  {
+    href: "/assets/images",
+    label: "Images",
+    icon: Image,
+    description: "Concept art & textures",
+  },
+  {
+    href: "/assets/audio",
+    label: "Audio",
+    icon: Music,
+    description: "Sound effects & music",
   },
   {
     href: "/content",
@@ -46,15 +71,146 @@ type GeneratedContent = {
   name: string;
   id: string;
   timestamp: string;
+  data?:
+    | GeneratedNPCContent
+    | GeneratedQuestContent
+    | GeneratedAreaContent
+    | GeneratedItemContent;
 };
 
 export default function ContentGenerationPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ContentTab>("npc");
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>(
     [],
   );
+  const [selectedContent, setSelectedContent] =
+    useState<GeneratedContent | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Hydration fix
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Load from API and localStorage
+  useEffect(() => {
+    if (!mounted) return;
+
+    async function loadContent() {
+      setIsLoading(true);
+      const contentMap = new Map<string, GeneratedContent>();
+
+      // First, load from localStorage
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item: GeneratedContent) => {
+              contentMap.set(item.id, item);
+            });
+          }
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+
+      // Then, fetch from API (Supabase)
+      try {
+        const response = await fetch("/api/content/list");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.assets)) {
+            for (const asset of data.assets) {
+              if (asset.content) {
+                // Parse the content based on type
+                const content = asset.content;
+                const type = asset.type as "npc" | "quest" | "area" | "item";
+
+                let name = "Unknown";
+                let id = asset.id;
+
+                if (type === "npc" && content.name) {
+                  name = content.name;
+                  id = content.id || id;
+                } else if (type === "quest" && content.name) {
+                  name = content.name;
+                  id = content.id || id;
+                } else if (type === "area" && content.name) {
+                  name = content.name;
+                  id = content.id || id;
+                } else if (type === "item" && content.name) {
+                  name = content.name;
+                  id = content.id || id;
+                } else if (content.id) {
+                  name = content.name || content.id;
+                  id = content.id;
+                }
+
+                // Skip if type is not valid
+                if (!["npc", "quest", "area", "item"].includes(type)) continue;
+
+                const generatedItem: GeneratedContent = {
+                  type,
+                  name,
+                  id,
+                  timestamp: asset.createdAt || new Date().toISOString(),
+                  data:
+                    type === "npc"
+                      ? (content as GeneratedNPCContent)
+                      : type === "quest"
+                        ? ({
+                            quest: content,
+                            generatedAt: asset.createdAt,
+                          } as GeneratedQuestContent)
+                        : type === "area"
+                          ? ({
+                              area: content,
+                              generatedAt: asset.createdAt,
+                            } as GeneratedAreaContent)
+                          : ({
+                              item: content,
+                              generatedAt: asset.createdAt,
+                            } as GeneratedItemContent),
+                };
+
+                // Add to map (API content may override localStorage)
+                contentMap.set(id, generatedItem);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch content from API:", error);
+      }
+
+      // Convert map to array and sort by timestamp
+      const allContent = Array.from(contentMap.values()).sort((a, b) => {
+        const dateA = new Date(a.timestamp).getTime();
+        const dateB = new Date(b.timestamp).getTime();
+        return dateB - dateA;
+      });
+
+      setGeneratedContent(allContent);
+      setIsLoading(false);
+    }
+
+    loadContent();
+  }, [mounted]);
+
+  // Save to localStorage when content changes
+  useEffect(() => {
+    if (!mounted || isLoading) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(generatedContent));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [generatedContent, mounted, isLoading]);
 
   // Read tab from URL query parameter
   useEffect(() => {
@@ -78,6 +234,7 @@ export default function ContentGenerationPage() {
         name: content.name,
         id: content.id,
         timestamp: content.generatedAt,
+        data: content,
       },
       ...prev,
     ]);
@@ -90,6 +247,7 @@ export default function ContentGenerationPage() {
         name: content.quest.name,
         id: content.quest.id,
         timestamp: content.generatedAt,
+        data: content,
       },
       ...prev,
     ]);
@@ -102,6 +260,7 @@ export default function ContentGenerationPage() {
         name: content.area.name,
         id: content.area.id,
         timestamp: content.generatedAt,
+        data: content,
       },
       ...prev,
     ]);
@@ -114,10 +273,54 @@ export default function ContentGenerationPage() {
         name: content.item.name,
         id: content.item.id,
         timestamp: content.generatedAt,
+        data: content,
       },
       ...prev,
     ]);
   };
+
+  const handleDeleteContent = (id: string) => {
+    setGeneratedContent((prev) => prev.filter((c) => c.id !== id));
+    if (selectedContent?.id === id) {
+      setSelectedContent(null);
+    }
+  };
+
+  const handleSelectContent = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setActiveTab(content.type);
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      return (
+        date.toLocaleDateString() +
+        " " +
+        date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      );
+    } catch {
+      return timestamp;
+    }
+  };
+
+  // Filter content by current tab
+  const filteredContent = generatedContent.filter((c) => c.type === activeTab);
+
+  // Show loading skeleton during SSR or initial load
+  if (!mounted || isLoading) {
+    return (
+      <div className="flex h-screen bg-background">
+        <aside className="w-64 border-r border-glass-border bg-glass-bg/30" />
+        <main className="flex-1 flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          {isLoading && (
+            <p className="text-sm text-muted-foreground">Loading content...</p>
+          )}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -164,41 +367,61 @@ export default function ContentGenerationPage() {
         </nav>
 
         {/* Content Type Tabs */}
-        <div className="flex-1 p-3 space-y-1">
+        <div className="flex-1 p-3 space-y-1 overflow-y-auto">
           <p className="text-xs text-muted-foreground uppercase tracking-wider px-3 py-2">
             Content Types
           </p>
-          {contentTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left
-                transition-all duration-200
-                ${
-                  activeTab === tab.id
-                    ? "bg-secondary/50 text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                }
-              `}
-            >
-              <tab.icon className="w-4 h-4" />
-              <span className="text-sm">{tab.label}</span>
-            </button>
-          ))}
+          {contentTabs.map((tab) => {
+            const count = generatedContent.filter(
+              (c) => c.type === tab.id,
+            ).length;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  w-full flex items-center justify-between px-3 py-2 rounded-lg text-left
+                  transition-all duration-200
+                  ${
+                    activeTab === tab.id
+                      ? "bg-secondary/50 text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                  }
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <tab.icon className="w-4 h-4" />
+                  <span className="text-sm">{tab.label}</span>
+                </div>
+                {count > 0 && (
+                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
-          {/* Generated Content History */}
+          {/* Recent Generated Content */}
           {generatedContent.length > 0 && (
             <div className="mt-6 pt-4 border-t border-glass-border">
               <p className="text-xs text-muted-foreground uppercase tracking-wider px-3 py-2">
                 Recent ({generatedContent.length})
               </p>
-              <div className="space-y-1">
-                {generatedContent.slice(0, 8).map((content) => (
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {generatedContent.slice(0, 10).map((content) => (
                   <button
                     key={content.id}
-                    onClick={() => setActiveTab(content.type)}
-                    className="w-full px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-glass-bg text-left"
+                    onClick={() => handleSelectContent(content)}
+                    className={`
+                      w-full px-3 py-2 rounded-lg text-sm cursor-pointer text-left
+                      transition-all duration-200
+                      ${
+                        selectedContent?.id === content.id
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-glass-bg"
+                      }
+                    `}
                   >
                     <div className="font-medium truncate">{content.name}</div>
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -231,32 +454,240 @@ export default function ContentGenerationPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="h-14 border-b border-glass-border px-6 flex items-center bg-glass-bg/20">
-          <h2 className="text-lg font-semibold">
-            {activeTab === "npc" && "NPC Content Generator"}
-            {activeTab === "quest" && "Quest Generator"}
-            {activeTab === "area" && "Area Generator"}
-            {activeTab === "item" && "Item Generator"}
-          </h2>
-        </header>
+        {/* Past Generations Bar (when there are items for current tab) */}
+        {filteredContent.length > 0 && (
+          <div className="border-b border-glass-border bg-glass-bg/20 p-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="text-xs text-muted-foreground whitespace-nowrap mr-2">
+                Past {contentTabs.find((t) => t.id === activeTab)?.label}:
+              </span>
+              {filteredContent.slice(0, 8).map((content) => (
+                <button
+                  key={content.id}
+                  onClick={() => handleSelectContent(content)}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap
+                    transition-all duration-200 group
+                    ${
+                      selectedContent?.id === content.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-glass-bg border border-glass-border hover:border-primary/50"
+                    }
+                  `}
+                >
+                  <span className="truncate max-w-[120px]">{content.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteContent(content.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
-          {activeTab === "npc" && (
-            <NPCContentGenerator onContentGenerated={handleNPCGenerated} />
-          )}
+        {/* Content Area - scrollable */}
+        <div className="flex-1 overflow-auto">
+          {/* Show selected content details or generator */}
+          {selectedContent && selectedContent.type === activeTab ? (
+            <div className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    {selectedContent.name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Generated {formatTimestamp(selectedContent.timestamp)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <SpectacularButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedContent(null)}
+                  >
+                    Create New
+                  </SpectacularButton>
+                  <SpectacularButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteContent(selectedContent.id)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </SpectacularButton>
+                </div>
+              </div>
 
-          {activeTab === "quest" && (
-            <QuestGenerator onContentGenerated={handleQuestGenerated} />
-          )}
+              {/* Content Preview */}
+              <GlassPanel className="p-4">
+                {selectedContent.type === "npc" && selectedContent.data && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">NPC Details</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">
+                            Category:
+                          </span>{" "}
+                          <span className="capitalize">
+                            {
+                              (selectedContent.data as GeneratedNPCContent)
+                                .category
+                            }
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            Personality:
+                          </span>{" "}
+                          <span>
+                            {
+                              (selectedContent.data as GeneratedNPCContent)
+                                .personality
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-          {activeTab === "area" && (
-            <AreaGenerator onContentGenerated={handleAreaGenerated} />
-          )}
+                    {(selectedContent.data as GeneratedNPCContent)
+                      .backstory && (
+                      <div>
+                        <h3 className="font-semibold mb-2">Backstory</h3>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {
+                            (selectedContent.data as GeneratedNPCContent)
+                              .backstory
+                          }
+                        </p>
+                      </div>
+                    )}
 
-          {activeTab === "item" && (
-            <ItemGenerator onContentGenerated={handleItemGenerated} />
+                    {(selectedContent.data as GeneratedNPCContent).dialogue && (
+                      <div>
+                        <h3 className="font-semibold mb-2">Dialogue Tree</h3>
+                        <div className="text-sm text-muted-foreground">
+                          <span>
+                            {
+                              (selectedContent.data as GeneratedNPCContent)
+                                .dialogue.nodes.length
+                            }{" "}
+                            nodes
+                          </span>
+                          <span className="mx-2">•</span>
+                          <span>
+                            Entry:{" "}
+                            {
+                              (selectedContent.data as GeneratedNPCContent)
+                                .dialogue.entryNodeId
+                            }
+                          </span>
+                        </div>
+                        <div className="mt-2 p-3 bg-glass-bg/50 rounded-lg max-h-64 overflow-y-auto">
+                          {(
+                            selectedContent.data as GeneratedNPCContent
+                          ).dialogue.nodes.map((node) => (
+                            <div key={node.id} className="mb-3 last:mb-0">
+                              <div className="font-mono text-xs text-primary">
+                                {node.id}
+                              </div>
+                              <div className="text-sm">{node.text}</div>
+                              {node.responses && node.responses.length > 0 && (
+                                <div className="ml-4 mt-1 space-y-1">
+                                  {node.responses.map((r, i) => (
+                                    <div
+                                      key={i}
+                                      className="text-xs text-muted-foreground"
+                                    >
+                                      → {r.text}{" "}
+                                      <span className="text-primary/60">
+                                        [{r.nextNodeId}]
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedContent.type === "quest" && selectedContent.data && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">
+                      Quest:{" "}
+                      {
+                        (selectedContent.data as GeneratedQuestContent).quest
+                          .name
+                      }
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {
+                        (selectedContent.data as GeneratedQuestContent).quest
+                          .description
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {selectedContent.type === "area" && selectedContent.data && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">
+                      Area:{" "}
+                      {(selectedContent.data as GeneratedAreaContent).area.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {
+                        (selectedContent.data as GeneratedAreaContent).area
+                          .description
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {selectedContent.type === "item" && selectedContent.data && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">
+                      Item:{" "}
+                      {(selectedContent.data as GeneratedItemContent).item.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {
+                        (selectedContent.data as GeneratedItemContent).item
+                          .description
+                      }
+                    </p>
+                  </div>
+                )}
+              </GlassPanel>
+            </div>
+          ) : (
+            <>
+              {activeTab === "npc" && (
+                <NPCContentGenerator onContentGenerated={handleNPCGenerated} />
+              )}
+
+              {activeTab === "quest" && (
+                <QuestGenerator onContentGenerated={handleQuestGenerated} />
+              )}
+
+              {activeTab === "area" && (
+                <AreaGenerator onContentGenerated={handleAreaGenerated} />
+              )}
+
+              {activeTab === "item" && (
+                <ItemGenerator onContentGenerated={handleItemGenerated} />
+              )}
+            </>
           )}
         </div>
       </main>

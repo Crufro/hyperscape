@@ -16,6 +16,30 @@ import { logger } from "@/lib/utils";
 const log = logger.child("DialogueGenerator");
 
 /**
+ * Extract JSON from a response that may be wrapped in markdown code blocks
+ */
+function extractJsonFromResponse(response: string): string {
+  const trimmed = response.trim();
+
+  // Check for markdown code blocks with language tag (```json or ```JSON)
+  const jsonCodeBlockMatch = trimmed.match(
+    /^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```$/,
+  );
+  if (jsonCodeBlockMatch) {
+    return jsonCodeBlockMatch[1].trim();
+  }
+
+  // Check for code blocks without language tag
+  const codeBlockMatch = trimmed.match(/^```\s*\n?([\s\S]*?)\n?```$/);
+  if (codeBlockMatch) {
+    return codeBlockMatch[1].trim();
+  }
+
+  // No code blocks, return as-is
+  return trimmed;
+}
+
+/**
  * System prompt for dialogue generation
  */
 const DIALOGUE_SYSTEM_PROMPT = `You are a game dialogue writer for a RuneScape-style MMORPG called Hyperscape.
@@ -68,9 +92,10 @@ export async function generateDialogueTree(
     maxTokens: 4000,
   });
 
-  // Parse the JSON response
+  // Parse the JSON response (handle markdown code blocks from LLM)
   try {
-    const dialogueTree = JSON.parse(response.trim()) as DialogueTree;
+    const jsonContent = extractJsonFromResponse(response);
+    const dialogueTree = JSON.parse(jsonContent) as DialogueTree;
     return validateAndNormalizeDialogueTree(dialogueTree);
   } catch (_error) {
     log.error("Failed to parse dialogue tree", { response });

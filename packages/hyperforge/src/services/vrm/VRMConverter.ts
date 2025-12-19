@@ -269,12 +269,47 @@ export class VRMConverter {
     });
 
     if (!this.skinnedMesh) {
-      throw new Error("No SkinnedMesh found in GLB file");
+      throw new Error(
+        "This model cannot be converted to VRM: No skinned mesh found. " +
+          "VRM conversion requires a rigged humanoid model with bones/skeleton. " +
+          "Static props, items, and non-rigged models cannot be converted to VRM.",
+      );
     }
 
     if (this.bones.length === 0) {
-      throw new Error("No bones found in skeleton");
+      throw new Error(
+        "This model cannot be converted to VRM: No bones found in skeleton. " +
+          "The model appears to have a mesh but no bone structure.",
+      );
     }
+
+    // Validate skinned mesh has proper geometry attributes
+    const geometry = this.skinnedMesh.geometry;
+    if (!geometry) {
+      throw new Error(
+        "This model cannot be converted to VRM: Skinned mesh has no geometry.",
+      );
+    }
+
+    const skinWeights = geometry.getAttribute("skinWeight");
+    const skinIndices = geometry.getAttribute("skinIndex");
+
+    if (!skinWeights || !skinIndices) {
+      throw new Error(
+        "This model cannot be converted to VRM: Missing skin weight data. " +
+          "The model has bones but the mesh is not properly rigged. " +
+          "This can happen with partially rigged or exported models.",
+      );
+    }
+
+    if (!skinWeights.count || skinWeights.count === 0) {
+      throw new Error(
+        "This model cannot be converted to VRM: Empty skin weights. " +
+          "The model's mesh has no vertex weights assigned to bones.",
+      );
+    }
+
+    log.info(`   Validated ${skinWeights.count} vertex skin weights`);
 
     // DEBUG: Log initial bone transforms (BEFORE any modifications)
     log.info("🔍 [DEBUG] Initial bone transforms after extraction:");

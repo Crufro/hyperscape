@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { TextureVariant } from "@/components/generation/GenerationFormRouter";
+import { createRetextureTask } from "@/lib/meshy/client";
+import { pollTaskStatus } from "@/lib/meshy/poll-task";
+import { saveAssetFiles, downloadFile } from "@/lib/storage/asset-storage";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("API:variants");
@@ -7,16 +10,27 @@ const log = logger.child("API:variants");
 // Enable streaming responses
 export const dynamic = "force-dynamic";
 
+interface VariantResult {
+  id: string;
+  variantId?: string;
+  name: string;
+  baseModelId: string;
+  modelUrl: string;
+  thumbnailUrl?: string;
+  materialPresetId?: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  error?: string;
+}
+
 /**
  * POST /api/variants - Create a texture variant from a base model
  *
- * This endpoint handles post-generation variant creation, allowing users
- * to create new texture variants from existing base models.
+ * Uses Meshy retexture API to create new texture variants.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { baseModelId, baseModelUrl, variant, action } = body;
+    const { baseModelId, baseModelUrl, variant, action, artStyle } = body;
 
     if (action === "create") {
       // Validate input
@@ -35,40 +49,105 @@ export async function POST(request: NextRequest) {
       }
 
       const variantData = variant as TextureVariant;
+      const variantId = `variant-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
       log.info(
-        `Creating variant "${variantData.name}" for base model: ${baseModelId}`,
+        { variantName: variantData.name, baseModelId },
+        "Creating variant with Meshy retexture",
       );
 
-      // TODO: Implement Meshy retexturing API call
-      // For now, we return a placeholder response
-      // The full implementation would:
-      // 1. Download the base model
-      // 2. Call Meshy retexture API with variant prompt/image
-      // 3. Poll for completion
-      // 4. Save the variant model
-      // 5. Return the variant URLs
+      try {
+        // Create retexture task with Meshy API
+        const taskId = await createRetextureTask({
+          model_url: baseModelUrl,
+          text_style_prompt: variantData.prompt || variantData.name,
+          art_style: artStyle || "realistic",
+          ai_model: "meshy-5",
+          enable_original_uv: true,
+        });
 
-      const variantId = `${baseModelId}-${variantData.id || Date.now()}`;
+        log.info({ taskId }, "Retexture task started");
 
-      // Placeholder response - in production, this would be the actual retextured model
-      const result = {
-        id: variantId,
-        variantId: variantData.id,
-        name: variantData.name,
-        baseModelId,
-        modelUrl: baseModelUrl, // Would be replaced with actual variant URL
-        thumbnailUrl: undefined,
-        materialPresetId: variantData.materialPresetId,
-        status: "pending", // Would be "completed" after retexturing
-        message:
-          "Variant registered. Retexturing API integration pending implementation.",
-      };
+        // Poll for completion (timeout 10 minutes for retexturing)
+        const meshyResult = await pollTaskStatus(taskId, {
+          pollIntervalMs: 5000,
+          timeoutMs: 600000,
+          onProgress: (progress) => {
+            log.debug({ progress }, "Retexture progress");
+          },
+        });
 
-      return NextResponse.json({
-        success: true,
-        variant: result,
-      });
+        log.info({ modelUrl: meshyResult.modelUrl }, "Retexture completed");
+
+        // Download and save the variant model
+        const modelBuffer = await downloadFile(meshyResult.modelUrl);
+        let thumbnailBuffer: Buffer | undefined;
+        if (meshyResult.thumbnailUrl) {
+          try {
+            thumbnailBuffer = await downloadFile(meshyResult.thumbnailUrl);
+          } catch {
+            log.warn("Failed to download variant thumbnail");
+          }
+        }
+
+        // Save files
+        const savedFiles = await saveAssetFiles({
+          assetId: variantId,
+          modelBuffer,
+          modelFormat: "glb",
+          thumbnailBuffer,
+          metadata: {
+            name: variantData.name,
+            type: "variant",
+            source: "FORGE",
+            baseModelId,
+            meshyTaskId: taskId,
+            materialPresetId: variantData.materialPresetId,
+            prompt: variantData.prompt,
+            artStyle: artStyle || "realistic",
+            status: "completed",
+            createdAt: new Date().toISOString(),
+          },
+        });
+
+        const result: VariantResult = {
+          id: variantId,
+          variantId: variantData.id,
+          name: variantData.name,
+          baseModelId,
+          modelUrl: savedFiles.modelUrl,
+          thumbnailUrl: savedFiles.thumbnailUrl,
+          materialPresetId: variantData.materialPresetId,
+          status: "completed",
+        };
+
+        return NextResponse.json({
+          success: true,
+          variant: result,
+        });
+      } catch (retextureError) {
+        log.error({ error: retextureError }, "Retexture failed");
+
+        const result: VariantResult = {
+          id: variantId,
+          variantId: variantData.id,
+          name: variantData.name,
+          baseModelId,
+          modelUrl: baseModelUrl,
+          materialPresetId: variantData.materialPresetId,
+          status: "failed",
+          error:
+            retextureError instanceof Error
+              ? retextureError.message
+              : "Retexture failed",
+        };
+
+        return NextResponse.json({
+          success: false,
+          variant: result,
+          error: result.error,
+        });
+      }
     }
 
     if (action === "batch") {
@@ -90,24 +169,78 @@ export async function POST(request: NextRequest) {
       }
 
       log.info(
-        `Batch creating ${variants.length} variants for base model: ${baseModelId}`,
+        { count: variants.length, baseModelId },
+        "Batch creating variants",
       );
 
-      const results = variants.map((v) => ({
-        id: `${baseModelId}-${v.id || Date.now()}`,
-        variantId: v.id,
-        name: v.name,
-        baseModelId,
-        modelUrl: baseModelUrl,
-        thumbnailUrl: undefined,
-        materialPresetId: v.materialPresetId,
-        status: "pending",
-      }));
+      // Process variants sequentially (Meshy rate limits)
+      const results: VariantResult[] = [];
+
+      for (const v of variants) {
+        const variantId = `variant-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+        try {
+          const taskId = await createRetextureTask({
+            model_url: baseModelUrl,
+            text_style_prompt: v.prompt || v.name,
+            art_style: artStyle || "realistic",
+            ai_model: "meshy-5",
+            enable_original_uv: true,
+          });
+
+          const meshyResult = await pollTaskStatus(taskId, {
+            pollIntervalMs: 5000,
+            timeoutMs: 600000,
+          });
+
+          const modelBuffer = await downloadFile(meshyResult.modelUrl);
+          const savedFiles = await saveAssetFiles({
+            assetId: variantId,
+            modelBuffer,
+            modelFormat: "glb",
+            metadata: {
+              name: v.name,
+              type: "variant",
+              source: "FORGE",
+              baseModelId,
+              materialPresetId: v.materialPresetId,
+              status: "completed",
+            },
+          });
+
+          results.push({
+            id: variantId,
+            variantId: v.id,
+            name: v.name,
+            baseModelId,
+            modelUrl: savedFiles.modelUrl,
+            thumbnailUrl: savedFiles.thumbnailUrl,
+            materialPresetId: v.materialPresetId,
+            status: "completed",
+          });
+        } catch (error) {
+          log.error({ error, variantName: v.name }, "Batch variant failed");
+          results.push({
+            id: variantId,
+            variantId: v.id,
+            name: v.name,
+            baseModelId,
+            modelUrl: baseModelUrl,
+            materialPresetId: v.materialPresetId,
+            status: "failed",
+            error: error instanceof Error ? error.message : "Failed",
+          });
+        }
+      }
+
+      const successCount = results.filter(
+        (r) => r.status === "completed",
+      ).length;
 
       return NextResponse.json({
-        success: true,
+        success: successCount > 0,
         variants: results,
-        message: `${results.length} variants registered for processing.`,
+        message: `${successCount}/${variants.length} variants created successfully.`,
       });
     }
 
@@ -120,8 +253,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // TODO: Query database for variants associated with baseModelId
-      // For now, return empty array
+      // Note: For full database integration, query variants table here
+      // For now, return empty array as variants are stored as separate assets
       return NextResponse.json({
         success: true,
         baseModelId,

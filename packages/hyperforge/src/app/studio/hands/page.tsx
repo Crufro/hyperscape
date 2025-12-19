@@ -28,7 +28,8 @@ function LoadingSkeleton() {
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="w-56 border-r border-glass-border bg-glass-bg/30" />
       <main className="flex-1 relative overflow-hidden bg-gradient-to-b from-zinc-900 to-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        {/* CSS-only spinner to avoid Lucide hydration mismatch */}
+        <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
       </main>
     </div>
   );
@@ -237,7 +238,7 @@ export default function HandRiggingPage() {
     if (!riggedModelData || !selectedAvatar) return;
 
     // Convert base64 to blob and download
-    const binaryString = atob(riggedModelData);
+    const binaryString = globalThis.atob(riggedModelData);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);

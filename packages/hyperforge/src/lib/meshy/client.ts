@@ -43,7 +43,7 @@ function getApiKey(): string {
 
 async function meshyRequest<T>(
   endpoint: string,
-  options: RequestInit & { baseUrl?: string } = {},
+  options: globalThis.RequestInit & { baseUrl?: string } = {},
 ): Promise<T> {
   const baseUrl = options.baseUrl || MESHY_API_V1;
   const { baseUrl: _, ...fetchOptions } = options;
@@ -91,7 +91,7 @@ export async function createImageTo3DTask(
     image_url: options.image_url,
     ai_model: options.ai_model ?? "meshy-4",
     topology: options.topology ?? DEFAULT_TOPOLOGY,
-    target_polycount: options.target_polycount ?? 30000,
+    target_polycount: options.target_polycount ?? 2000, // Game-optimized default
   };
 
   // Texture options (enable_pbr requires texturing to be enabled)
@@ -135,7 +135,7 @@ export async function createTextTo3DPreviewTask(
     art_style: options.art_style ?? "realistic",
     ai_model: options.ai_model ?? DEFAULT_AI_MODEL,
     topology: options.topology ?? DEFAULT_TOPOLOGY,
-    target_polycount: options.target_polycount ?? 30000,
+    target_polycount: options.target_polycount ?? 2000, // Game-optimized default
     should_remesh: options.should_remesh ?? true,
     symmetry_mode: options.symmetry_mode ?? "auto",
     pose_mode: options.pose_mode ?? "",

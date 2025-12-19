@@ -3,9 +3,9 @@
 import { cn } from "@/lib/utils";
 import { LabelHTMLAttributes, forwardRef } from "react";
 
-export type LabelProps = LabelHTMLAttributes<HTMLLabelElement>;
+export type LabelProps = LabelHTMLAttributes<globalThis.HTMLLabelElement>;
 
-export const Label = forwardRef<HTMLLabelElement, LabelProps>(
+export const Label = forwardRef<globalThis.HTMLLabelElement, LabelProps>(
   ({ className, ...props }, ref) => {
     return (
       <label

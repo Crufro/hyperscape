@@ -60,24 +60,29 @@ export const MESHY_DOCS = {
 } as const;
 
 // ============================================================================
-// Polycount Presets for Web MMO Assets
+// Polycount Presets for Web MMO Assets (60fps RuneScape-style)
 // ============================================================================
 
 /**
- * Polycount presets based on Three.js web MMO performance budgets
+ * Polycount presets optimized for 60fps RuneScape-style web MMO
  *
- * These values are community-recommended ranges for different asset types.
- * Performance tip: Keep individual meshes < 100,000 triangles for web performance.
+ * Target budgets (based on RuneScape/OSRS asset analysis):
+ * - Items/Props: 500-3K polys (RuneScape items are typically ~1K or less)
+ * - Avatars/NPCs: 5K-10K polys (ideally ~5K for mobs, ~8K for player avatars)
+ * - Buildings: 2K-8K polys (with LOD for distance rendering)
+ *
+ * These values prioritize game performance over raw visual fidelity.
+ * Performance tip: Keep scene under 500K total triangles for 60fps web gameplay.
  */
 export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
   small_prop: {
     assetClass: "small_prop",
     name: "Small Props",
     description:
-      "Coins, potions, keys, small tools - frequently instanced items",
-    minPolycount: 500,
-    maxPolycount: 2000,
-    defaultPolycount: 1000,
+      "Coins, runes, gems, small drops - ultra lightweight for instancing",
+    minPolycount: 200,
+    maxPolycount: 1000,
+    defaultPolycount: 500,
     recommendedTopology: "triangle",
     recommendPBR: false, // Save bandwidth for small items
   },
@@ -85,10 +90,10 @@ export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
   medium_prop: {
     assetClass: "medium_prop",
     name: "Medium Props",
-    description: "Weapons, shields, barrels, crates, furniture",
-    minPolycount: 2000,
-    maxPolycount: 5000,
-    defaultPolycount: 3000,
+    description: "Weapons, shields, armor, potions - standard game items",
+    minPolycount: 500,
+    maxPolycount: 3000,
+    defaultPolycount: 1500,
     recommendedTopology: "triangle",
     recommendPBR: true,
   },
@@ -96,10 +101,10 @@ export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
   large_prop: {
     assetClass: "large_prop",
     name: "Large Props",
-    description: "Vehicles, large furniture, decorative statues, trees",
-    minPolycount: 5000,
-    maxPolycount: 10000,
-    defaultPolycount: 7500,
+    description: "Furniture, anvils, signs, crates - bigger world objects",
+    minPolycount: 1000,
+    maxPolycount: 5000,
+    defaultPolycount: 2500,
     recommendedTopology: "triangle",
     recommendPBR: true,
   },
@@ -107,21 +112,21 @@ export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
   npc_character: {
     assetClass: "npc_character",
     name: "NPC Characters",
-    description: "Players, NPCs, monsters - uses normal maps for detail",
-    minPolycount: 2000,
+    description: "Players, NPCs, mobs - rigged for animation (5K-10K budget)",
+    minPolycount: 3000,
     maxPolycount: 10000,
     defaultPolycount: 5000,
-    recommendedTopology: "triangle",
+    recommendedTopology: "quad", // Better for rigging, convert to tris at runtime
     recommendPBR: true,
   },
 
   small_building: {
     assetClass: "small_building",
     name: "Small Buildings",
-    description: "Houses, shops, small structures - consider LOD",
-    minPolycount: 5000,
-    maxPolycount: 15000,
-    defaultPolycount: 10000,
+    description: "Houses, shops, towers - use LOD for distance",
+    minPolycount: 2000,
+    maxPolycount: 8000,
+    defaultPolycount: 4000,
     recommendedTopology: "triangle",
     recommendPBR: true,
   },
@@ -129,10 +134,11 @@ export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
   large_structure: {
     assetClass: "large_structure",
     name: "Large Structures",
-    description: "Castles, temples, dungeons - break into components with LODs",
-    minPolycount: 15000,
-    maxPolycount: 50000,
-    defaultPolycount: 30000,
+    description:
+      "Castles, dungeons, temples - break into modular pieces with LOD",
+    minPolycount: 4000,
+    maxPolycount: 15000,
+    defaultPolycount: 8000,
     recommendedTopology: "triangle",
     recommendPBR: true,
   },
@@ -140,10 +146,10 @@ export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
   custom: {
     assetClass: "custom",
     name: "Custom",
-    description: "User-specified polycount",
-    minPolycount: 500,
-    maxPolycount: 100000,
-    defaultPolycount: 10000,
+    description: "Manual polycount control",
+    minPolycount: 100,
+    maxPolycount: 20000,
+    defaultPolycount: 2000,
     recommendedTopology: "triangle",
     recommendPBR: true,
   },
@@ -155,11 +161,11 @@ export const POLYCOUNT_PRESETS: Record<AssetClass, PolycountPreset> = {
 
 /**
  * Default generation configuration
- * Optimized for Three.js web MMO performance
+ * Optimized for 60fps RuneScape-style web MMO
  */
 export const DEFAULT_GENERATION_CONFIG: MeshyGenerationConfig = {
   assetClass: "medium_prop",
-  targetPolycount: 3000,
+  targetPolycount: 1500, // Game-optimized for items/weapons
   topology: "triangle", // GPU-ready for Three.js
   enablePBR: true,
   aiModel: "latest",

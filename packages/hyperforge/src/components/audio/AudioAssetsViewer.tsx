@@ -150,13 +150,19 @@ function AudioItem({
 }
 
 export function AudioAssetsViewer() {
+  const [mounted, setMounted] = useState(false);
   const [assets, setAssets] = useState<AudioAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "voice" | "sfx" | "music">(
     "all",
   );
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<globalThis.HTMLAudioElement | null>(null);
+
+  // Handle hydration - wait for client mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch assets
   const fetchAssets = useCallback(async () => {
@@ -214,6 +220,27 @@ export function AudioAssetsViewer() {
     sfx: assets.filter((a) => a.type === "sfx").length,
     music: assets.filter((a) => a.type === "music").length,
   };
+
+  // SSR loading skeleton to prevent hydration mismatch with Lucide icons
+  if (!mounted) {
+    return (
+      <GlassPanel intensity="medium" className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded bg-cyan-500/20" />
+            <h3 className="font-semibold">Generated Audio Assets</h3>
+            <Badge variant="outline" className="text-xs">
+              Loading...
+            </Badge>
+          </div>
+          <div className="w-8 h-8 rounded bg-glass-bg" />
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </GlassPanel>
+    );
+  }
 
   return (
     <GlassPanel intensity="medium" className="p-4">

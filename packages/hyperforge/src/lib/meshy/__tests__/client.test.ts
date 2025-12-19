@@ -56,7 +56,7 @@ describe("Meshy API Client", () => {
         image_url: "https://example.com/image.png",
         ai_model: "meshy-4",
         topology: "quad",
-        target_polycount: 30000,
+        target_polycount: 2000,
         enable_pbr: true,
         texture_resolution: 1024,
       };
@@ -190,7 +190,7 @@ describe("Meshy API Client", () => {
         image_url: "https://example.com/image.png",
         ai_model: "meshy-4",
         topology: "quad",
-        target_polycount: 30000,
+        target_polycount: 2000,
         enable_pbr: true,
         texture_resolution: 1024,
       };
@@ -199,7 +199,7 @@ describe("Meshy API Client", () => {
         image_url: options.image_url,
         ai_model: options.ai_model ?? "meshy-4",
         topology: options.topology ?? DEFAULT_TOPOLOGY,
-        target_polycount: options.target_polycount ?? 30000,
+        target_polycount: options.target_polycount ?? 2000,
         enable_pbr: options.enable_pbr ?? true,
         texture_resolution:
           options.texture_resolution ?? DEFAULT_TEXTURE_RESOLUTION,
@@ -208,7 +208,7 @@ describe("Meshy API Client", () => {
       expect(body.image_url).toBe(options.image_url);
       expect(body.ai_model).toBe("meshy-4");
       expect(body.topology).toBe("quad");
-      expect(body.target_polycount).toBe(30000);
+      expect(body.target_polycount).toBe(2000);
     });
 
     it("builds correct text-to-3d preview request body", () => {
@@ -227,7 +227,7 @@ describe("Meshy API Client", () => {
         art_style: options.art_style ?? "realistic",
         ai_model: options.ai_model ?? DEFAULT_AI_MODEL,
         topology: options.topology ?? DEFAULT_TOPOLOGY,
-        target_polycount: options.target_polycount ?? 30000,
+        target_polycount: options.target_polycount ?? 2000,
         symmetry_mode: options.symmetry_mode ?? "auto",
       };
 
@@ -427,7 +427,7 @@ describe("Meshy Client Integration Tests", () => {
       expect(body.image_url).toBe("https://example.com/image.png");
       expect(body.ai_model).toBe("meshy-4");
       expect(body.topology).toBe("triangle");
-      expect(body.target_polycount).toBe(30000);
+      expect(body.target_polycount).toBe(2000);
       expect(body.enable_pbr).toBe(true);
       expect(body.texture_resolution).toBe(2048);
     });
@@ -500,7 +500,7 @@ describe("Meshy Client Integration Tests", () => {
       expect(body.art_style).toBe("realistic");
       expect(body.ai_model).toBe("latest");
       expect(body.topology).toBe("triangle");
-      expect(body.target_polycount).toBe(30000);
+      expect(body.target_polycount).toBe(2000);
       expect(body.should_remesh).toBe(true);
       expect(body.symmetry_mode).toBe("auto");
       expect(body.pose_mode).toBe("");

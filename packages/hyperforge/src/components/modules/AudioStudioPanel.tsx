@@ -88,7 +88,7 @@ export function AudioStudioPanel({
   >([]);
   const [error, setError] = useState<string | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<globalThis.HTMLAudioElement | null>(null);
 
   // Handle hydration
   useEffect(() => {

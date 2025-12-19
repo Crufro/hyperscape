@@ -263,9 +263,13 @@ async function audioToBuffer(audio: AudioResponse): Promise<Buffer> {
     const chunks: Uint8Array[] = [];
 
     try {
-      while (true) {
+      let reading = true;
+      while (reading) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          reading = false;
+          continue;
+        }
         if (value) {
           chunks.push(value);
         }
@@ -560,11 +564,23 @@ export type VoicePreset = {
 };
 
 export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
-  // These are placeholder IDs - real IDs should be fetched from ElevenLabs
-  // or configured in environment variables
+  // ElevenLabs Default Voice IDs:
+  // Male voices:
+  //   - Adam (deep, narrative): pNInz6obpgDQGcFmaJgB
+  //   - Antoni (young, warm): ErXwobaYiN019PkySvjV
+  //   - Arnold (gruff, deep): VR6AewLTigWG4xSOukaG
+  //   - Josh (young, dynamic): TxGEqnHWrfWFTfGW9XjX
+  //   - Sam (neutral, young): yoZ06aMxZJJ28mfd3POQ
+  // Female voices:
+  //   - Rachel (calm, neutral): 21m00Tcm4TlvDq8ikWAM
+  //   - Domi (strong, confident): AZnzlk1XvdvUeBnXmlld
+  //   - Bella (soft, gentle): EXAVITQu4vr4xnSDxMaL
+  //   - Elli (young, cheerful): MF3mGyEYCl7XYWbV9V6O
+  //   - Charlotte (mature, wise): XB0fDUnXU5powFXDhCwa
+
   "male-warrior": {
     voiceId:
-      process.env.ELEVENLABS_VOICE_MALE_WARRIOR || "21m00Tcm4TlvDq8ikWAM",
+      process.env.ELEVENLABS_VOICE_MALE_WARRIOR || "VR6AewLTigWG4xSOukaG", // Arnold - gruff, deep male
     description: "Deep, commanding male voice for warriors and fighters",
     stability: 0.7, // Commanding presence
     similarityBoost: 0.8,
@@ -572,7 +588,7 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "with a deep, commanding warrior's tone",
   },
   "female-mage": {
-    voiceId: process.env.ELEVENLABS_VOICE_FEMALE_MAGE || "EXAVITQu4vr4xnSDxMaL",
+    voiceId: process.env.ELEVENLABS_VOICE_FEMALE_MAGE || "EXAVITQu4vr4xnSDxMaL", // Bella - soft, mystical female
     description: "Mystical, ethereal female voice for mages and spellcasters",
     stability: 0.5, // More ethereal variation
     similarityBoost: 0.75,
@@ -580,7 +596,7 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "with a mystical, ethereal enchantress quality",
   },
   "old-sage": {
-    voiceId: process.env.ELEVENLABS_VOICE_OLD_SAGE || "pNInz6obpgDQGcFmaJgB",
+    voiceId: process.env.ELEVENLABS_VOICE_OLD_SAGE || "pNInz6obpgDQGcFmaJgB", // Adam - deep, mature narrative male
     description: "Wise, elderly voice for sages and mentors",
     stability: 0.8, // Measured, calm
     similarityBoost: 0.7,
@@ -588,7 +604,7 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "slowly and thoughtfully, like a wise elder",
   },
   "young-hero": {
-    voiceId: process.env.ELEVENLABS_VOICE_YOUNG_HERO || "yoZ06aMxZJJ28mfd3POQ",
+    voiceId: process.env.ELEVENLABS_VOICE_YOUNG_HERO || "TxGEqnHWrfWFTfGW9XjX", // Josh - young, dynamic male
     description: "Energetic, youthful voice for heroes and adventurers",
     stability: 0.5, // Dynamic energy
     similarityBoost: 0.8,
@@ -596,7 +612,7 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "with youthful energy and determination",
   },
   villain: {
-    voiceId: process.env.ELEVENLABS_VOICE_VILLAIN || "VR6AewLTigWG4xSOukaG",
+    voiceId: process.env.ELEVENLABS_VOICE_VILLAIN || "pNInz6obpgDQGcFmaJgB", // Adam - deep, menacing when styled
     description: "Dark, menacing voice for villains and antagonists",
     stability: 0.6,
     similarityBoost: 0.85,
@@ -604,7 +620,7 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "with a dark, menacing villain's presence",
   },
   merchant: {
-    voiceId: process.env.ELEVENLABS_VOICE_MERCHANT || "pqHfZKP75CvOlQylNhV4",
+    voiceId: process.env.ELEVENLABS_VOICE_MERCHANT || "ErXwobaYiN019PkySvjV", // Antoni - warm, friendly male
     description: "Friendly, persuasive voice for merchants and shopkeepers",
     stability: 0.6,
     similarityBoost: 0.75,
@@ -612,7 +628,7 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "in a friendly, persuasive merchant's manner",
   },
   guard: {
-    voiceId: process.env.ELEVENLABS_VOICE_GUARD || "N2lVS1w4EtoT3dr4eOWO",
+    voiceId: process.env.ELEVENLABS_VOICE_GUARD || "VR6AewLTigWG4xSOukaG", // Arnold - authoritative, gruff male
     description: "Authoritative voice for guards and soldiers",
     stability: 0.75, // Firm authority
     similarityBoost: 0.8,
@@ -620,12 +636,31 @@ export const GAME_VOICE_PRESETS: Record<string, VoicePreset> = {
     speakingStyle: "with firm authority like a guard on duty",
   },
   innkeeper: {
-    voiceId: process.env.ELEVENLABS_VOICE_INNKEEPER || "AZnzlk1XvdvUeBnXmlld",
+    voiceId: process.env.ELEVENLABS_VOICE_INNKEEPER || "ErXwobaYiN019PkySvjV", // Antoni - warm, welcoming male
     description: "Warm, welcoming voice for innkeepers and bartenders",
     stability: 0.65,
     similarityBoost: 0.7,
     style: 0.4, // Warm hospitality
     speakingStyle: "warmly and welcomingly, like a friendly innkeeper",
+  },
+  // Additional female presets
+  "female-warrior": {
+    voiceId:
+      process.env.ELEVENLABS_VOICE_FEMALE_WARRIOR || "AZnzlk1XvdvUeBnXmlld", // Domi - strong, confident female
+    description: "Strong, commanding female voice for warriors",
+    stability: 0.7,
+    similarityBoost: 0.8,
+    style: 0.6,
+    speakingStyle: "with a strong, commanding warrior's tone",
+  },
+  "young-heroine": {
+    voiceId:
+      process.env.ELEVENLABS_VOICE_YOUNG_HEROINE || "MF3mGyEYCl7XYWbV9V6O", // Elli - young, cheerful female
+    description: "Energetic, youthful female voice for heroines",
+    stability: 0.5,
+    similarityBoost: 0.8,
+    style: 0.8,
+    speakingStyle: "with youthful energy and determination",
   },
 };
 

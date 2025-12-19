@@ -17,6 +17,8 @@ import {
   Palette,
   Download,
   Copy,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type LibraryAsset } from "@/hooks/useCDNAssets";
@@ -38,9 +40,18 @@ type AssetWithSource = LibraryAsset & {
 interface AssetListItemProps {
   asset: AssetWithSource;
   isSelected?: boolean;
+  isFavorite?: boolean;
+  /** Whether the asset is currently hidden */
+  isHidden?: boolean;
+  /** Optional thumbnail override URL (e.g., from generated sprites) */
+  thumbnailOverride?: string;
   onSelect?: (asset: AssetWithSource) => void;
   onFavorite?: (asset: AssetWithSource) => void;
   onCreateVariant?: (asset: AssetWithSource) => void;
+  /** Callback to hide the asset from the list */
+  onHide?: (asset: AssetWithSource) => void;
+  /** Callback to unhide (restore) the asset */
+  onUnhide?: (asset: AssetWithSource) => void;
 }
 
 // Rarity colors
@@ -70,12 +81,20 @@ function getCategoryIcon(category: string, type?: string) {
 export function AssetListItem({
   asset,
   isSelected,
+  isFavorite = false,
+  isHidden = false,
+  thumbnailOverride,
   onSelect,
   onFavorite,
   onCreateVariant,
+  onHide,
+  onUnhide,
 }: AssetListItemProps) {
   const [storeInfo, setStoreInfo] = useState<ItemStoreInfo[] | null>(null);
   const [showStoreInfo, setShowStoreInfo] = useState(false);
+
+  // Use thumbnail override if available, otherwise fall back to asset's thumbnail
+  const displayThumbnailUrl = thumbnailOverride || asset.thumbnailUrl;
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
 
@@ -164,9 +183,9 @@ export function AssetListItem({
           iconBgClass,
         )}
       >
-        {asset.thumbnailUrl && !thumbnailError ? (
+        {displayThumbnailUrl && !thumbnailError ? (
           <Image
-            src={asset.thumbnailUrl}
+            src={displayThumbnailUrl}
             alt={asset.name}
             width={40}
             height={40}
@@ -181,83 +200,47 @@ export function AssetListItem({
 
       {/* Info */}
       <div className="flex-1 min-w-0 text-left">
-        <div className="flex items-center gap-2 mb-1">
-          <p className="text-sm font-medium truncate">{asset.name}</p>
-          {/* Level/Requirements indicator */}
-          {asset.levelRequired && asset.levelRequired > 1 && (
-            <span className="text-[10px] text-muted-foreground">
-              Lv.{asset.levelRequired}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* VRM Badge - highest priority */}
-          {hasVRM && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] px-1.5 py-0 bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
-            >
-              VRM
-            </Badge>
-          )}
-          {/* Hand Rigging Badge */}
-          {asset.hasHandRigging && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] px-1.5 py-0 bg-purple-500/20 text-purple-300 border-purple-500/30"
-            >
-              Hands
-            </Badge>
-          )}
-          {/* Source Badge */}
+        {/* Title row - allow full width for name */}
+        <p className="text-sm font-medium truncate mb-1" title={asset.name}>
+          {asset.name}
+        </p>
+        {/* Badges row - limited to 3 most important badges */}
+        <div className="flex items-center gap-1.5">
+          {/* Source Badge - always show */}
           {isLocal ? (
             <Badge
               variant="secondary"
-              className="text-[10px] px-1.5 py-0 bg-purple-500/20 text-purple-300 border-purple-500/30"
+              className="text-[10px] px-1.5 py-0 bg-purple-500/20 text-purple-300 border-purple-500/30 flex-shrink-0"
             >
               LOCAL
             </Badge>
           ) : (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0 flex-shrink-0"
+            >
               CDN
             </Badge>
           )}
-          {/* Rarity Badge */}
+          {/* Rarity Badge - show if not common */}
           {asset.rarity && asset.rarity !== "common" && (
             <Badge
               variant="outline"
               className={cn(
-                "text-[10px] px-1.5 py-0 capitalize",
+                "text-[10px] px-1.5 py-0 capitalize flex-shrink-0",
                 rarityColors[asset.rarity] || "",
               )}
             >
               {asset.rarity.replace("_", " ")}
             </Badge>
           )}
-          {/* Type Badge */}
-          {asset.type && !hasVRM && (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 py-0 capitalize"
-            >
-              {asset.type.replace("_", " ")}
-            </Badge>
-          )}
-          {/* Weapon Type */}
-          {asset.weaponType && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-              {asset.weaponType}
-            </Badge>
-          )}
-          {/* Equip Slot */}
-          {asset.equipSlot && asset.equipSlot !== "weapon" && (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 py-0 capitalize"
-            >
-              {asset.equipSlot}
-            </Badge>
-          )}
+          {/* Type/Category indicator - compact */}
+          <span className="text-[10px] text-muted-foreground capitalize truncate">
+            {asset.type?.replace("_", " ") || asset.category}
+            {asset.levelRequired &&
+              asset.levelRequired > 1 &&
+              ` · Lv.${asset.levelRequired}`}
+          </span>
         </div>
       </div>
 
@@ -299,8 +282,16 @@ export function AssetListItem({
           e.stopPropagation();
           onFavorite?.(asset);
         }}
+        title={isFavorite ? "Remove from favorites" : "Add to favorites"}
       >
-        <Star className="w-4 h-4 text-muted-foreground" />
+        <Star
+          className={cn(
+            "w-4 h-4 transition-colors",
+            isFavorite
+              ? "text-yellow-400 fill-yellow-400"
+              : "text-muted-foreground hover:text-yellow-400",
+          )}
+        />
       </button>
 
       {/* Context Menu Button */}
@@ -365,6 +356,38 @@ export function AssetListItem({
               <Copy className="w-4 h-4 text-muted-foreground" />
               Copy Asset ID
             </button>
+
+            {/* Divider */}
+            <div className="my-1 border-t border-glass-border" />
+
+            {/* Hide/Unhide Asset */}
+            {isHidden ? (
+              <button
+                type="button"
+                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-green-500/10 transition-colors text-left text-muted-foreground hover:text-green-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowContextMenu(false);
+                  onUnhide?.(asset);
+                }}
+              >
+                <Eye className="w-4 h-4" />
+                Unhide Asset
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-red-500/10 transition-colors text-left text-muted-foreground hover:text-red-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowContextMenu(false);
+                  onHide?.(asset);
+                }}
+              >
+                <EyeOff className="w-4 h-4" />
+                Hide Asset
+              </button>
+            )}
           </div>
         )}
       </div>

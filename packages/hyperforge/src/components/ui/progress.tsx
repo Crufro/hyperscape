@@ -81,7 +81,8 @@ Progress.displayName = "Progress";
 // ============================================================================
 // Circular Progress
 // ============================================================================
-export interface CircularProgressProps extends SVGAttributes<SVGSVGElement> {
+export interface CircularProgressProps
+  extends SVGAttributes<globalThis.SVGSVGElement> {
   value?: number;
   size?: number;
   strokeWidth?: number;
@@ -90,7 +91,10 @@ export interface CircularProgressProps extends SVGAttributes<SVGSVGElement> {
   indeterminate?: boolean;
 }
 
-const CircularProgress = forwardRef<SVGSVGElement, CircularProgressProps>(
+const CircularProgress = forwardRef<
+  globalThis.SVGSVGElement,
+  CircularProgressProps
+>(
   (
     {
       className,

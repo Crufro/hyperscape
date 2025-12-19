@@ -420,7 +420,7 @@ export async function downloadFile(
   url: string,
   timeoutMs = 60000,
 ): Promise<Buffer> {
-  const controller = new AbortController();
+  const controller = new globalThis.AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {

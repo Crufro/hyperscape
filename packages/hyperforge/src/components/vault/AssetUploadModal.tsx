@@ -183,7 +183,7 @@ export function AssetUploadModal({
         setThumbnailFile(file);
 
         // Create preview
-        const reader = new FileReader();
+        const reader = new globalThis.FileReader();
         reader.onload = (e) => {
           setThumbnailPreview(e.target?.result as string);
         };

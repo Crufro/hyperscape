@@ -726,7 +726,7 @@ describe.sequential("GenerationService Integration", () => {
           expect.any(String),
           expect.objectContaining({
             ai_model: "latest",
-            target_polycount: 30000,
+            target_polycount: 2000,
           }),
         );
       });

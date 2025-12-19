@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         art_style: "realistic",
         ai_model: "meshy-4",
         topology: "triangle",
-        target_polycount: 10000,
+        target_polycount: 2000, // Game-optimized
       });
       logStep(`Preview task created: ${previewTaskId}`);
 

@@ -241,7 +241,7 @@ describe("Text-to-3D Pipeline", () => {
         art_style: options.art_style ?? "realistic",
         ai_model: options.ai_model ?? DEFAULT_AI_MODEL,
         topology: options.topology ?? DEFAULT_TOPOLOGY,
-        target_polycount: options.target_polycount ?? 30000,
+        target_polycount: options.target_polycount ?? 2000,
         symmetry_mode: options.symmetry_mode ?? "auto",
         pose_mode: options.pose_mode ?? "",
         should_remesh: options.should_remesh ?? true,
@@ -272,14 +272,14 @@ describe("Text-to-3D Pipeline", () => {
         art_style: options.art_style ?? "realistic",
         ai_model: options.ai_model ?? DEFAULT_AI_MODEL,
         topology: options.topology ?? DEFAULT_TOPOLOGY,
-        target_polycount: options.target_polycount ?? 30000,
+        target_polycount: options.target_polycount ?? 2000,
         symmetry_mode: options.symmetry_mode ?? "auto",
       };
 
       expect(body.art_style).toBe("realistic");
       expect(body.ai_model).toBe(DEFAULT_AI_MODEL);
       expect(body.topology).toBe(DEFAULT_TOPOLOGY);
-      expect(body.target_polycount).toBe(30000);
+      expect(body.target_polycount).toBe(2000);
       expect(body.symmetry_mode).toBe("auto");
     });
 
