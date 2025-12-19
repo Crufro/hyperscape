@@ -66,6 +66,21 @@ export interface AIStateContext {
   // State management
   markNetworkDirty(): void;
   emitEvent(eventType: string, data: unknown): void;
+
+  // Same-tile step-out (OSRS-accurate)
+  /**
+   * Attempt to step out to a random cardinal-adjacent tile.
+   * Used when NPC is on same tile as target and cannot attack.
+   *
+   * OSRS behavior: pick random N/E/S/W, move if walkable, else do nothing.
+   * "In RS, they pick a random cardinal direction and try to move the NPC
+   * towards that by 1 tile, if it can. If not, the NPC does nothing that cycle."
+   *
+   * @returns true if movement was requested (server determines walkability)
+   *
+   * @see https://osrs-docs.com/docs/mechanics/entity-collision/
+   */
+  tryStepOutCardinal(): boolean;
 }
 
 /**
@@ -256,12 +271,10 @@ export class ChaseState implements AIState {
       return MobAIState.ATTACK;
     }
 
-    // If somehow on same tile as target (shouldn't happen), also switch to attack
-    // But log a warning as this indicates a positioning bug
+    // If on same tile as target, transition to ATTACK state
+    // ATTACK state will handle step-out behavior (OSRS-accurate)
+    // This happens when player walks into mob's tile during chase
     if (tilesEqual(currentTile, targetTile)) {
-      console.warn(
-        `[ChaseState] On same tile as target! This shouldn't happen. Switching to ATTACK.`,
-      );
       return MobAIState.ATTACK;
     }
 
@@ -302,11 +315,17 @@ export class ChaseState implements AIState {
  * - Range 2+ (halberd, spear): Allows diagonal attacks (Chebyshev distance)
  * - Switch to CHASE if target moves away (no longer in valid attack range)
  *
+ * SAME-TILE HANDLING (OSRS-accurate):
+ * - NPC cannot attack from same tile (own tile not in attack range)
+ * - Pick random cardinal direction and try to step out
+ * - If blocked, do nothing that tick (try again next tick)
+ *
  * IMPORTANT: Must use tilesWithinMeleeRange (not tilesWithinRange) to match
  * CombatSystem's OSRS-accurate range validation. Using the wrong function
  * causes mobs to get stuck when diagonally adjacent to players.
  *
  * @see https://oldschool.runescape.wiki/w/Attack_range
+ * @see https://osrs-docs.com/docs/mechanics/entity-collision/
  */
 export class AttackState implements AIState {
   readonly name = MobAIState.ATTACK;
@@ -345,9 +364,6 @@ export class AttackState implements AIState {
       targetPlayer.position.z,
     );
 
-    // Check if still in combat range
-    // OSRS-accurate: Range 1 = cardinal only, Range 2+ = allows diagonal
-    // Also allow attacking if on same tile (edge case that shouldn't happen)
     const combatRangeTiles = context.getCombatRange();
     const isInRange = tilesWithinMeleeRange(
       currentTile,
@@ -356,11 +372,24 @@ export class AttackState implements AIState {
     );
     const isSameTile = tilesEqual(currentTile, targetTile);
 
-    if (!isInRange && !isSameTile) {
+    // OSRS-ACCURATE SAME-TILE HANDLING
+    // When on same tile, NPC cannot attack - must step out first
+    // "The tile underneath the NPC itself is not part of the attack range"
+    if (isSameTile) {
+      // Try to step out to a random cardinal tile (OSRS behavior)
+      // If blocked, do nothing this tick - try again next tick
+      context.tryStepOutCardinal();
+
+      // Stay in ATTACK state - we're still in combat, just repositioning
+      return null;
+    }
+
+    // Not in melee range - need to chase
+    if (!isInRange) {
       return MobAIState.CHASE;
     }
 
-    // Perform attack if cooldown ready (TICK-BASED, OSRS-accurate)
+    // In valid attack range - perform attack if cooldown ready
     const currentTick = context.getCurrentTick();
     if (context.canAttack(currentTick)) {
       context.performAttack(targetId, currentTick);

@@ -111,10 +111,13 @@ import { COMBAT_CONSTANTS } from "../../constants/CombatConstants";
 import { AggroManager } from "../managers/AggroManager";
 import {
   worldToTile,
+  tileToWorld,
   TICK_DURATION_MS,
   tileChebyshevDistance,
+  getRandomCardinalTile,
 } from "../../systems/shared/movement/TileSystem";
 import { attackSpeedSecondsToTicks } from "../../utils/game/CombatCalculations";
+import { getGameRng } from "../../utils/SeededRandom";
 
 // Polyfill ProgressEvent for Node.js server environment
 if (typeof ProgressEvent === "undefined") {
@@ -1077,6 +1080,38 @@ export class MobEntity extends CombatantEntity {
       emitEvent: (eventType, data) => {
         this.world.emit(eventType as EventType, data);
       },
+
+      // Same-tile step-out (OSRS-accurate)
+      // When NPC is on same tile as target, it cannot attack.
+      // Pick random cardinal direction and try to move 1 tile.
+      // If blocked, server rejects movement - we try again next tick.
+      tryStepOutCardinal: (): boolean => {
+        const currentPos = this.getPosition();
+        const currentTile = worldToTile(currentPos.x, currentPos.z);
+
+        // Use game RNG for deterministic random direction
+        const rng = getGameRng();
+        const targetTile = getRandomCardinalTile(currentTile, rng);
+
+        // Convert to world position
+        const targetWorld = tileToWorld(targetTile);
+        const targetPos = {
+          x: targetWorld.x,
+          y: currentPos.y,
+          z: targetWorld.z,
+        };
+
+        // Emit movement request (server will validate walkability)
+        // If blocked, movement simply won't happen - OSRS behavior
+        this.world.emit(EventType.MOB_NPC_MOVE_REQUEST, {
+          mobId: this.id,
+          targetPos: targetPos,
+          targetEntityId: undefined, // Not chasing - just stepping out
+          tilesPerTick: 1, // Single tile step
+        });
+
+        return true; // Request sent (server determines if walkable)
+      },
     };
   }
 
@@ -1473,16 +1508,26 @@ export class MobEntity extends CombatantEntity {
         if (targetPlayer && targetPlayer.position) {
           const dx = targetPlayer.position.x - this.position.x;
           const dz = targetPlayer.position.z - this.position.z;
-          let angle = Math.atan2(dx, dz);
+          const distanceSquared = dx * dx + dz * dz;
 
-          // VRM 1.0+ models have 180° base rotation, so we need to compensate
-          // Otherwise entities face AWAY from each other instead of towards
-          angle += Math.PI;
+          // OSRS-ACCURATE: Skip rotation when on same tile (distance too small)
+          // Prevents 180° flips from floating-point instability when dx ≈ 0, dz ≈ 0
+          // Threshold: 0.25 = 0.5^2 (half a tile)
+          const MIN_ROTATION_DISTANCE_SQ = 0.25;
 
-          // Apply rotation to node quaternion
-          const tempQuat = new THREE.Quaternion();
-          tempQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-          this.node.quaternion.copy(tempQuat);
+          if (distanceSquared >= MIN_ROTATION_DISTANCE_SQ) {
+            let angle = Math.atan2(dx, dz);
+
+            // VRM 1.0+ models have 180° base rotation, so we need to compensate
+            // Otherwise entities face AWAY from each other instead of towards
+            angle += Math.PI;
+
+            // Apply rotation to node quaternion
+            const tempQuat = new THREE.Quaternion();
+            tempQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+            this.node.quaternion.copy(tempQuat);
+          }
+          // else: preserve current facing direction (no rotation update)
         }
       }
 

@@ -465,6 +465,56 @@ export const TILE_DIRECTIONS = [
 ] as const;
 
 /**
+ * Cardinal directions only (N/E/S/W, no diagonals)
+ * OSRS uses all 4 cardinal directions for NPC step-out when on same tile
+ *
+ * @see https://osrs-docs.com/docs/mechanics/entity-collision/
+ */
+export const CARDINAL_DIRECTIONS = [
+  { x: 0, z: 1 }, // North
+  { x: 1, z: 0 }, // East
+  { x: 0, z: -1 }, // South
+  { x: -1, z: 0 }, // West
+] as const;
+
+/**
+ * Get cardinal-adjacent tiles (N/E/S/W only, no diagonals)
+ *
+ * @param tile - Center tile
+ * @returns Array of 4 cardinal-adjacent tiles
+ */
+export function getCardinalTiles(tile: TileCoord): TileCoord[] {
+  return CARDINAL_DIRECTIONS.map((dir) => ({
+    x: tile.x + dir.x,
+    z: tile.z + dir.z,
+  }));
+}
+
+/**
+ * Get a random cardinal-adjacent tile
+ * Used for OSRS-accurate NPC step-out when on same tile as target.
+ *
+ * OSRS behavior: "In RS, they pick a random cardinal direction (north, east,
+ * west, south) and try to move the NPC towards that by 1 tile."
+ *
+ * @param tile - Center tile
+ * @param rng - Random number generator (for deterministic behavior)
+ * @returns Random cardinal tile (N, E, S, or W)
+ *
+ * @see https://osrs-docs.com/docs/mechanics/entity-collision/
+ */
+export function getRandomCardinalTile(
+  tile: TileCoord,
+  rng: { nextInt: (max: number) => number },
+): TileCoord {
+  const direction = CARDINAL_DIRECTIONS[rng.nextInt(4)];
+  return {
+    x: tile.x + direction.x,
+    z: tile.z + direction.z,
+  };
+}
+
+/**
  * Check if a direction is diagonal
  */
 export function isDiagonal(dx: number, dz: number): boolean {
