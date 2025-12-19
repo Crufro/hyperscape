@@ -22,14 +22,18 @@ import { Palette, X, Package } from "lucide-react";
 
 interface AssetLibraryProps {
   onAssetSelect?: (asset: AssetData) => void;
+  selectedAsset?: AssetData | null;
   searchQuery?: string;
   categoryFilter?: string;
+  onAssetDeleted?: (assetId: string) => void;
 }
 
 export function AssetLibrary({
   onAssetSelect,
+  selectedAsset,
   searchQuery = "",
   categoryFilter = "all",
+  onAssetDeleted: _onAssetDeleted,
 }: AssetLibraryProps) {
   const { assets, loading, error } = useCDNAssets();
   const { setBaseModel } = useVariantStore();
@@ -190,12 +194,13 @@ export function AssetLibrary({
             <AssetListItem
               key={asset.id}
               asset={asset}
+              isSelected={selectedAsset?.id === asset.id}
               isFavorite={isFavorite(asset.id)}
               isHidden={isHidden(asset.id)}
               thumbnailOverride={getThumbnailUrl(asset.id, undefined)}
-              onSelect={(selectedAsset) =>
+              onSelect={(clickedAsset) =>
                 onAssetSelect?.(
-                  cdnAssetToAssetData(selectedAsset as CDNAssetInput),
+                  cdnAssetToAssetData(clickedAsset as CDNAssetInput),
                 )
               }
               onFavorite={(a) => toggleFavorite(a.id)}
