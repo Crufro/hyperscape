@@ -1,14 +1,39 @@
 # HyperForge
 
-AI-powered 3D asset creation studio for Hyperscape. Built with Next.js 15, React Three Fiber, and Vercel AI Gateway.
+AI-powered content creation studio for Hyperscape. Generate 3D models, audio, images, and game content with AI—then test them in-game with one click.
 
-## Features
+## ✨ Features
 
-- **CDN Asset Loading**: Loads assets from game CDN manifests (items, NPCs, resources)
-- **AI Generation**: Text-to-3D and Image-to-3D pipelines using Meshy
-- **Vercel AI Gateway**: Unified AI provider access for text and image generation
-- **3D Viewport**: React Three Fiber-based model viewer
-- **Studio Layout**: Professional asset creation interface
+### 3D Asset Generation
+- **Text-to-3D**: Generate 3D models from text prompts (Meshy API)
+- **Image-to-3D**: Convert concept art to 3D models
+- **VRM Conversion**: Convert GLB models to VRM for avatars
+- **Mesh Quality Control**: Polycount presets optimized for 60fps gameplay (500-10K polys)
+- **One-Click Game Testing**: Export → Spawn → Open Game in one button
+
+### Content Generation
+- **NPC Generator**: Create NPC profiles with AI personalities
+- **Quest Generator**: Full quest chains with objectives and rewards
+- **Dialogue Trees**: React Flow-based visual dialogue editor
+- **Area Generator**: Generate world areas with lore and NPCs
+- **Item Generator**: Generate items with stats and descriptions
+
+### Audio Generation
+- **Voice TTS**: Generate NPC voices with ElevenLabs
+- **Sound Effects**: AI-generated game SFX
+- **Music**: Background music generation
+
+### Image Generation
+- **Concept Art**: AI concept art for characters and scenes
+- **Sprites**: 2D game sprites and icons
+- **Textures**: Seamless tileable textures
+
+### Developer Experience
+- **Command Palette** (`Ctrl+P`): Quick access to all actions
+- **Prompt Vault**: Save and reuse Hyperscape-optimized prompts
+- **Asset Library**: Browse CDN, local, and generated assets
+- **Sync Status**: See which assets are In Game / Exported / Draft
+- **Test in Game**: One-click spawn at any location
 
 ## Tech Stack
 
@@ -19,29 +44,38 @@ AI-powered 3D asset creation studio for Hyperscape. Built with Next.js 15, React
 - **Styling**: Tailwind CSS with OKLCH design tokens
 - **State**: Zustand (planned)
 
-## Setup
+## Quick Start
 
-1. Install dependencies:
 ```bash
+# 1. Install dependencies
 bun install
-```
 
-2. Set up environment variables (see `.env.example`):
-```bash
+# 2. Set up environment (copy and edit .env.example)
 cp .env.example .env.local
-```
 
-3. Initialize database:
-```bash
+# 3. Add your API keys to .env.local:
+#    - MESHY_API_KEY (required for 3D generation)
+#    - AI_GATEWAY_API_KEY (required for AI features)
+#    - ELEVENLABS_API_KEY (optional, for audio)
+
+# 4. Initialize database
 bun run db:push
-```
 
-4. Start development server:
-```bash
+# 5. Start development server
 bun run dev
 ```
 
-The app will be available at `http://localhost:3500`.
+Open `http://localhost:3500` and press `Ctrl+P` to see the command palette!
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+P` | Open Command Palette |
+| `Ctrl+G` | Quick Generate |
+| `Escape` | Close modals/panels |
+
+## Setup
 
 ## Environment Variables
 
@@ -96,15 +130,15 @@ HyperForge uses the Meshy API for AI-powered 3D model generation, optimized for 
 - **Polycount**: Configurable target polygon count with asset-class presets
 - **PBR Textures**: Optional normal, metallic, roughness maps
 
-**Asset Class Presets** (recommended polycounts for web MMO):
-| Asset Class | Polycount Range | Default |
-|-------------|-----------------|---------|
-| Small Props | 500 - 2,000 | 1,000 |
-| Medium Props | 2,000 - 5,000 | 3,000 |
-| Large Props | 5,000 - 10,000 | 7,500 |
-| NPC Characters | 2,000 - 10,000 | 5,000 |
-| Small Buildings | 5,000 - 15,000 | 10,000 |
-| Large Structures | 15,000 - 50,000 | 30,000 |
+**Asset Class Presets** (optimized for 60fps RuneScape-style MMO):
+| Asset Class | Polycount Range | Default | Notes |
+|-------------|-----------------|---------|-------|
+| Small Props | 200 - 1,000 | 500 | Coins, potions, tools |
+| Medium Props | 500 - 3,000 | 1,500 | Weapons, furniture |
+| Large Props | 1,000 - 5,000 | 2,500 | Trees, large objects |
+| NPC Characters | 3,000 - 10,000 | 5,000 | Ideally ≤5K for performance |
+| Small Buildings | 2,000 - 8,000 | 4,000 | Houses, shops |
+| Large Structures | 4,000 - 15,000 | 8,000 | Castles, dungeons |
 
 **Three.js Best Practices:**
 - Keep individual meshes < 100,000 triangles
@@ -155,15 +189,30 @@ bun run build
 bun run start
 ```
 
-## Next Steps
+## Status
 
-- [ ] Complete Meshy pipeline integration
-- [ ] Add Zustand state management
-- [ ] Implement asset CRUD operations
-- [ ] Add asset filtering and search
-- [ ] Complete 3D model viewer with GLTF loading
-- [ ] Add generation history tracking
-- [ ] Implement asset publishing workflow
+### ✅ Complete
+- Meshy Text-to-3D and Image-to-3D pipelines
+- VRM conversion pipeline
+- Asset library with CDN/Local/Supabase sources
+- Asset filtering, search, and categories
+- 3D model viewer with GLTF/VRM loading
+- Generation history tracking
+- One-click game testing workflow
+- Command palette with prompt vault
+- Content generators (NPC, Quest, Area, Item)
+- Audio generation (Voice, SFX, Music)
+- Image generation (Concept, Sprites, Textures)
+
+### 🚧 In Progress
+- Armor/Equipment fitting (partial implementation)
+- Variant/Retexture pipeline
+- Animation frame extraction for sprites
+
+### 📋 Planned
+- Visual world editor (drag & drop asset placement)
+- Batch generation queue with status dashboard
+- Asset versioning and history
 
 ## References
 
