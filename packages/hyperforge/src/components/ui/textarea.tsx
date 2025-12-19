@@ -29,7 +29,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           className={cn(
-            "min-h-[100px] w-full px-3 py-2 rounded-md border border-input bg-glass-bg/50 text-sm text-foreground placeholder:text-muted-foreground",
+            "min-h-[100px] w-full px-3 py-2 rounded-md border border-input bg-zinc-100 dark:bg-zinc-800 text-sm text-foreground placeholder:text-muted-foreground",
             "transition-all focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/50",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             resizeClasses[resize],
