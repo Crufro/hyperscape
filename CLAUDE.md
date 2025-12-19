@@ -112,7 +112,7 @@ packages/
 │   ├── AI agent actions (combat, skills, movement)
 │   └── ElizaOS providers for world state
 ├── physx-js-webidl/     # PhysX WASM bindings
-├── asset-forge/         # AI asset generation (GPT-4, MeshyAI)
+├── hyperforge/          # AI asset generation (GPT-4, MeshyAI)
 └── docs-site/           # Docusaurus documentation site
 ```
 
@@ -258,8 +258,8 @@ The dev server provides:
 ```bash
 bun run dev        # Core game (client + server + shared)
 bun run dev:ai     # Core game + ElizaOS AI agents
-bun run dev:all    # Everything: game + AI + AssetForge
-bun run dev:forge  # AssetForge (standalone)
+bun run dev:all    # Everything: game + AI + HyperForge
+bun run dev:forge  # HyperForge (standalone)
 bun run docs:dev   # Documentation site (standalone)
 ```
 
@@ -270,8 +270,7 @@ All services have unique default ports to avoid conflicts:
 | Port | Service | Env Var | Started By |
 |------|---------|---------|------------|
 | 3333 | Game Client | `VITE_PORT` | `bun run dev` |
-| 3400 | AssetForge UI | `ASSET_FORGE_PORT` | `bun run dev:forge` |
-| 3401 | AssetForge API | `ASSET_FORGE_API_PORT` | `bun run dev:forge` |
+| 3500 | HyperForge | `PORT` | `bun run dev:forge` |
 | 3402 | Docusaurus | (hardcoded) | `bun run docs:dev` |
 | 4000 | ElizaOS Dashboard | (internal) | `bun run dev:ai` |
 | 4001 | ElizaOS API | `ELIZAOS_PORT` | `bun run dev:ai` |
@@ -287,7 +286,7 @@ All services have unique default ports to avoid conflicts:
 |---------|------|---------|
 | Server | `packages/server/.env.example` | Server deployment (Railway, Fly.io, Docker) |
 | Client | `packages/client/.env.example` | Client deployment (Vercel, Netlify, Pages) |
-| AssetForge | `packages/asset-forge/.env.example` | AssetForge deployment |
+| HyperForge | `packages/hyperforge/.env.example` | HyperForge deployment |
 
 **Common variables**:
 ```bash

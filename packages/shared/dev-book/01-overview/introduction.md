@@ -383,7 +383,7 @@ packages/
 │   │   ├── systems/     # Game systems
 │   │   └── ...
 │   └── dev-book/        # This documentation
-├── asset-forge/         # 3D asset generation
+├── hyperforge/          # 3D asset generation
 └── plugin-hyperscape/   # AI agent integration
 ```
 

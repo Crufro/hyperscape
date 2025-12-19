@@ -67,7 +67,7 @@ cp packages/server/.env.example packages/server/.env
 cp packages/plugin-hyperscape/.env.example packages/plugin-hyperscape/.env
 
 # Asset generation tools (only if using bun run dev:forge)
-cp packages/asset-forge/.env.example packages/asset-forge/.env
+cp packages/hyperforge/.env.example packages/hyperforge/.env
 # Edit and set OPENAI_API_KEY, MESHY_API_KEY
 ```
 
@@ -105,7 +105,7 @@ packages/
 ├── client/              # Web client (Vite, React)
 ├── plugin-hyperscape/   # ElizaOS AI agent plugin
 ├── physx-js-webidl/     # PhysX WASM bindings
-├── asset-forge/         # AI asset generation tools
+├── hyperforge/          # AI asset generation tools
 └── docs-site/           # Documentation (Docusaurus)
 ```
 
@@ -136,9 +136,9 @@ Build order: `physx-js-webidl` → `shared` → everything else (handled automat
 bun run dev:client    # Client only (port 3333)
 bun run dev:server    # Server only (port 5555)
 bun run dev:ai        # Game + ElizaOS agents (adds port 4001)
-bun run dev:forge     # AssetForge tools (ports 3400, 3401)
+bun run dev:forge     # HyperForge tools (port 3500)
 bun run docs:dev      # Documentation site (port 3402)
-bun run dev:all       # Everything: game + AI + AssetForge
+bun run dev:all       # Everything: game + AI + HyperForge
 ```
 
 ### Docker services
@@ -177,7 +177,7 @@ Both must use the same Privy App ID from [Privy Dashboard](https://dashboard.pri
 **Optional configuration** - see `.env.example` files for all options:
 - `packages/server/.env.example` - Database, ports, LiveKit voice chat
 - `packages/client/.env.example` - API URLs, Farcaster integration
-- `packages/asset-forge/.env.example` - AI API keys (OpenAI, Meshy)
+- `packages/hyperforge/.env.example` - AI API keys (OpenAI, Meshy)
 - `packages/plugin-hyperscape/.env.example` - ElizaOS agent config
 
 ### Default Ports
@@ -187,8 +187,7 @@ Both must use the same Privy App ID from [Privy Dashboard](https://dashboard.pri
 | 5555 | Game Server | `bun run dev` |
 | 3333 | Client | `bun run dev` |
 | 8080 | Asset CDN | `bun run dev` |
-| 3400 | AssetForge UI | `bun run dev:forge` |
-| 3401 | AssetForge API | `bun run dev:forge` |
+| 3500 | HyperForge | `bun run dev:forge` |
 | 4001 | ElizaOS API | `bun run dev:ai` |
 | 3402 | Documentation | `bun run docs:dev` |
 

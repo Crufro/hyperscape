@@ -2,7 +2,7 @@
  * Unified Task Polling
  * Works for both image-to-3d and text-to-3d tasks
  *
- * Matches asset-forge polling patterns with configurable intervals
+ * Matches hyperforge polling patterns with configurable intervals
  */
 
 import { getTaskStatusV1, getTaskStatusV2, type MeshyTask } from "./client";

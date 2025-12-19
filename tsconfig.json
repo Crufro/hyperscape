@@ -28,7 +28,6 @@
   "include": [
     "packages/client/src/**/*",
     "packages/server/src/**/*",
-    "packages/asset-forge/src/**/*",
     "packages/hyperforge/src/**/*",
     "packages/hyperforge/lib/**/*"
   ],

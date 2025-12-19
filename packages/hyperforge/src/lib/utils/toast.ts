@@ -196,5 +196,5 @@ export const toast = {
   },
 };
 
-// Also export as 'notify' for compatibility with asset-forge naming
+// Also export as 'notify' for convenience
 export const notify = toast;

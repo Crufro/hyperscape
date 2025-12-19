@@ -10,11 +10,11 @@
  * 3. Attaches weapon to VRM bone specified in metadata
  * 4. Transforms are pre-baked - just attach directly!
  *
- * **Asset Forge Integration:**
- * - Weapons fitted in Asset Forge Equipment Page
+ * **HyperForge Integration:**
+ * - Weapons fitted in HyperForge Equipment Page
  * - Exported with VRM bone attachment data
  * - Position/rotation already baked into GLB hierarchy
- * - See: /packages/asset-forge/WEAPON_FITTING_GUIDE.md
+ * - See: /packages/hyperforge/WEAPON_FITTING_GUIDE.md
  */
 
 import { GLTFLoader } from "../../libs/gltfloader/GLTFLoader";

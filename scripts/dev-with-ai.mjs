@@ -53,7 +53,7 @@ if (!checkElizaOS() && process.env.START_ELIZAOS === 'true') {
   console.log(`${colors.yellow}   Falling back to Turbo-only dev mode...${colors.reset}\n`);
   
   // Fall back to regular turbo dev
-  const turbo = spawn('bun', ['x', 'turbo', 'run', 'dev', '--filter=!3d-asset-forge'], {
+  const turbo = spawn('bun', ['x', 'turbo', 'run', 'dev'], {
     cwd: rootDir,
     stdio: 'inherit',
     shell: true,
@@ -78,7 +78,7 @@ if (!checkElizaOS() && process.env.START_ELIZAOS === 'true') {
   
   // Start Turbo (Hyperscape services)
   console.log(`${colors.blue}[Turbo]${colors.reset} Starting Hyperscape dev servers...`);
-  const turbo = spawn('bun', ['x', 'turbo', 'run', 'dev', '--filter=!3d-asset-forge'], {
+  const turbo = spawn('bun', ['x', 'turbo', 'run', 'dev'], {
     cwd: rootDir,
     stdio: 'inherit',
     shell: true,
@@ -148,7 +148,7 @@ if (!checkElizaOS() && process.env.START_ELIZAOS === 'true') {
   // ElizaOS not configured or not requested - run Turbo + Plugin Frontend
   console.log(`${colors.blue}[Turbo]${colors.reset} Starting Hyperscape dev servers...\n`);
   
-  const turbo = spawn('bun', ['x', 'turbo', 'run', 'dev', '--filter=!3d-asset-forge'], {
+  const turbo = spawn('bun', ['x', 'turbo', 'run', 'dev'], {
     cwd: rootDir,
     stdio: 'inherit',
     shell: true,

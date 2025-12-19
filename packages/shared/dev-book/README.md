@@ -259,7 +259,7 @@ Part of the Hyperscape project.
 ## 🔗 Related Documentation
 
 - [Hyperscape Main README](../../../README.md)
-- [Asset Forge Docs](../../asset-forge/dev-book/README.md)
+- [HyperForge Docs](../../hyperforge/README.md)
 - [Plugin Hyperscape Docs](../../plugin-hyperscape/README.md)
 
 ---

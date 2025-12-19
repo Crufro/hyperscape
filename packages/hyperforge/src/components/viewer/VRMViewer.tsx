@@ -4,7 +4,7 @@
  * VRMViewer - Real VRM viewer with animation support
  *
  * Uses @pixiv/three-vrm to load and display VRM files with animation retargeting.
- * Based on asset-forge's VRMTestViewer but adapted for hyperforge.
+ * Full-featured VRM viewer with animation support for HyperForge.
  */
 
 import { logger } from "@/lib/utils";

@@ -632,34 +632,21 @@ ${colors.reset}`)
     }
   })
   
-  // Start 3D Asset Forge (API + Vite)
-  const assetForgeDir = path.join(rootDir, '../asset-forge')
-  if (fs.existsSync(assetForgeDir)) {
-    console.log(`${colors.dim}Starting 3D Asset Forge...${colors.reset}`)
+  // Start HyperForge (Next.js)
+  const hyperforgeDir = path.join(rootDir, '../hyperforge')
+  if (fs.existsSync(hyperforgeDir)) {
+    console.log(`${colors.dim}Starting HyperForge...${colors.reset}`)
 
-    // Start Forge API
-    spawnChild('Forge-API', 'node', ['server/api.mjs'], {
-      cwd: assetForgeDir,
+    // Start HyperForge (Next.js dev server)
+    spawnChild('HyperForge', 'bun', ['run', 'dev'], {
+      cwd: hyperforgeDir,
       env: {
         PATH: process.env.PATH,
         HOME: process.env.HOME,
         USER: process.env.USER,
-        API_PORT: CONFIG.FORGE_API_PORT,
         MESHY_API_KEY: process.env.MESHY_API_KEY,
         OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-        IMAGE_SERVER_URL: process.env.IMAGE_SERVER_URL,
-        NODE_ENV: 'development',
-      }
-    })
-
-    // Start Forge UI
-    spawnChild('Forge-UI', 'bun', ['x', 'vite', '--host', '--port', CONFIG.FORGE_VITE_PORT], {
-      cwd: assetForgeDir,
-      env: {
-        PATH: process.env.PATH,
-        HOME: process.env.HOME,
-        USER: process.env.USER,
-        VITE_PORT: CONFIG.FORGE_VITE_PORT,
+        ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY,
         NODE_ENV: 'development',
       }
     })
