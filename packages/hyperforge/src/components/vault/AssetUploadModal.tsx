@@ -524,7 +524,7 @@ export function AssetUploadModal({
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe this asset..."
                     rows={2}
-                    className="w-full mt-1 px-3 py-2 rounded-md bg-glass-bg border border-glass-border text-sm resize-none"
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-glass-bg border border-glass-border text-sm text-foreground placeholder:text-muted-foreground resize-none"
                   />
                 </div>
               </div>

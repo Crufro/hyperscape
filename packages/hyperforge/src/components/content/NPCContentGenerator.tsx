@@ -481,7 +481,7 @@ export function NPCContentGenerator({
           <textarea
             value={npcDescription}
             onChange={(e) => setNpcDescription(e.target.value)}
-            className="w-full h-20 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none"
+            className="w-full h-20 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none text-foreground placeholder:text-muted-foreground"
             placeholder="A friendly banker who works at the Lumbridge Bank. He's known for his helpful nature and encyclopedic knowledge of the kingdom's economy."
           />
         </div>
@@ -575,7 +575,7 @@ export function NPCContentGenerator({
               <textarea
                 value={questDescription}
                 onChange={(e) => setQuestDescription(e.target.value)}
-                className="w-full h-16 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none"
+                className="w-full h-16 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none text-foreground placeholder:text-muted-foreground"
                 placeholder="Describe the quest objectives and rewards..."
               />
             </div>
@@ -589,7 +589,7 @@ export function NPCContentGenerator({
         <textarea
           value={lore}
           onChange={(e) => setLore(e.target.value)}
-          className="w-full h-24 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none"
+          className="w-full h-24 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none text-foreground placeholder:text-muted-foreground"
           placeholder="Add any world lore or context that should influence the dialogue..."
         />
       </GlassPanel>

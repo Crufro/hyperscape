@@ -195,7 +195,7 @@ export default function TexturesPage() {
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Describe your texture... e.g., 'Mossy cobblestone path with grass growing between stones'"
                     rows={3}
-                    className="w-full px-4 py-3 bg-glass-bg border border-glass-border rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none"
+                    className="w-full px-4 py-3 bg-glass-bg border border-glass-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none"
                   />
                 </div>
 

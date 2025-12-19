@@ -766,7 +766,7 @@ export default function GeneratePage() {
                           "Describe your asset in detail..."
                         }
                         rows={4}
-                        className="w-full px-4 py-2 bg-glass-bg border border-glass-border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
+                        className="w-full px-4 py-2 bg-glass-bg border border-glass-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
                       />
                     </div>
 

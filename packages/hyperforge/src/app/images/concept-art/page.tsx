@@ -173,7 +173,7 @@ export default function ConceptArtPage() {
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Describe your concept art... e.g., 'A legendary fire sword with a blade made of molten lava, ornate golden hilt with ruby gems'"
                     rows={4}
-                    className="w-full px-4 py-3 bg-glass-bg border border-glass-border rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
+                    className="w-full px-4 py-3 bg-glass-bg border border-glass-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
                   />
                 </div>
 

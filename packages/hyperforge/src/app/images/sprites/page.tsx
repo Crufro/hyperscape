@@ -165,7 +165,7 @@ export default function SpritesPage() {
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Describe your sprite... e.g., 'A glowing health potion in a red glass bottle with a cork stopper'"
                     rows={3}
-                    className="w-full px-4 py-3 bg-glass-bg border border-glass-border rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
+                    className="w-full px-4 py-3 bg-glass-bg border border-glass-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
                   />
                 </div>
 

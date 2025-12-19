@@ -283,7 +283,7 @@ export function QuestGenerator({ onContentGenerated }: QuestGeneratorProps) {
         <textarea
           value={objectives}
           onChange={(e) => setObjectives(e.target.value)}
-          className="w-full h-20 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none"
+          className="w-full h-20 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none text-foreground placeholder:text-muted-foreground"
           placeholder="e.g., Kill goblins, collect their ears, return to the guard captain for a reward"
         />
       </GlassPanel>
@@ -294,7 +294,7 @@ export function QuestGenerator({ onContentGenerated }: QuestGeneratorProps) {
         <textarea
           value={lore}
           onChange={(e) => setLore(e.target.value)}
-          className="w-full h-20 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none"
+          className="w-full h-20 p-2 bg-glass-bg border border-glass-border rounded text-sm resize-none text-foreground placeholder:text-muted-foreground"
           placeholder="Add context about the game world to make the quest more immersive..."
         />
       </GlassPanel>
