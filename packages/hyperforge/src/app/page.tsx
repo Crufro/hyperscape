@@ -272,7 +272,7 @@ export default function HomePage() {
 
       {/* === MAIN 3D VIEWPORT === */}
       <main className="flex-1 relative overflow-hidden">
-        <Viewport3D asset={selectedAsset} />
+        <Viewport3D selectedAsset={selectedAsset} />
       </main>
 
       {/* === WORLD VIEW MODAL === */}
