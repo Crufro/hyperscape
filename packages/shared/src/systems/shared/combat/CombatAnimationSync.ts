@@ -130,6 +130,9 @@ export class CombatAnimationSync {
   // Counter for unique attack IDs
   private attackCounter = 0;
 
+  // Pre-allocated array for hot-path optimization (avoids GC pressure)
+  private completedHitsplatIndices: number[] = [];
+
   constructor(world: World, animationManager: CombatAnimationManager) {
     this.world = world;
     this.animationManager = animationManager;
@@ -333,8 +336,8 @@ export class CombatAnimationSync {
       }
     }
 
-    // Process scheduled hitsplats
-    const completedHitsplats: number[] = [];
+    // Process scheduled hitsplats (reuse pre-allocated array to avoid GC)
+    this.completedHitsplatIndices.length = 0;
     for (let i = 0; i < this.scheduledHitsplats.length; i++) {
       const hitsplat = this.scheduledHitsplats[i];
 
@@ -356,13 +359,13 @@ export class CombatAnimationSync {
 
       // Mark for cleanup after hide tick
       if (currentTick >= hitsplat.hideTick) {
-        completedHitsplats.push(i);
+        this.completedHitsplatIndices.push(i);
       }
     }
 
     // Remove completed hitsplats (reverse order to preserve indices)
-    for (let i = completedHitsplats.length - 1; i >= 0; i--) {
-      this.scheduledHitsplats.splice(completedHitsplats[i], 1);
+    for (let i = this.completedHitsplatIndices.length - 1; i >= 0; i--) {
+      this.scheduledHitsplats.splice(this.completedHitsplatIndices[i], 1);
     }
   }
 
