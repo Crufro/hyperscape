@@ -52,11 +52,14 @@ export function StudioPageLayout({
   }, []);
 
   // Show a minimal skeleton during SSR to avoid hydration mismatch with icons
+  // Don't render children here as they may contain Lucide icons that cause hydration issues
   if (!mounted) {
     return (
       <div className="flex h-screen bg-background overflow-hidden">
         <aside className="w-56 border-r border-glass-border bg-glass-bg/30 flex flex-col flex-shrink-0" />
-        <main className="flex-1 relative overflow-hidden">{children}</main>
+        <main className="flex-1 relative overflow-hidden flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        </main>
       </div>
     );
   }

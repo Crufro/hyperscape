@@ -355,10 +355,11 @@ export default function WorldEditorPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleUndo, handleRedo, handleSave, handleDeleteEntity, selectedEntity]);
 
+  // Use CSS-only spinner during SSR to avoid Lucide hydration mismatch
   if (!mounted) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
