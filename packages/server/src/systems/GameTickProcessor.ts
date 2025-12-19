@@ -161,7 +161,8 @@ export class GameTickProcessor {
 
   // Feature flag for OSRS script queue system (Phase 2)
   // When true, uses Strong/Normal/Weak/Soft priority system
-  private scriptQueueEnabled = false;
+  // ENABLED: Phase 1 implementation - OSRS-accurate script priorities
+  private scriptQueueEnabled = true;
 
   // Damage queue for next-tick application (OSRS asymmetry)
   private damageQueue: QueuedDamage[] = [];

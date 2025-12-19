@@ -3,6 +3,13 @@
  *
  * Damage calculations, attack type handling, and combat stat formulas.
  * Provides consistent combat mechanics across all combat systems.
+ *
+ * OSRS-Accurate Implementation:
+ * - Uses SeededRandom for deterministic combat outcomes
+ * - Accuracy formula matches OSRS Wiki specifications
+ * - Damage rolls are uniform [0, maxHit]
+ *
+ * @see OSRS-IMPLEMENTATION-PLAN.md Phase 1
  */
 
 import { COMBAT_CONSTANTS } from "../../constants/CombatConstants";
@@ -16,6 +23,7 @@ import {
   tilesWithinMeleeRange,
   tileChebyshevDistance,
 } from "../../systems/shared/movement/TileSystem";
+import { getGameRng, SeededRandom } from "../SeededRandom";
 
 export interface CombatStats {
   attack?: number;
@@ -35,15 +43,28 @@ export interface DamageResult {
 /**
  * Calculate OSRS-style accuracy (hit chance)
  * Returns true if the attack successfully hits
+ *
+ * Uses SeededRandom for deterministic outcomes (Phase 1)
+ *
+ * @param attackerAttackLevel - Attacker's attack level
+ * @param attackerAttackBonus - Attacker's equipment attack bonus
+ * @param targetDefenseLevel - Target's defense level
+ * @param targetDefenseBonus - Target's equipment defense bonus
+ * @param rng - Optional RNG instance (uses global game RNG if not provided)
  */
 function calculateAccuracy(
   attackerAttackLevel: number,
   attackerAttackBonus: number,
   targetDefenseLevel: number,
   targetDefenseBonus: number,
+  rng?: SeededRandom,
 ): boolean {
+  // Use provided RNG or global game RNG
+  const random = rng ?? getGameRng();
+
   // OSRS formula for attack roll
-  const effectiveAttack = attackerAttackLevel + 8; // +8 is base, +3 would be for style (not implemented yet)
+  // TODO Phase 3: Add style bonus (+3 for aggressive/accurate/defensive, +1 for controlled)
+  const effectiveAttack = attackerAttackLevel + 8;
   const attackRoll = effectiveAttack * (attackerAttackBonus + 64);
 
   // OSRS formula for defence roll
@@ -58,8 +79,8 @@ function calculateAccuracy(
     hitChance = attackRoll / (2 * (defenceRoll + 1));
   }
 
-  // Roll to see if attack hits
-  const roll = Math.random();
+  // Roll to see if attack hits (deterministic with seeded RNG)
+  const roll = random.random();
   const didHit = roll < hitChance;
 
   return didHit;
@@ -152,7 +173,9 @@ export function calculateDamage(
   }
 
   // Attack hit - roll damage from 0 to maxHit (can still hit 0)
-  const damage = Math.floor(Math.random() * (maxHit + 1));
+  // Uses SeededRandom for deterministic outcomes (Phase 1)
+  const rng = getGameRng();
+  const damage = rng.damageRoll(maxHit);
 
   // Ensure damage is valid
   if (!Number.isFinite(damage) || damage < 0) {
