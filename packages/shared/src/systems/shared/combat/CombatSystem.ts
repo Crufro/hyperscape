@@ -65,6 +65,8 @@ import {
   getMobRetaliates,
   getPendingAttacker,
   clearPendingAttacker,
+  isPlayerDamageHandler,
+  isMobEntity,
 } from "../../../utils/typeGuards";
 
 // Re-export CombatData from CombatStateService for backwards compatibility
@@ -238,10 +240,8 @@ export class CombatSystem extends SystemBase {
     this.playerSystem = this.world.getSystem<PlayerSystem>("player");
 
     // Cache PlayerSystem into PlayerDamageHandler for damage application
-    const playerHandler = this.damageHandlers.get(
-      "player",
-    ) as PlayerDamageHandler;
-    if (playerHandler) {
+    const playerHandler = this.damageHandlers.get("player");
+    if (isPlayerDamageHandler(playerHandler)) {
       playerHandler.cachePlayerSystem(this.playerSystem ?? null);
     }
 
@@ -819,10 +819,10 @@ export class CombatSystem extends SystemBase {
     } = {};
     let targetData: { stats?: CombatStats; config?: { defense?: number } } = {};
 
-    // Strong type assumption - check if attacker has getMobData method (MobEntity)
-    const attackerMob = attacker as MobEntity;
-    if (attackerMob.getMobData) {
-      const mobData = attackerMob.getMobData();
+    // Use type guard to check if attacker is a MobEntity
+    const attackerIsMob = isMobEntity(attacker);
+    if (attackerIsMob) {
+      const mobData = attacker.getMobData();
       attackerData = {
         stats: { attack: mobData.attack }, // Pass attack stat for accuracy calculation
         config: { attackPower: mobData.attackPower },
@@ -861,10 +861,9 @@ export class CombatSystem extends SystemBase {
       }
     }
 
-    // Strong type assumption - check if target has getMobData method (MobEntity)
-    const targetMob = target as MobEntity;
-    if (targetMob.getMobData) {
-      const mobData = targetMob.getMobData();
+    // Use type guard to check if target is a MobEntity
+    if (isMobEntity(target)) {
+      const mobData = target.getMobData();
       targetData = {
         stats: { defense: mobData.defense }, // Pass defense stat for accuracy calculation
         config: { defense: mobData.defense },
@@ -907,7 +906,7 @@ export class CombatSystem extends SystemBase {
     let equipmentStats:
       | { attack: number; strength: number; defense: number; ranged: number }
       | undefined = undefined;
-    if (!attackerMob.getMobData) {
+    if (!attackerIsMob) {
       // Attacker is a player - get equipment stats
       equipmentStats = this.playerEquipmentStats.get(attacker.id);
     }

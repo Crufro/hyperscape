@@ -459,3 +459,79 @@ export function hasProperty<K extends string>(
   if (!isObject(obj)) return false;
   return propertyName in obj;
 }
+
+// =============================================================================
+// DAMAGE HANDLER TYPE GUARDS
+// =============================================================================
+
+/**
+ * DamageHandler interface for type guard
+ */
+export interface DamageHandlerLike {
+  entityType: "player" | "mob";
+  applyDamage: (
+    targetId: unknown,
+    damage: number,
+    attackerId: unknown,
+    attackerType: "player" | "mob",
+  ) => unknown;
+}
+
+/**
+ * PlayerDamageHandler interface for type guard
+ * Has cachePlayerSystem method unique to player handlers
+ */
+export interface PlayerDamageHandlerLike extends DamageHandlerLike {
+  entityType: "player";
+  cachePlayerSystem: (playerSystem: unknown) => void;
+}
+
+/**
+ * Check if handler is a PlayerDamageHandler
+ *
+ * @param handler - Handler to check
+ * @returns true if handler is PlayerDamageHandler
+ */
+export function isPlayerDamageHandler(
+  handler: unknown,
+): handler is PlayerDamageHandlerLike {
+  if (!handler || typeof handler !== "object") return false;
+
+  const h = handler as Record<string, unknown>;
+  return (
+    h.entityType === "player" &&
+    typeof h.cachePlayerSystem === "function" &&
+    typeof h.applyDamage === "function"
+  );
+}
+
+// =============================================================================
+// MOB ENTITY TYPE GUARDS
+// =============================================================================
+
+/**
+ * MobEntity interface for type guard
+ * Checks for getMobData method which is unique to MobEntity
+ */
+export interface MobEntityLike {
+  getMobData: () => {
+    attack?: number;
+    attackPower?: number;
+    defense?: number;
+    level?: number;
+    name?: string;
+  };
+}
+
+/**
+ * Check if entity is a MobEntity (has getMobData method)
+ *
+ * @param entity - Entity to check
+ * @returns true if entity is a MobEntity
+ */
+export function isMobEntity(entity: unknown): entity is MobEntityLike {
+  if (!entity || typeof entity !== "object") return false;
+
+  const e = entity as Record<string, unknown>;
+  return typeof e.getMobData === "function";
+}
