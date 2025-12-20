@@ -3,6 +3,103 @@
  * Shared constants used across services
  */
 
+import path from "path";
+
+// =============================================================================
+// STORAGE PATHS
+// =============================================================================
+
+/**
+ * Base directory for local asset storage (fallback when Supabase is not configured)
+ */
+export const ASSETS_BASE_DIR =
+  process.env.HYPERFORGE_ASSETS_DIR || path.join(process.cwd(), "assets");
+
+// =============================================================================
+// GAME CLIENT
+// =============================================================================
+
+/**
+ * Game client URL for testing assets in-game
+ */
+export const GAME_CLIENT_URL =
+  process.env.NEXT_PUBLIC_GAME_URL || "http://localhost:3333";
+
+// =============================================================================
+// SPAWN LOCATIONS
+// =============================================================================
+
+/**
+ * Spawn location type definition
+ */
+export interface SpawnLocation {
+  id: string;
+  name: string;
+  position: { x: number; y: number; z: number };
+  area: string;
+}
+
+/**
+ * Spawn location presets for testing assets in-game
+ */
+export const SPAWN_LOCATIONS: readonly SpawnLocation[] = [
+  {
+    id: "near_player",
+    name: "Near Player",
+    position: { x: 2, y: 0, z: 2 },
+    area: "central_haven",
+  },
+  {
+    id: "town_center",
+    name: "Town Center",
+    position: { x: 0, y: 0, z: 0 },
+    area: "central_haven",
+  },
+  {
+    id: "bank_area",
+    name: "Bank Area",
+    position: { x: 5, y: 0, z: -5 },
+    area: "central_haven",
+  },
+  {
+    id: "shop_area",
+    name: "Shop Area",
+    position: { x: -5, y: 0, z: -5 },
+    area: "central_haven",
+  },
+  {
+    id: "training_area",
+    name: "Training Area",
+    position: { x: 10, y: 0, z: 10 },
+    area: "central_haven",
+  },
+  {
+    id: "forest_edge",
+    name: "Forest Edge",
+    position: { x: 15, y: 0, z: -10 },
+    area: "central_haven",
+  },
+] as const;
+
+// =============================================================================
+// API TIMEOUTS
+// =============================================================================
+
+/**
+ * Default timeout for API requests in milliseconds
+ */
+export const API_TIMEOUT_MS = 30000;
+
+/**
+ * Timeout for long-running generation tasks in milliseconds
+ */
+export const GENERATION_TIMEOUT_MS = 300000; // 5 minutes
+
+/**
+ * Polling interval for task status checks in milliseconds
+ */
+export const TASK_POLL_INTERVAL_MS = 2000;
+
 // =============================================================================
 // HAND RIGGING
 // =============================================================================

@@ -12,6 +12,8 @@ interface GenerationFormRouterProps {
   category: AssetCategory | null;
   onGenerate: (config: GenerationConfig) => void;
   onCancel: () => void;
+  /** Initial config from preset selection */
+  initialConfig?: Partial<GenerationConfig>;
 }
 
 /**
@@ -69,12 +71,23 @@ export interface GenerationConfig {
 
   // Texture Variants (upfront definition for batch generation)
   textureVariants?: TextureVariant[];
+
+  // Mesh Quality Options
+  options?: {
+    enablePBR?: boolean;
+    topology?: "quad" | "triangle";
+    targetPolycount?: number;
+    textureResolution?: number;
+    style?: string;
+    negativePrompt?: string;
+  };
 }
 
 export function GenerationFormRouter({
   category,
   onGenerate,
   onCancel,
+  initialConfig,
 }: GenerationFormRouterProps) {
   if (!category) {
     return (
@@ -87,6 +100,7 @@ export function GenerationFormRouter({
   const commonProps = {
     onGenerate,
     onCancel,
+    initialConfig,
   };
 
   switch (category) {

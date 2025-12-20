@@ -51,12 +51,12 @@ describe("Asset Storage", () => {
       expect(gltfPath.endsWith(".gltf")).toBe(true);
     });
 
-    it("getThumbnailPath returns image path", () => {
+    it("getThumbnailPath returns concept-art.png path", () => {
       const assetId = "iron-platebody";
       const thumbnailPath = getThumbnailPath(assetId);
 
       expect(thumbnailPath).toContain(assetId);
-      expect(thumbnailPath.endsWith("thumbnail.png")).toBe(true);
+      expect(thumbnailPath.endsWith("concept-art.png")).toBe(true);
     });
 
     it("getMetadataPath returns .json path", () => {
@@ -182,7 +182,7 @@ describe("Asset Storage", () => {
       const assetId = "any-asset";
       const thumbnailPath = getThumbnailPath(assetId);
 
-      expect(path.basename(thumbnailPath)).toBe("thumbnail.png");
+      expect(path.basename(thumbnailPath)).toBe("concept-art.png");
     });
 
     it("metadata has fixed filename", () => {

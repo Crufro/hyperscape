@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PromptInput } from "../PromptInput";
 import { PipelineSelector } from "../PipelineSelector";
 import { Select } from "@/components/ui/select";
@@ -18,29 +18,57 @@ import {
 interface NPCGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
   onCancel: () => void;
+  /** Initial config from preset selection */
+  initialConfig?: Partial<GenerationConfig>;
 }
 
 export function NPCGenerationForm({
   onGenerate,
   onCancel,
+  initialConfig,
 }: NPCGenerationFormProps) {
-  const [prompt, setPrompt] = useState("");
+  // Extract metadata for initializing form fields
+  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+
+  const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
-    "text-to-3d",
+    initialConfig?.pipeline ?? "text-to-3d",
   );
-  const [imageUrl, setImageUrl] = useState("");
-  const [quality, setQuality] = useState<"preview" | "medium" | "high">("high");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState(initialConfig?.imageUrl ?? "");
+  const [quality, setQuality] = useState<"preview" | "medium" | "high">(
+    initialConfig?.quality ?? "high"
+  );
+  const [name, setName] = useState((meta?.name as string) ?? "");
+  const [description, setDescription] = useState((meta?.description as string) ?? "");
   const [category, setCategory] = useState<
     "mob" | "boss" | "neutral" | "quest"
-  >("mob");
-  const [level, setLevel] = useState(1);
-  const [health, setHealth] = useState(10);
-  const [combatLevel, setCombatLevel] = useState(1);
-  const [scale, setScale] = useState(1.0);
-  const [convertToVRM, setConvertToVRM] = useState(true); // Default to true for NPCs
-  const [enableHandRigging, setEnableHandRigging] = useState(false); // Hand rigging requires VRM
+  >((meta?.npcType as "mob" | "boss" | "neutral" | "quest") ?? "mob");
+  const [level, setLevel] = useState((meta?.level as number) ?? 1);
+  const [health, setHealth] = useState((meta?.health as number) ?? 10);
+  const [combatLevel, setCombatLevel] = useState((meta?.combatLevel as number) ?? 1);
+  const [scale, setScale] = useState((meta?.scale as number) ?? 1.0);
+  const [convertToVRM, setConvertToVRM] = useState(initialConfig?.convertToVRM ?? true);
+  const [enableHandRigging, setEnableHandRigging] = useState(initialConfig?.enableHandRigging ?? false);
+
+  // Update form when preset changes
+  useEffect(() => {
+    if (initialConfig) {
+      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      if (initialConfig.prompt) setPrompt(initialConfig.prompt);
+      if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
+      if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
+      if (initialConfig.quality) setQuality(initialConfig.quality);
+      if (initialConfig.convertToVRM !== undefined) setConvertToVRM(initialConfig.convertToVRM);
+      if (initialConfig.enableHandRigging !== undefined) setEnableHandRigging(initialConfig.enableHandRigging);
+      if (m?.name) setName(m.name as string);
+      if (m?.description) setDescription(m.description as string);
+      if (m?.npcType) setCategory(m.npcType as "mob" | "boss" | "neutral" | "quest");
+      if (typeof m?.level === "number") setLevel(m.level);
+      if (typeof m?.health === "number") setHealth(m.health);
+      if (typeof m?.combatLevel === "number") setCombatLevel(m.combatLevel);
+      if (typeof m?.scale === "number") setScale(m.scale);
+    }
+  }, [initialConfig]);
 
   const handleGenerate = () => {
     const assetId = generateAssetId(name || prompt, "npc");

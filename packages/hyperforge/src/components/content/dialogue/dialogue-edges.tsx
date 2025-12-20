@@ -11,13 +11,14 @@ import {
 import { Zap, Trash2, Edit } from "lucide-react";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 
-// Edge data types
+// Edge data types - includes index signature for ReactFlow compatibility
 export interface ResponseEdgeData {
   label: string;
   effect?: string;
   responseIndex: number;
   onEdit?: () => void;
   onDelete?: () => void;
+  [key: string]: unknown;
 }
 
 // Animated Response Edge

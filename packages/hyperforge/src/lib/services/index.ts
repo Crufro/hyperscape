@@ -1,6 +1,8 @@
 /**
  * Service Exports
  * Central export point for all specialized services
+ *
+ * Note: Using named exports instead of `export *` for better tree-shaking
  */
 
 // Service Factory (preferred for API routes and components)
@@ -12,7 +14,18 @@ export type {
   VRMConversionOptions,
   VRMConversionResult,
 } from "@/services/vrm/VRMConverter";
-export * from "@/services/vrm/BoneMappings";
+
+// Bone Mappings (named exports for tree-shaking)
+export {
+  MESHY_TO_MIXAMO,
+  MIXAMO_TO_MESHY,
+  MESHY_VARIATIONS,
+  MIXAMO_VARIATIONS,
+  VRM_TO_MIXAMO,
+  findMeshyBoneName,
+  findMixamoBoneName,
+  createBoneMapping,
+} from "@/services/vrm/BoneMappings";
 
 // Fitting Services
 export { ArmorFittingService } from "@/services/fitting/ArmorFittingService";

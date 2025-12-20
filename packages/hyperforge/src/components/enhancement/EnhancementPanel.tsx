@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { RetextureOptions } from "./RetextureOptions";
@@ -28,6 +28,50 @@ export function EnhancementPanel({
 }: EnhancementPanelProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("retexture");
+
+  // Save metadata to API
+  const handleSaveMetadata = useCallback(
+    async (metadata: AssetMetadata) => {
+      if (!asset) return;
+
+      log.info("Saving metadata", { assetId: asset.id, metadata });
+
+      try {
+        const response = await fetch(`/api/assets/${asset.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...metadata,
+            updatedAt: new Date().toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to save metadata");
+        }
+
+        toast({
+          variant: "success",
+          title: "Metadata Updated",
+          description: "Asset metadata has been saved successfully",
+          duration: 3000,
+        });
+
+        log.info("Metadata saved successfully", { assetId: asset.id });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to save metadata";
+        log.error("Failed to save metadata", { error: message, assetId: asset.id });
+        toast({
+          variant: "destructive",
+          title: "Save Failed",
+          description: message,
+          duration: 5000,
+        });
+      }
+    },
+    [asset, toast],
+  );
 
   if (!asset) {
     return (
@@ -68,16 +112,7 @@ export function EnhancementPanel({
             <MetadataEditor
               category={asset.category}
               initialMetadata={asset as unknown as AssetMetadata}
-              onSave={(metadata) => {
-                log.info({ metadata }, "Save metadata");
-                // TODO: Save metadata to API
-                toast({
-                  variant: "success",
-                  title: "Metadata Updated",
-                  description: "Asset metadata has been saved successfully",
-                  duration: 3000,
-                });
-              }}
+              onSave={handleSaveMetadata}
               onCancel={onClose}
             />
           </TabsContent>

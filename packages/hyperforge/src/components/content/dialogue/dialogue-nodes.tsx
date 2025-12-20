@@ -18,7 +18,7 @@ import {
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import type { DialogueResponse } from "@/types/game/dialogue-types";
 
-// Node data types
+// Node data types - includes index signature for ReactFlow compatibility
 export interface DialogueNodeData {
   label: string;
   text: string;
@@ -34,6 +34,7 @@ export interface DialogueNodeData {
   onPlayAudio: () => void;
   isPlayingAudio?: boolean;
   isGeneratingAudio?: boolean;
+  [key: string]: unknown;
 }
 
 export interface EndNodeData {
@@ -41,6 +42,7 @@ export interface EndNodeData {
   text: string;
   onEdit: () => void;
   onDelete: () => void;
+  [key: string]: unknown;
 }
 
 // Enhanced Dialogue Node Component

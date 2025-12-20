@@ -96,7 +96,7 @@ Rules:
 
   const questData = JSON.parse(jsonMatch[0]);
   const questId = req.name
-    ? req.name.toLowerCase().replace(/\s+/g, "_")
+    ? req.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
     : `quest_${uuidv4().slice(0, 8)}`;
 
   return {
@@ -187,7 +187,7 @@ Rules:
 
   const areaData = JSON.parse(jsonMatch[0]);
   const areaId = req.name
-    ? req.name.toLowerCase().replace(/\s+/g, "_")
+    ? req.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
     : `area_${uuidv4().slice(0, 8)}`;
 
   return {
@@ -281,7 +281,7 @@ Rules:
 
   const itemData = JSON.parse(jsonMatch[0]);
   const itemId = req.name
-    ? req.name.toLowerCase().replace(/\s+/g, "_")
+    ? req.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
     : `item_${uuidv4().slice(0, 8)}`;
 
   return {
@@ -375,7 +375,7 @@ Rules:
 
   const storeData = JSON.parse(jsonMatch[0]);
   const storeId = req.name
-    ? req.name.toLowerCase().replace(/\s+/g, "_")
+    ? req.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
     : `store_${uuidv4().slice(0, 8)}`;
 
   return {

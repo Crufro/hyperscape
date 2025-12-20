@@ -122,8 +122,55 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "status") {
-      // TODO: Implement status polling endpoint
-      return NextResponse.json({ status: "not_implemented" });
+      const { taskId, taskType } = body;
+
+      if (!taskId) {
+        return NextResponse.json(
+          { error: "taskId required for status check" },
+          { status: 400 },
+        );
+      }
+
+      log.debug({ taskId, taskType }, "Checking generation status");
+
+      try {
+        // Import the Meshy client for task status
+        const { getTaskStatus } = await import("@/lib/meshy/client");
+        const task = await getTaskStatus(taskId);
+
+        // Map Meshy task status to a standardized response
+        const statusResponse = {
+          taskId,
+          status: task.status, // "pending" | "in_progress" | "succeeded" | "failed" | "expired"
+          progress: task.progress || 0,
+          createdAt: task.created_at,
+          startedAt: task.started_at,
+          finishedAt: task.finished_at,
+          // Include result URLs when complete
+          ...(task.status === "SUCCEEDED" && {
+            result: {
+              modelUrl: task.model_urls?.glb || task.model_url,
+              thumbnailUrl: task.thumbnail_url,
+              textureUrls: task.texture_urls,
+            },
+          }),
+          // Include error info if failed
+          ...(task.status === "FAILED" && {
+            error: task.task_error?.message || "Generation failed",
+          }),
+        };
+
+        return NextResponse.json(statusResponse);
+      } catch (statusError) {
+        log.error({ taskId, error: statusError }, "Failed to get task status");
+        return NextResponse.json(
+          {
+            error: statusError instanceof Error ? statusError.message : "Failed to get task status",
+            taskId,
+          },
+          { status: 500 },
+        );
+      }
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

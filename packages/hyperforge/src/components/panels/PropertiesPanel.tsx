@@ -35,6 +35,8 @@ import {
   CheckCircle2,
   Circle,
   CloudUpload,
+  Palette,
+  Sparkles,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -194,6 +196,39 @@ interface MeshStats {
   meshCount?: number;
 }
 
+// Material preset for display
+interface MaterialPreset {
+  id: string;
+  name: string;
+  displayName: string;
+  category: string;
+  tier: number;
+  color: string;
+  stylePrompt: string;
+  description?: string;
+}
+
+// Game style from prompts file
+interface GameStyleInfo {
+  id: string;
+  name: string;
+  base: string;
+  enhanced?: string;
+  generation?: string;
+}
+
+// Categories that support material variants (weapons, armor, tools)
+const MATERIAL_SUPPORTED_CATEGORIES = [
+  "weapon",
+  "armor",
+  "tool",
+  "item",
+  "equipment",
+  "melee",
+  "ranged",
+  "shield",
+];
+
 interface PropertiesPanelProps {
   asset: AssetData | null;
   isOpen: boolean;
@@ -271,9 +306,9 @@ export function PropertiesPanel({
 
   // New: Test in Game functionality
   const [isTestingInGame, setIsTestingInGame] = useState(false);
-  const [selectedSpawnLocation, setSelectedSpawnLocation] = useState(
-    SPAWN_LOCATIONS[0].id,
-  );
+  const [selectedSpawnLocation, setSelectedSpawnLocation] = useState<
+    (typeof SPAWN_LOCATIONS)[number]["id"]
+  >(SPAWN_LOCATIONS[0].id);
   const [showSpawnPicker, setShowSpawnPicker] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("draft");
 
@@ -291,6 +326,13 @@ export function PropertiesPanel({
   // Mesh statistics state
   const [meshStats, setMeshStats] = useState<MeshStats | null>(null);
   const [isLoadingMeshStats, setIsLoadingMeshStats] = useState(false);
+
+  // Game style and material presets state
+  const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([]);
+  const [gameStyles, setGameStyles] = useState<Record<string, GameStyleInfo>>(
+    {},
+  );
+  const [isLoadingPresets, setIsLoadingPresets] = useState(false);
 
   // Fetch game data when asset changes
   useEffect(() => {
@@ -491,6 +533,62 @@ export function PropertiesPanel({
 
     checkSyncStatus();
   }, [asset?.id, asset?.source]);
+
+  // Load material presets and game styles for item assets
+  useEffect(() => {
+    if (!asset) return;
+
+    // Check if this asset category supports materials
+    const supportsMaterials = MATERIAL_SUPPORTED_CATEGORIES.some(
+      (cat) =>
+        asset.category?.toLowerCase().includes(cat) ||
+        asset.type?.toLowerCase().includes(cat),
+    );
+
+    if (!supportsMaterials && Object.keys(gameStyles).length > 0) {
+      // Already loaded game styles, no need for materials
+      return;
+    }
+
+    const loadPresets = async () => {
+      setIsLoadingPresets(true);
+      try {
+        // Load material presets and game styles in parallel
+        const [materialsRes, stylesRes] = await Promise.all([
+          fetch("/prompts/material-presets.json"),
+          fetch("/prompts/game-style-prompts.json"),
+        ]);
+
+        if (materialsRes.ok) {
+          const materials = await materialsRes.json();
+          setMaterialPresets(materials);
+        }
+
+        if (stylesRes.ok) {
+          const stylesData = await stylesRes.json();
+          // Combine default and custom styles into a flat map
+          const allStyles: Record<string, GameStyleInfo> = {};
+          if (stylesData.default) {
+            Object.entries(stylesData.default).forEach(([id, style]) => {
+              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+            });
+          }
+          if (stylesData.custom) {
+            Object.entries(stylesData.custom).forEach(([id, style]) => {
+              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+            });
+          }
+          setGameStyles(allStyles);
+        }
+      } catch (error) {
+        log.debug("Failed to load presets:", error);
+      } finally {
+        setIsLoadingPresets(false);
+      }
+    };
+
+    loadPresets();
+  }, [asset?.category, asset?.type]);
 
   if (!isOpen || !asset) return null;
 
@@ -824,7 +922,7 @@ export function PropertiesPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: `${asset.id}_${Date.now()}`,
+          id: `${asset.id}_${Date.now().toString(36).slice(-4)}`,
           name: asset.name,
           type:
             asset.category === "npc" || asset.category === "mob"
@@ -1125,6 +1223,163 @@ export function PropertiesPanel({
               </div>
             </div>
           )}
+
+          {/* Generation Style & Materials Section */}
+          {(() => {
+            // Extract generation params from local assets
+            const genParams = (
+              asset as { generationParams?: Record<string, unknown> }
+            ).generationParams;
+            const assetGameStyle =
+              (genParams?.gameStyle as string) ||
+              (genParams?.style as string) ||
+              null;
+            const assetMaterialId =
+              (genParams?.materialPresetId as string) ||
+              (genParams?.material as string) ||
+              null;
+            const assetMaterial = assetMaterialId
+              ? materialPresets.find((m) => m.id === assetMaterialId)
+              : null;
+            const gameStyleInfo = assetGameStyle
+              ? gameStyles[assetGameStyle]
+              : null;
+
+            // Check if this asset supports materials
+            const supportsMaterials = MATERIAL_SUPPORTED_CATEGORIES.some(
+              (cat) =>
+                asset.category?.toLowerCase().includes(cat) ||
+                asset.type?.toLowerCase().includes(cat),
+            );
+
+            // Show section if we have style info, material info, or the asset supports materials
+            if (
+              !gameStyleInfo &&
+              !assetMaterial &&
+              !supportsMaterials &&
+              !isLoadingPresets
+            ) {
+              return null;
+            }
+
+            return (
+              <div className="mt-4 pt-4 border-t border-glass-border space-y-3">
+                {/* Game Style Info */}
+                {(gameStyleInfo || assetGameStyle) && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span className="text-sm font-semibold">
+                        Generation Style
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-glass-bg/50 border border-glass-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">
+                          {gameStyleInfo?.name || assetGameStyle}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-amber-400"
+                        >
+                          {assetGameStyle}
+                        </Badge>
+                      </div>
+                      {gameStyleInfo?.base && (
+                        <p className="text-xs text-muted-foreground">
+                          {gameStyleInfo.base}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Current Material Info */}
+                {assetMaterial && (
+                  <>
+                    <div className="flex items-center gap-2 mt-3">
+                      <Palette className="w-4 h-4 text-purple-400" />
+                      <span className="text-sm font-semibold">
+                        Material Used
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-glass-bg/50 border border-glass-border">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-6 h-6 rounded-md border border-glass-border"
+                          style={{ backgroundColor: assetMaterial.color }}
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">
+                            {assetMaterial.displayName}
+                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            Tier {assetMaterial.tier} •{" "}
+                            {assetMaterial.category}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Available Materials for this item type */}
+                {supportsMaterials && materialPresets.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-purple-400" />
+                        <span className="text-sm font-semibold">
+                          Available Materials
+                        </span>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] text-muted-foreground"
+                      >
+                        {materialPresets.length} materials
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Use Regenerate to create variants with different
+                      materials
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {materialPresets.slice(0, 8).map((material) => (
+                        <div
+                          key={material.id}
+                          className="flex flex-col items-center p-2 rounded-lg bg-glass-bg/30 border border-glass-border hover:border-purple-500/50 transition-colors cursor-default"
+                          title={`${material.displayName} - ${material.description || material.stylePrompt}`}
+                        >
+                          <div
+                            className="w-6 h-6 rounded-md border border-glass-border mb-1"
+                            style={{ backgroundColor: material.color }}
+                          />
+                          <span className="text-[10px] text-center truncate w-full">
+                            {material.displayName}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {materialPresets.length > 8 && (
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        +{materialPresets.length - 8} more materials
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {isLoadingPresets && (
+                  <div className="flex items-center py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-400 mr-2" />
+                    <span className="text-xs text-muted-foreground">
+                      Loading style info...
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Resource Game Data */}
           {isLoadingGameData && (

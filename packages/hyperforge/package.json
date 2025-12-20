@@ -39,6 +39,7 @@
     "drizzle-orm": "^0.45.0",
     "framer-motion": "^11.11.0",
     "lucide-react": "^0.460.0",
+    "msgpackr": "^1.11.8",
     "next": "15.0.3",
     "pino": "^10.1.0",
     "postgres": "^3.4.7",

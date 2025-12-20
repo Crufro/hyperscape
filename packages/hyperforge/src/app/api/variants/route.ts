@@ -49,7 +49,13 @@ export async function POST(request: NextRequest) {
       }
 
       const variantData = variant as TextureVariant;
-      const variantId = `variant-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      // Generate kebab-case variant ID from name
+      // Generate snake_case variant ID (matching game conventions)
+      const variantBaseName = variantData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      const variantId = `${variantBaseName}_${Date.now().toString(36).slice(-4)}`;
 
       log.info(
         { variantName: variantData.name, baseModelId },
@@ -177,7 +183,13 @@ export async function POST(request: NextRequest) {
       const results: VariantResult[] = [];
 
       for (const v of variants) {
-        const variantId = `variant-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        // Generate kebab-case variant ID from name
+        // Generate snake_case variant ID (matching game conventions)
+        const variantBaseName = v.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "");
+        const variantId = `${variantBaseName}_${Date.now().toString(36).slice(-4)}`;
 
         try {
           const taskId = await createRetextureTask({

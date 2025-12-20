@@ -10,9 +10,10 @@ import { promises as fs } from "fs";
 import path from "path";
 import { generateMusic, MUSIC_PROMPTS } from "@/lib/audio/elevenlabs-service";
 import {
-  uploadAudio,
+  uploadMusicAudio,
   isSupabaseConfigured,
 } from "@/lib/storage/supabase-storage";
+import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 import type { MusicAsset, MusicCategory } from "@/types/audio";
 
@@ -87,21 +88,30 @@ export async function POST(request: NextRequest) {
       generatedAt: new Date().toISOString(),
     };
 
-    // Save audio file
+    // Save audio file with proper organization
     if (saveToAsset) {
-      const filename = `music_${category}_${assetId}.mp3`;
-
-      // Try Supabase first (primary storage)
+      // Try Supabase first (primary storage) with structured upload
       if (isSupabaseConfigured()) {
         try {
-          const uploadResult = await uploadAudio(
-            result.audio,
-            filename,
-            "audio/mpeg",
-          );
+          const uploadResult = await uploadMusicAudio(result.audio, {
+            name: effectiveName || assetId,
+            category,
+            prompt: effectivePrompt,
+            duration,
+            loopable,
+            zones,
+            mood: extractMood(effectivePrompt),
+            genre: extractGenre(effectivePrompt),
+          });
           if (uploadResult.success) {
             asset.url = uploadResult.url;
-            log.info("Music saved to Supabase", { url: uploadResult.url });
+            // Invalidate registry cache so new music appears in queries
+            invalidateRegistryCache();
+            log.info("Music saved to Supabase", {
+              url: uploadResult.url,
+              category,
+              name: effectiveName,
+            });
           } else {
             throw new Error(uploadResult.error || "Upload failed");
           }
@@ -116,18 +126,20 @@ export async function POST(request: NextRequest) {
         const assetsDir =
           process.env.HYPERFORGE_ASSETS_DIR ||
           path.join(process.cwd(), "assets");
+        // Organize by category: audio/music/{category}/
         const audioDir = path.join(assetsDir, "audio", "music", category);
 
         // Create directory if needed
         await fs.mkdir(audioDir, { recursive: true });
 
-        // Save audio file
+        // Save audio file with proper naming
+        const filename = `${assetId}.mp3`;
         const filepath = path.join(audioDir, filename);
         await fs.writeFile(filepath, result.audio);
 
         asset.url = `/api/audio/file/music/${category}/${filename}`;
 
-        log.info("Music saved locally", { filepath });
+        log.info("Music saved locally", { filepath, category });
       }
     }
 
@@ -177,15 +189,19 @@ export async function GET() {
   return NextResponse.json({ presets });
 }
 
+/**
+ * Generate kebab-case ID for music following game asset conventions
+ * Pattern: {name}-{timestamp} (e.g., battle-cry-abc1)
+ */
 function generateMusicId(name?: string, _category?: string): string {
-  const timestamp = Date.now().toString(36);
+  const timestamp = Date.now().toString(36).slice(-4);
   const safeName = name
     ? name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
         .replace(/^_+|_+$/g, "")
     : "music";
-  return `${safeName}_${timestamp}`;
+  return `${safeName}-${timestamp}`;
 }
 
 function categorizePreset(id: string): MusicCategory {

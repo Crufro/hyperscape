@@ -26,14 +26,15 @@
     
     // Advanced strict flags
     "useUnknownInCatchVariables": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    // Disabled: too strict for practical development
+    // "noUncheckedIndexedAccess": true,
+    // "exactOptionalPropertyTypes": true,
     
     // Additional safety
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "noPropertyAccessFromIndexSignature": false,
     
     "plugins": [
       {

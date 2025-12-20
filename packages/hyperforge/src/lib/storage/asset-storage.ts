@@ -24,6 +24,7 @@ import {
   type ForgeAssetFiles,
   type TextureFile,
 } from "./supabase-storage";
+import { invalidateRegistryCache } from "@/lib/assets/registry";
 
 // Base directory for local asset storage (fallback)
 const ASSETS_BASE_DIR =
@@ -83,11 +84,17 @@ export function getModelPath(assetId: string, format: string = "glb"): string {
 }
 
 /**
- * Get the thumbnail path for an asset
+ * Get the concept art/thumbnail path for an asset
+ * Note: Uses "concept-art.png" to match game asset conventions
  */
 export function getThumbnailPath(assetId: string): string {
-  return path.join(getAssetDir(assetId), "thumbnail.png");
+  return path.join(getAssetDir(assetId), "concept-art.png");
 }
+
+/**
+ * @deprecated Use getThumbnailPath - kept for backwards compatibility
+ */
+export const getConceptArtPath = getThumbnailPath;
 
 /**
  * Get the metadata JSON path for an asset
@@ -189,6 +196,10 @@ export async function saveAssetFiles(
         },
       });
 
+      // Invalidate registry cache so new asset appears in queries
+      invalidateRegistryCache();
+      log.info(`Asset saved to Supabase: ${assetId}`);
+
       return {
         modelPath: forgeResult.modelPath,
         modelUrl: forgeResult.modelUrl,
@@ -236,7 +247,7 @@ export async function saveAssetFiles(
         : thumbnailBuffer;
     await fs.writeFile(thumbnailPath, thumbBuffer);
     result.thumbnailPath = thumbnailPath;
-    result.thumbnailUrl = `/api/assets/${assetId}/thumbnail.png`;
+    result.thumbnailUrl = `/api/assets/${assetId}/concept-art.png`;
   }
 
   // Save VRM if provided (alongside the GLB)
@@ -268,6 +279,10 @@ export async function saveAssetFiles(
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
     result.metadataPath = metadataPath;
   }
+
+  // Invalidate registry cache so new asset appears in queries
+  invalidateRegistryCache();
+  log.info(`Asset saved locally: ${assetId}`);
 
   return result;
 }
@@ -366,6 +381,9 @@ export async function deleteAssetFiles(assetId: string): Promise<void> {
   } catch {
     // Ignore if doesn't exist locally
   }
+
+  // Invalidate registry cache so deleted asset disappears from queries
+  invalidateRegistryCache();
 }
 
 /**
@@ -399,11 +417,11 @@ export async function copyAssetFiles(
   return {
     modelPath: getModelPath(targetAssetId, format),
     modelUrl: `/api/assets/${targetAssetId}/model.${format}`,
-    thumbnailPath: files.includes("thumbnail.png")
+    thumbnailPath: files.includes("concept-art.png")
       ? getThumbnailPath(targetAssetId)
       : undefined,
-    thumbnailUrl: files.includes("thumbnail.png")
-      ? `/api/assets/${targetAssetId}/thumbnail.png`
+    thumbnailUrl: files.includes("concept-art.png")
+      ? `/api/assets/${targetAssetId}/concept-art.png`
       : undefined,
     metadataPath: files.includes("metadata.json")
       ? getMetadataPath(targetAssetId)

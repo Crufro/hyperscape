@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       materialVariants: [],
       isPlaceholder: false,
       hasModel: true,
-      hasConceptArt: copiedFiles.includes("thumbnail.png"),
+      hasConceptArt: copiedFiles.includes("concept-art.png") || copiedFiles.includes("thumbnail.png"),
       modelPath: `models/${targetId}/${targetId}.glb`,
       conceptArtUrl: "./concept-art.png",
       gddCompliant: false, // Generated assets need review

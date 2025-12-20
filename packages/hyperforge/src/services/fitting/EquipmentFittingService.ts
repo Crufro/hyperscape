@@ -109,11 +109,14 @@ export class EquipmentFittingService {
       },
     );
 
-    // Create skinned mesh
-    const skinnedMesh = this.armorService.createSkinnedMesh(
+    // Bind armor to skeleton (createSkinnedMesh is done via bindArmorToSkeleton)
+    const skinnedMesh = this.armorService.bindArmorToSkeleton(
       foundMesh,
-      skeleton,
       characterMesh,
+      {
+        searchRadius: 0.05,
+        applyGeometryTransform: true,
+      },
     );
 
     if (skinnedMesh) {
@@ -154,10 +157,10 @@ export class EquipmentFittingService {
     // Use the armor service to bind to skeleton
     const skinnedArmor = this.armorService.bindArmorToSkeleton(
       armorMesh,
-      characterMesh.skeleton,
+      characterMesh,
       {
-        autoDetectMapping: options.autoMatch ?? true,
-        boneNameMapping: options.boneNameMapping ?? {},
+        searchRadius: 0.05,
+        applyGeometryTransform: true,
       },
     );
 
@@ -175,13 +178,11 @@ export class EquipmentFittingService {
   async exportFittedEquipment(
     skinnedMesh: SkinnedMesh,
     options: {
-      includeTextures?: boolean;
-      method?: "skinned" | "static" | "game";
+      method?: "minimal" | "full" | "static";
     } = {},
   ): Promise<ArrayBuffer> {
     return this.armorService.exportFittedArmor(skinnedMesh, {
-      method: options.method || "skinned",
-      includeTextures: options.includeTextures ?? true,
+      method: options.method || "full",
     });
   }
 }

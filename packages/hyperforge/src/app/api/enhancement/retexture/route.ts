@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         }
 
         const supabase = createClient(supabaseUrl, supabaseKey);
-        const tempPath = `temp-retexture/${assetId}-${Date.now()}.glb`;
+        const tempPath = `temp-retexture/${assetId}-${Date.now().toString(36).slice(-6)}.glb`;
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET_NAMES.MESHY_MODELS)
@@ -198,7 +198,11 @@ export async function POST(request: NextRequest) {
             .toLowerCase()
         : "retextured";
     const variantName = outputName || `${sourceName}-${styleSuffix}`;
-    const newAssetId = `retex-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // Generate snake_case asset ID from variant name (matching game conventions)
+    const newAssetId = variantName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
 
     // Check if database is available
     const hasDatabaseUrl = !!process.env.DATABASE_URL;

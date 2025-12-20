@@ -213,6 +213,15 @@ export class Entity implements IEntity {
     if (config) {
       this.config = { ...config };
     } else {
+      // Extract model path from EntityData - supports both "blueprint" and "model" fields
+      // This enables dynamic entity creation from network data (e.g., HyperForge test-in-game)
+      const networkData = entityData as Record<string, unknown>;
+      const modelPath =
+        (networkData.blueprint as string) ||
+        (networkData.model as string) ||
+        (networkData.modelPath as string) ||
+        null;
+
       // Create default config from EntityData
       this.config = {
         id: entityData.id,
@@ -222,11 +231,11 @@ export class Entity implements IEntity {
         rotation: { x: 0, y: 0, z: 0, w: 1 },
         scale: { x: 1, y: 1, z: 1 },
         visible: true,
-        interactable: false,
+        interactable: modelPath ? true : false,
         interactionType: null,
         interactionDistance: 5,
         description: "",
-        model: null,
+        model: modelPath,
         properties: {
           movementComponent: null,
           combatComponent: null,
@@ -1279,10 +1288,15 @@ export class Entity implements IEntity {
 
   // Default mesh creation - override in subclasses
   protected async createMesh(): Promise<void> {
-    // DISABLED: Default cube mesh causes visual clutter
-    // Subclasses (MobEntity, PlayerEntity, etc.) should override this with proper meshes
-    // If they don't, the entity will simply have no visible mesh (which is fine for server-side entities)
-    // DO NOT CREATE DEFAULT CUBE MESH
+    // If a model path is specified, load it
+    // This enables dynamic entities (props, apps) to display their 3D models
+    // without requiring a specialized entity subclass
+    if (this.config.model) {
+      await this.loadModel();
+      return;
+    }
+
+    // Otherwise, no default mesh is created
     // this.mesh remains null, which is valid for:
     // - Server-side entities
     // - Entities waiting for proper models to load

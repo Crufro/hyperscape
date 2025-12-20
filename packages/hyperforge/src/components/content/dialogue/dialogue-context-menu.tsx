@@ -46,6 +46,7 @@ interface DialogueContextMenuProps {
   // Node actions
   onEditNode?: () => void;
   onDeleteNode?: () => void;
+  onCopyNode?: () => void;
   onDuplicateNode?: () => void;
   onSetAsEntry?: () => void;
   onAddResponse?: () => void;
@@ -72,6 +73,7 @@ export function DialogueContextMenu({
   // Node
   onEditNode,
   onDeleteNode,
+  onCopyNode,
   onDuplicateNode,
   onSetAsEntry,
   onAddResponse,
@@ -169,6 +171,14 @@ export function DialogueContextMenu({
             },
           },
           {
+            label: "Copy",
+            icon: <Clipboard className="w-4 h-4" />,
+            onClick: () => {
+              onCopyNode?.();
+              onClose();
+            },
+          },
+          {
             label: "Duplicate",
             icon: <Copy className="w-4 h-4" />,
             onClick: () => {
@@ -257,6 +267,7 @@ export function DialogueContextMenu({
     onAutoLayout,
     onEditNode,
     onDeleteNode,
+    onCopyNode,
     onDuplicateNode,
     onSetAsEntry,
     onAddResponse,

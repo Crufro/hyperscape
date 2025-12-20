@@ -73,6 +73,9 @@ interface RegenerateRequest {
   prompt?: string;
   variationStrength?: number;
   meshOptions?: MeshOptions;
+  // Material and style options
+  materialPresetId?: string;
+  gameStyle?: string;
   // CDN asset fields (for assets not in database)
   assetName?: string;
   assetType?: string;
@@ -89,6 +92,8 @@ export async function POST(request: NextRequest) {
       prompt: customPrompt,
       variationStrength = 50,
       meshOptions,
+      materialPresetId,
+      gameStyle,
       assetName: directAssetName,
       assetType: directAssetType,
       assetCategory: directAssetCategory,
@@ -184,7 +189,7 @@ export async function POST(request: NextRequest) {
       customPrompt,
     );
     const variantNumber = Date.now().toString(36).slice(-4);
-    const variantName = `${sourceName}-v${variantNumber}`;
+    const variantName = `${sourceName}_v${variantNumber}`;
 
     // Check if database is available
     const hasDatabaseUrl = !!process.env.DATABASE_URL;
@@ -194,10 +199,16 @@ export async function POST(request: NextRequest) {
       try {
         newAsset = await createAsset({
           name: variantName,
-          description: `Variation of ${sourceName} (${variationStrength}% strength)`,
+          description: `Variation of ${sourceName} (${variationStrength}% strength)${materialPresetId ? ` with ${materialPresetId} material` : ""}`,
           type: sourceType,
           category: sourceCategory,
-          tags: [...(sourceAsset?.tags || []), "variant", "regenerated"],
+          tags: [
+            ...(sourceAsset?.tags || []),
+            "variant",
+            "regenerated",
+            ...(materialPresetId ? [`material:${materialPresetId}`] : []),
+            ...(gameStyle ? [`style:${gameStyle}`] : []),
+          ],
           prompt: modifiedPrompt,
           generationParams: {
             pipeline,
@@ -207,6 +218,9 @@ export async function POST(request: NextRequest) {
             variationStrength,
             imageUrl: pipeline === "image-to-3d" ? imageUrl : undefined,
             sourceAssetId: assetId,
+            // Material and style metadata for regeneration
+            materialPresetId,
+            gameStyle,
           },
           aiModel: "meshy-5",
           status: "processing",
@@ -228,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     const finalAssetId =
       newAsset?.id ||
-      `regen-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      `regen_${variantName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
 
     // Quality presets optimized for 60fps RuneScape-style gameplay
     const qualityPresets: Record<
@@ -368,6 +382,9 @@ export async function POST(request: NextRequest) {
           pipeline: "regenerate",
           status: "completed",
           regeneratedAt: new Date().toISOString(),
+          // Material and style metadata
+          materialPresetId,
+          gameStyle,
         },
       );
 
@@ -400,6 +417,8 @@ export async function POST(request: NextRequest) {
         thumbnailUrl: savedFiles.thumbnailUrl,
         prompt: modifiedPrompt,
         variationStrength,
+        materialPresetId,
+        gameStyle,
         message: "Asset regenerated successfully",
       });
     } catch (generationError) {

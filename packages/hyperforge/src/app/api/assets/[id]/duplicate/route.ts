@@ -25,7 +25,7 @@ interface RouteParams {
 function generateDuplicateId(sourceId: string): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 6);
-  return `${sourceId}-copy-${timestamp}-${random}`;
+  return `${sourceId}_copy_${timestamp}_${random}`;
 }
 
 /**

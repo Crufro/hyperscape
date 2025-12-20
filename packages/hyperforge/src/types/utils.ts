@@ -329,3 +329,173 @@ export function assertDefined<T>(
     throw new Error(message ?? "Expected value to be defined");
   }
 }
+
+// =============================================================================
+// GENERIC UTILITY TYPES
+// =============================================================================
+
+/**
+ * Deep readonly - makes all nested properties readonly
+ * Useful for immutable state and configurations
+ *
+ * @example
+ * type Config = DeepReadonly<{
+ *   settings: { theme: string; debug: boolean }
+ * }>;
+ * // All nested properties are readonly
+ */
+export type DeepReadonly<T> = T extends (infer R)[]
+  ? ReadonlyArray<DeepReadonly<R>>
+  : T extends Map<infer K, infer V>
+    ? ReadonlyMap<K, DeepReadonly<V>>
+    : T extends Set<infer V>
+      ? ReadonlySet<DeepReadonly<V>>
+      : T extends object
+        ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+        : T;
+
+/**
+ * API response discriminated union
+ * Use for all API endpoints to enforce consistent response structure
+ *
+ * @example
+ * type GetAssetResponse = ApiResponse<Asset>;
+ * // Result is either:
+ * // { success: true; data: Asset }
+ * // { success: false; error: { code: string; message: string; details?: unknown } }
+ */
+export type ApiResponse<T> =
+  | {
+      readonly success: true;
+      readonly data: T;
+    }
+  | {
+      readonly success: false;
+      readonly error: {
+        readonly code: string;
+        readonly message: string;
+        readonly details?: unknown;
+      };
+    };
+
+/**
+ * Create a success API response
+ */
+export function apiSuccess<T>(data: T): ApiResponse<T> {
+  return { success: true, data };
+}
+
+/**
+ * Create an error API response
+ */
+export function apiError<T>(
+  code: string,
+  message: string,
+  details?: unknown,
+): ApiResponse<T> {
+  return { success: false, error: { code, message, details } };
+}
+
+// =============================================================================
+// GENERIC UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Create a lookup map from an array of items
+ * Extracts a key from each item to build a Map for O(1) lookups
+ *
+ * @example
+ * const assets = [{ id: "a1", name: "Sword" }, { id: "a2", name: "Shield" }];
+ * const assetMap = createLookupMap(assets, (a) => a.id);
+ * const sword = assetMap.get("a1"); // { id: "a1", name: "Sword" }
+ */
+export function createLookupMap<T, K>(
+  items: readonly T[],
+  getKey: (item: T) => K,
+): Map<K, T> {
+  const map = new Map<K, T>();
+  for (const item of items) {
+    const key = getKey(item);
+    map.set(key, item);
+  }
+  return map;
+}
+
+/**
+ * Group items by a key extractor function
+ * Returns a Map where each key maps to an array of matching items
+ *
+ * @example
+ * const items = [
+ *   { category: "weapon", name: "Sword" },
+ *   { category: "armor", name: "Helmet" },
+ *   { category: "weapon", name: "Dagger" }
+ * ];
+ * const grouped = groupBy(items, (i) => i.category);
+ * // Map {
+ * //   "weapon" => [{ category: "weapon", name: "Sword" }, { category: "weapon", name: "Dagger" }],
+ * //   "armor" => [{ category: "armor", name: "Helmet" }]
+ * // }
+ */
+export function groupBy<T, K>(
+  items: readonly T[],
+  getKey: (item: T) => K,
+): Map<K, T[]> {
+  const map = new Map<K, T[]>();
+  for (const item of items) {
+    const key = getKey(item);
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(item);
+    } else {
+      map.set(key, [item]);
+    }
+  }
+  return map;
+}
+
+/**
+ * Type-safe object entries with proper key/value typing
+ */
+export function typedEntries<K extends string, V>(
+  obj: Record<K, V>,
+): Array<[K, V]> {
+  return Object.entries(obj) as Array<[K, V]>;
+}
+
+/**
+ * Type-safe object keys
+ */
+export function typedKeys<K extends string>(obj: Record<K, unknown>): K[] {
+  return Object.keys(obj) as K[];
+}
+
+/**
+ * Safely pick properties from an object
+ */
+export function pick<T extends object, K extends keyof T>(
+  obj: T,
+  keys: readonly K[],
+): Pick<T, K> {
+  const result = {} as Pick<T, K>;
+  for (const key of keys) {
+    if (key in obj) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+}
+
+/**
+ * Omit properties from an object
+ */
+export function omit<T extends object, K extends keyof T>(
+  obj: T,
+  keys: readonly K[],
+): Omit<T, K> {
+  const result = { ...obj };
+  for (const key of keys) {
+    delete result[key];
+  }
+  return result as Omit<T, K>;
+}

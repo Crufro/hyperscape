@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { logger } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
 
 const log = logger.child("Equipment");
 import {
@@ -95,6 +96,9 @@ const CREATURE_SIZES = [
 const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:8080";
 
 export default function EquipmentFittingPage() {
+  // Toast notifications
+  const { toast } = useToast();
+
   // Hydration fix
   const [mounted, setMounted] = useState(false);
 
@@ -272,10 +276,18 @@ export default function EquipmentFittingPage() {
       if (!response.ok) throw new Error("Failed to save configuration");
 
       log.info("Configuration saved:", config);
-      window.alert("Configuration saved!");
+      toast({
+        title: "Success",
+        description: "Configuration saved!",
+        variant: "success",
+      });
     } catch (error) {
       log.error("Save failed:", error);
-      window.alert("Failed to save configuration");
+      toast({
+        title: "Error",
+        description: "Failed to save configuration",
+        variant: "destructive",
+      });
     }
   }, [
     selectedAvatar,
@@ -286,6 +298,7 @@ export default function EquipmentFittingPage() {
     scale,
     gripResult,
     avatarHeight,
+    toast,
   ]);
 
   const handleExportAligned = useCallback(async () => {
@@ -294,7 +307,11 @@ export default function EquipmentFittingPage() {
     try {
       const glb = await viewerRef.current.exportAlignedEquipment();
       if (glb.byteLength === 0) {
-        window.alert("No equipment to export");
+        toast({
+          title: "Warning",
+          description: "No equipment to export",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -307,9 +324,13 @@ export default function EquipmentFittingPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       log.error("Export failed:", error);
-      window.alert("Export failed");
+      toast({
+        title: "Export Failed",
+        description: "Failed to export aligned model",
+        variant: "destructive",
+      });
     }
-  }, [selectedWeapon]);
+  }, [selectedWeapon, toast]);
 
   const handleExportEquipped = useCallback(async () => {
     if (!viewerRef.current || !selectedAvatar) return;
@@ -317,7 +338,11 @@ export default function EquipmentFittingPage() {
     try {
       const glb = await viewerRef.current.exportEquippedModel();
       if (glb.byteLength === 0) {
-        window.alert("No model to export");
+        toast({
+          title: "Warning",
+          description: "No model to export",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -330,9 +355,13 @@ export default function EquipmentFittingPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       log.error("Export failed:", error);
-      window.alert("Export failed");
+      toast({
+        title: "Export Failed",
+        description: "Failed to export equipped model",
+        variant: "destructive",
+      });
     }
-  }, [selectedAvatar]);
+  }, [selectedAvatar, toast]);
 
   const handleCreatureSizeChange = useCallback((sizeId: string) => {
     const size = CREATURE_SIZES.find((s) => s.id === sizeId);

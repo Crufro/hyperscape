@@ -7,6 +7,10 @@ import {
 import { readAssetMetadata, assetExists } from "@/lib/storage/asset-storage";
 import type { CDNAsset } from "@/lib/cdn/types";
 import { logger } from "@/lib/utils";
+import {
+  withErrorHandling,
+  ValidationError,
+} from "@/lib/errors/with-error-handling";
 
 const log = logger.child("API:assets");
 
@@ -19,12 +23,15 @@ const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:8080";
  * 2. Supabase (FORGE assets)
  * 3. Local filesystem
  */
-export async function GET(
+export const GET = withErrorHandling(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
+  context?: { params: Record<string, string> },
+) => {
+  const { id } = await (context?.params as unknown as Promise<{ id: string }>) || { id: "" };
+  
+  if (!id) {
+    throw new ValidationError("Asset ID is required");
+  }
 
     // 1. Check CDN assets first
     try {
@@ -87,8 +94,8 @@ export async function GET(
           source: "LOCAL",
           modelPath: `/api/assets/${id}/model.glb`,
           modelUrl: `/api/assets/${id}/model.glb`,
-          thumbnailPath: `/api/assets/${id}/thumbnail.png`,
-          thumbnailUrl: `/api/assets/${id}/thumbnail.png`,
+          thumbnailPath: `/api/assets/${id}/concept-art.png`,
+          thumbnailUrl: `/api/assets/${id}/concept-art.png`,
           vrmUrl: metadata.hasVRM ? `/api/assets/${id}/model.vrm` : undefined,
           hasVRM: !!metadata.hasVRM,
           hasModel: true,
@@ -105,25 +112,21 @@ export async function GET(
     }
 
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
-  } catch (error) {
-    log.error("Error fetching asset", { error });
-    return NextResponse.json(
-      { error: "Failed to fetch asset" },
-      { status: 500 },
-    );
-  }
-}
+});
 
 /**
  * DELETE /api/assets/[id]
  * Delete an asset
  */
-export async function DELETE(
+export const DELETE = withErrorHandling(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
+  context?: { params: Record<string, string> },
+) => {
+  const { id } = await (context?.params as unknown as Promise<{ id: string }>) || { id: "" };
+  
+  if (!id) {
+    throw new ValidationError("Asset ID is required");
+  }
     const { deleteAssetFiles } = await import("@/lib/storage/asset-storage");
 
     await deleteAssetFiles(id);
@@ -132,25 +135,21 @@ export async function DELETE(
       success: true,
       message: `Asset ${id} deleted`,
     });
-  } catch (error) {
-    log.error("Error deleting asset", { error });
-    return NextResponse.json(
-      { error: "Failed to delete asset" },
-      { status: 500 },
-    );
-  }
-}
+});
 
 /**
  * PATCH /api/assets/[id]
  * Update asset metadata
  */
-export async function PATCH(
+export const PATCH = withErrorHandling(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
+  context?: { params: Record<string, string> },
+) => {
+  const { id } = await (context?.params as unknown as Promise<{ id: string }>) || { id: "" };
+  
+  if (!id) {
+    throw new ValidationError("Asset ID is required");
+  }
     const updates = await request.json();
     const { promises: fs } = await import("fs");
     const { getMetadataPath, assetExists } = await import(
@@ -183,11 +182,4 @@ export async function PATCH(
     await fs.writeFile(metadataPath, JSON.stringify(updatedMetadata, null, 2));
 
     return NextResponse.json(updatedMetadata);
-  } catch (error) {
-    log.error("Error updating asset", { error });
-    return NextResponse.json(
-      { error: "Failed to update asset" },
-      { status: 500 },
-    );
-  }
-}
+});

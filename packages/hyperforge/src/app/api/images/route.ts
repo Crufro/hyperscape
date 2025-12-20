@@ -16,7 +16,8 @@ interface ImageMetadata {
   url: string;
   thumbnailUrl: string;
   type: string;
-  source: "cdn" | "supabase" | "local";
+  /** Asset origin: CDN = game repo, FORGE = HyperForge/Supabase, LOCAL = filesystem */
+  source: "CDN" | "FORGE" | "LOCAL";
   prompt?: string;
   createdAt: string;
   width?: number;
@@ -62,7 +63,7 @@ export async function GET(_request: NextRequest) {
             url: imageUrl,
             thumbnailUrl: imageUrl,
             type: "icon",
-            source: "cdn",
+            source: "CDN",
             createdAt: new Date().toISOString(),
           });
         }
@@ -85,7 +86,7 @@ export async function GET(_request: NextRequest) {
             url: img.url,
             thumbnailUrl: img.url,
             type: img.type,
-            source: "supabase",
+            source: "FORGE",
             createdAt: img.createdAt || new Date().toISOString(),
             size: img.size,
           });
@@ -135,7 +136,7 @@ export async function GET(_request: NextRequest) {
               url: `${localApiUrl}/api/images/file/${type}/${filename}`,
               thumbnailUrl: `${localApiUrl}/api/images/file/${type}/${filename}`,
               type,
-              source: "local",
+              source: "LOCAL",
               createdAt: stats.mtime.toISOString(),
               size: stats.size,
             });
@@ -170,7 +171,7 @@ export async function GET(_request: NextRequest) {
             url: `${localApiUrl}/api/upload/image/${filename}`,
             thumbnailUrl: `${localApiUrl}/api/upload/image/${filename}`,
             type: "concept-art",
-            source: "local",
+            source: "LOCAL",
             createdAt: stats.mtime.toISOString(),
             size: stats.size,
           });

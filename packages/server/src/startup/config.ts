@@ -118,7 +118,10 @@ export async function loadConfig(): Promise<ServerConfig> {
   const USE_LOCAL_POSTGRES =
     (process.env["USE_LOCAL_POSTGRES"] || "true") === "true";
   const DATABASE_URL = process.env["DATABASE_URL"];
-  const CDN_URL = process.env["PUBLIC_CDN_URL"] || "http://localhost:8080";
+  // CDN URL: In production, set PUBLIC_CDN_URL to your CDN (e.g., Cloudflare R2, S3)
+  // In development, defaults to the game server's own /assets/world/ route
+  const CDN_URL =
+    process.env["PUBLIC_CDN_URL"] || `http://localhost:${PORT}/assets/world`;
   const SYSTEMS_PATH = process.env["SYSTEMS_PATH"];
   const ADMIN_CODE = process.env["ADMIN_CODE"];
   const JWT_SECRET = process.env["JWT_SECRET"];

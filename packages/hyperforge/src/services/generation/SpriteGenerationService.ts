@@ -194,19 +194,98 @@ export class SpriteGenerationService {
     modelPath: string,
     animations?: string[],
     outputSize: number = 256,
+    framesPerAnimation: number = 8,
   ): Promise<Record<string, SpriteResult[]>> {
-    // TODO: Implement animation frame extraction
-    // For now, just return idle poses
-    const idleSprites = await this.generateSprites({
-      modelPath,
-      outputSize,
-      angles: [0, 90, 180, 270], // Front, right, back, left
-      backgroundColor: "transparent",
-    });
+    // Update renderer size
+    this.renderer.setSize(outputSize, outputSize);
+    this.renderer.setClearColor(0x000000, 0);
 
-    return {
-      idle: idleSprites,
-    };
+    // Load model with animations
+    const gltf = await this.loadModel(modelPath);
+    const model = gltf.scene;
+
+    // Center and scale model
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    model.position.sub(center);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = ((this.camera.right - this.camera.left) * 0.9) / maxDim;
+    model.scale.multiplyScalar(scale);
+
+    this.scene.add(model);
+
+    const result: Record<string, SpriteResult[]> = {};
+    const angles = [0, 90, 180, 270]; // Front, right, back, left
+
+    // Generate idle poses (no animation)
+    const idleSprites: SpriteResult[] = [];
+    for (const angle of angles) {
+      const radian = (angle * Math.PI) / 180;
+      const distance = 7;
+      this.camera.position.x = Math.sin(radian) * distance;
+      this.camera.position.z = Math.cos(radian) * distance;
+      this.camera.position.y = 5;
+      this.camera.lookAt(0, 0, 0);
+
+      this.renderer.render(this.scene, this.camera);
+      idleSprites.push({
+        angle: `${angle}deg`,
+        imageUrl: this.renderer.domElement.toDataURL("image/png"),
+        width: outputSize,
+        height: outputSize,
+      });
+    }
+    result.idle = idleSprites;
+
+    // Extract animation frames if the model has animations
+    if (gltf.animations.length > 0) {
+      const mixer = new THREE.AnimationMixer(model);
+
+      // Filter animations if specific ones are requested
+      const targetAnimations = animations
+        ? gltf.animations.filter((clip) => animations.includes(clip.name))
+        : gltf.animations;
+
+      for (const clip of targetAnimations) {
+        const animationSprites: SpriteResult[] = [];
+        const action = mixer.clipAction(clip);
+        action.play();
+
+        // Calculate frame times
+        const duration = clip.duration;
+        const frameInterval = duration / framesPerAnimation;
+
+        for (let frame = 0; frame < framesPerAnimation; frame++) {
+          // Set animation to specific time
+          const time = frame * frameInterval;
+          mixer.setTime(time);
+          mixer.update(0);
+
+          // Render from front angle (0 degrees)
+          this.camera.position.set(0, 5, 7);
+          this.camera.lookAt(0, 0, 0);
+
+          this.renderer.render(this.scene, this.camera);
+          animationSprites.push({
+            angle: `frame_${frame}`,
+            imageUrl: this.renderer.domElement.toDataURL("image/png"),
+            width: outputSize,
+            height: outputSize,
+          });
+        }
+
+        action.stop();
+        result[clip.name] = animationSprites;
+      }
+
+      mixer.stopAllAction();
+    }
+
+    // Cleanup
+    this.scene.remove(model);
+
+    return result;
   }
 
   /**

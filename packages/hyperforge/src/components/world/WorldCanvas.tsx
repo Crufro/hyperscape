@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import type { WorldEntity } from "@/app/world/page";
+import type { WorldEntity } from "./WorldView";
 import type { AssetData } from "@/types/asset";
 
 interface WorldCanvasProps {
@@ -21,7 +21,7 @@ interface WorldCanvasProps {
 }
 
 // Map world coordinates to canvas
-const WORLD_SIZE = 50; // -25 to 25 in world units
+const WORLD_SIZE = 100; // -50 to 50 in world units (larger to fit more entities)
 const CANVAS_SIZE = 600; // Base canvas size in pixels
 
 export function WorldCanvas({
@@ -250,15 +250,27 @@ export function WorldCanvas({
         return "bg-amber-500";
       case "resource":
         return "bg-emerald-500";
-      default:
+      case "bank":
+        return "bg-yellow-500";
+      case "player":
+        return "bg-cyan-500";
+      case "prop":
         return "bg-blue-500";
+      case "building":
+        return "bg-purple-500";
+      default:
+        return "bg-gray-500";
     }
   };
+
+  // Debug: log entity count
+  console.log("[WorldCanvas] Rendering with", entities.length, "entities");
 
   return (
     <div
       ref={containerRef}
-      className="flex-1 relative bg-zinc-950 overflow-hidden cursor-crosshair"
+      className="w-full h-full relative bg-zinc-950 overflow-hidden cursor-crosshair"
+      style={{ minHeight: "400px" }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
@@ -279,7 +291,7 @@ export function WorldCanvas({
       {entities.map((entity) => {
         const pos = worldToCanvas(entity.position.x, entity.position.z);
         const isSelected = selectedEntity?.id === entity.id;
-        const size = 32 * zoom;
+        const size = 40 * zoom; // Larger size for better visibility
 
         return (
           <div
@@ -299,12 +311,16 @@ export function WorldCanvas({
             {/* Entity marker */}
             <div
               className={cn(
-                "rounded-lg border-2 shadow-lg overflow-hidden",
+                "rounded-lg border-3 shadow-lg overflow-hidden",
                 isSelected
-                  ? "border-cyan-400 shadow-cyan-500/50 ring-2 ring-cyan-400/30"
-                  : "border-glass-border hover:border-cyan-400/50",
+                  ? "border-cyan-400 shadow-cyan-500/50 ring-4 ring-cyan-400/50"
+                  : "border-white/50 hover:border-cyan-400",
               )}
-              style={{ width: size, height: size }}
+              style={{ 
+                width: size, 
+                height: size,
+                borderWidth: "3px",
+              }}
             >
               {entity.thumbnailUrl ? (
                 <Image
@@ -334,10 +350,10 @@ export function WorldCanvas({
 
       {/* Center indicator */}
       <div
-        className="absolute w-3 h-3 rounded-full bg-cyan-500 border-2 border-white shadow-lg pointer-events-none"
+        className="absolute w-6 h-6 rounded-full bg-cyan-500 border-4 border-white shadow-lg pointer-events-none animate-pulse"
         style={{
-          left: worldToCanvas(0, 0).x - 6,
-          top: worldToCanvas(0, 0).y - 6,
+          left: worldToCanvas(0, 0).x - 12,
+          top: worldToCanvas(0, 0).y - 12,
         }}
         title="World origin (0, 0)"
       />
@@ -355,18 +371,32 @@ export function WorldCanvas({
       )}
 
       {/* Coordinates display */}
-      <div className="absolute bottom-4 left-4 px-3 py-2 rounded-lg bg-black/70 text-xs text-white font-mono">
-        <span className="text-muted-foreground">Entities: </span>
-        {entities.length}
+      <div className="absolute bottom-4 left-4 px-3 py-2 rounded-lg bg-black/90 text-xs text-white font-mono border border-cyan-500/50">
+        <div className="text-cyan-400 font-bold mb-1">World Canvas Debug</div>
+        <div>
+          <span className="text-muted-foreground">Entities: </span>
+          <span className="text-green-400 font-bold">{entities.length}</span>
+        </div>
+        {entities.length > 0 && (
+          <div className="text-[9px] mt-1 max-h-20 overflow-y-auto">
+            {entities.slice(0, 5).map((e) => (
+              <div key={e.id} className="text-gray-400">
+                {e.name}: ({e.position.x.toFixed(0)}, {e.position.z.toFixed(0)})
+              </div>
+            ))}
+            {entities.length > 5 && (
+              <div className="text-gray-500">...and {entities.length - 5} more</div>
+            )}
+          </div>
+        )}
         {selectedEntity && (
-          <>
-            <span className="mx-2">|</span>
+          <div className="mt-1 pt-1 border-t border-gray-700">
             <span className="text-cyan-400">{selectedEntity.name}</span>
             <span className="text-muted-foreground ml-2">
               ({selectedEntity.position.x.toFixed(1)},{" "}
               {selectedEntity.position.z.toFixed(1)})
             </span>
-          </>
+          </div>
         )}
       </div>
     </div>

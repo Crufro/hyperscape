@@ -47,6 +47,7 @@ import { registerCharacterRoutes } from "./routes/character-routes.js";
 import { registerAgentRoutes } from "./routes/agent-routes.js";
 import { registerUserRoutes } from "./routes/user-routes.js";
 import { registerTemplateRoutes } from "./routes/template-routes.js";
+import { registerWorldRoutes } from "./routes/world-routes.js";
 
 /**
  * Register all API routes
@@ -95,6 +96,9 @@ export function registerApiRoutes(
 
   // Character template management
   registerTemplateRoutes(fastify, world);
+
+  // World editor routes (for HyperForge)
+  registerWorldRoutes(fastify, world);
 
   console.log("[API] ✅ API routes registered");
 }

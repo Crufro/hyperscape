@@ -19,9 +19,9 @@ export interface FilterState {
 
 const sourceOptions = [
   { value: "all", label: "All Sources" },
-  { value: "CDN", label: "CDN Assets" },
+  { value: "CDN", label: "Game Assets (CDN)" },
+  { value: "FORGE", label: "HyperForge Generated" },
   { value: "LOCAL", label: "Local Assets" },
-  { value: "BASE", label: "Base Assets" },
 ];
 
 const rarityOptions = [

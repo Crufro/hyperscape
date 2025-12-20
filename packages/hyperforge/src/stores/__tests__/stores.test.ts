@@ -90,8 +90,9 @@ describe.sequential("App Store", () => {
       useAppStore.getState().setSelectedAsset({
         id: "test-1",
         name: "Test Asset",
-        source: "LOCAL",
+        source: "CDN",
         category: "weapon",
+        modelPath: "/models/test.glb",
       });
       expect(useAppStore.getState().propertiesPanelOpen).toBe(true);
 
@@ -124,8 +125,9 @@ describe.sequential("App Store", () => {
       useAppStore.getState().setSelectedAsset({
         id: "test-1",
         name: "Test",
-        source: "LOCAL",
+        source: "CDN",
         category: "npc",
+        modelPath: "/models/test.glb",
       });
       expect(useAppStore.getState().selectedAsset).not.toBeNull();
 
@@ -138,8 +140,9 @@ describe.sequential("App Store", () => {
       useAppStore.getState().setSelectedAsset({
         id: "test-1",
         name: "Test",
-        source: "LOCAL",
+        source: "CDN",
         category: "prop",
+        modelPath: "/models/test.glb",
       });
 
       expect(useAppStore.getState().viewportPanel).toBe("properties");
@@ -151,8 +154,9 @@ describe.sequential("App Store", () => {
       useAppStore.getState().setSelectedAsset({
         id: "test-1",
         name: "Test",
-        source: "LOCAL",
+        source: "CDN",
         category: "prop",
+        modelPath: "/models/test.glb",
       });
       useAppStore.getState().setSelectedAsset(null);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PromptInput } from "../PromptInput";
 import { PipelineSelector } from "../PipelineSelector";
 import { Select } from "@/components/ui/select";
@@ -18,27 +18,67 @@ import type { WeaponType, AttackType } from "@/types/game/item-types";
 interface WeaponGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
   onCancel: () => void;
+  /** Initial config from preset selection */
+  initialConfig?: Partial<GenerationConfig>;
 }
 
 export function WeaponGenerationForm({
   onGenerate,
   onCancel,
+  initialConfig,
 }: WeaponGenerationFormProps) {
-  const [prompt, setPrompt] = useState("");
+  // Extract metadata for initializing form fields
+  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+
+  const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
-    "text-to-3d",
+    initialConfig?.pipeline ?? "text-to-3d",
   );
-  const [imageUrl, setImageUrl] = useState("");
-  const [quality, setQuality] = useState<"preview" | "medium" | "high">("high");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [weaponType, setWeaponType] = useState<WeaponType>("sword");
-  const [attackType, setAttackType] = useState<AttackType>("melee");
-  const [attackSpeed, setAttackSpeed] = useState(4);
-  const [attackRange, setAttackRange] = useState(1);
-  const [attackBonus, setAttackBonus] = useState(4);
-  const [strengthBonus, setStrengthBonus] = useState(3);
-  const [levelRequired, setLevelRequired] = useState(1);
+  const [imageUrl, setImageUrl] = useState(initialConfig?.imageUrl ?? "");
+  const [quality, setQuality] = useState<"preview" | "medium" | "high">(
+    initialConfig?.quality ?? "high"
+  );
+  const [name, setName] = useState((meta?.name as string) ?? "");
+  const [description, setDescription] = useState((meta?.description as string) ?? "");
+  const [weaponType, setWeaponType] = useState<WeaponType>(
+    (meta?.weaponType as WeaponType) ?? "sword"
+  );
+  const [attackType, setAttackType] = useState<AttackType>(
+    (meta?.attackType as AttackType) ?? "melee"
+  );
+  const [attackSpeed, setAttackSpeed] = useState((meta?.attackSpeed as number) ?? 4);
+  const [attackRange, setAttackRange] = useState((meta?.attackRange as number) ?? 1);
+  const [attackBonus, setAttackBonus] = useState(
+    ((meta?.bonuses as Record<string, unknown>)?.attack as number) ?? 4
+  );
+  const [strengthBonus, setStrengthBonus] = useState(
+    ((meta?.bonuses as Record<string, unknown>)?.strength as number) ?? 3
+  );
+  const [levelRequired, setLevelRequired] = useState(
+    ((meta?.requirements as Record<string, unknown>)?.level as number) ?? 1
+  );
+
+  // Update form when preset changes
+  useEffect(() => {
+    if (initialConfig) {
+      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      if (initialConfig.prompt) setPrompt(initialConfig.prompt);
+      if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
+      if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
+      if (initialConfig.quality) setQuality(initialConfig.quality);
+      if (m?.name) setName(m.name as string);
+      if (m?.description) setDescription(m.description as string);
+      if (m?.weaponType) setWeaponType(m.weaponType as WeaponType);
+      if (m?.attackType) setAttackType(m.attackType as AttackType);
+      if (typeof m?.attackSpeed === "number") setAttackSpeed(m.attackSpeed);
+      if (typeof m?.attackRange === "number") setAttackRange(m.attackRange);
+      const bonuses = m?.bonuses as Record<string, unknown> | undefined;
+      if (typeof bonuses?.attack === "number") setAttackBonus(bonuses.attack);
+      if (typeof bonuses?.strength === "number") setStrengthBonus(bonuses.strength);
+      const reqs = m?.requirements as Record<string, unknown> | undefined;
+      if (typeof reqs?.level === "number") setLevelRequired(reqs.level);
+    }
+  }, [initialConfig]);
 
   const handleGenerate = () => {
     const assetId = generateAssetId(name || prompt, "weapon");

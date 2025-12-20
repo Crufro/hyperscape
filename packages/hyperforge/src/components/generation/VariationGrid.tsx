@@ -5,6 +5,7 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { Trash2, Download, Check } from "lucide-react";
 import type { GenerationResult } from "@/types";
+import { isGenerationSuccess } from "@/types/generation";
 
 interface VariationGridProps {
   variations: GenerationResult[];
@@ -85,7 +86,7 @@ export function VariationGrid({
               intensity="low"
             >
               <div className="aspect-square bg-glass-bg rounded mb-2 flex items-center justify-center">
-                {variation.thumbnailUrl ? (
+                {isGenerationSuccess(variation) && variation.thumbnailUrl ? (
                   <img
                     src={variation.thumbnailUrl}
                     alt={`Variation ${index + 1}`}

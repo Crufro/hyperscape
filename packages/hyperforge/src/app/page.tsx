@@ -18,17 +18,16 @@ import { WorldView } from "@/components/world/WorldView";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { useAppStore } from "@/stores/app-store";
 import { useHiddenAssets } from "@/hooks/useHiddenAssets";
-import type { AssetData } from "@/types/asset";
+import type { BaseAsset } from "@/types/asset";
 
 export default function HomePage() {
-  const {
-    selectedAsset,
-    setSelectedAsset,
-    sidebarCollapsed,
-    toggleSidebar,
-    vaultOpen,
-    toggleVault,
-  } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const selectedAsset = useAppStore((state) => state.selectedAsset);
+  const setSelectedAsset = useAppStore((state) => state.setSelectedAsset);
+  const sidebarCollapsed = useAppStore((state) => state.sidebarCollapsed);
+  const toggleSidebar = useAppStore((state) => state.toggleSidebar);
+  const vaultOpen = useAppStore((state) => state.vaultOpen);
+  const toggleVault = useAppStore((state) => state.toggleVault);
 
   const { hiddenCount } = useHiddenAssets();
 
@@ -77,7 +76,7 @@ export default function HomePage() {
     };
   }, [showCategoryDropdown]);
 
-  const handleAssetSelect = (asset: AssetData) => {
+  const handleAssetSelect = (asset: BaseAsset) => {
     setSelectedAsset(asset);
     // Properties panel opens automatically via store
   };

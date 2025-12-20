@@ -12,11 +12,44 @@ import {
   getMeshQualityForCategory,
   type MeshQualitySettings,
 } from "./MeshQualityControls";
-import { RefreshCw, Settings2 } from "lucide-react";
+import { RefreshCw, Settings2, Palette, Sparkles } from "lucide-react";
 import type { AssetData } from "@/types/asset";
-import { logger } from "@/lib/utils";
+import { logger, cn } from "@/lib/utils";
 
 const log = logger.child("RegenerateOptions");
+
+// Material preset interface
+interface MaterialPreset {
+  id: string;
+  name: string;
+  displayName: string;
+  category: string;
+  tier: number;
+  color: string;
+  stylePrompt: string;
+  description?: string;
+}
+
+// Game style interface
+interface GameStyleInfo {
+  id: string;
+  name: string;
+  base: string;
+  enhanced?: string;
+  generation?: string;
+}
+
+// Categories that support material variants
+const MATERIAL_SUPPORTED_CATEGORIES = [
+  "weapon",
+  "armor",
+  "tool",
+  "item",
+  "equipment",
+  "melee",
+  "ranged",
+  "shield",
+];
 
 interface RegenerateOptionsProps {
   asset: AssetData;
@@ -33,10 +66,89 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
     getMeshQualityForCategory(asset.category),
   );
 
+  // Material and game style state
+  const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([]);
+  const [gameStyles, setGameStyles] = useState<
+    Record<string, GameStyleInfo>
+  >({});
+  const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
+  const [selectedGameStyle, setSelectedGameStyle] = useState<string | null>(
+    null,
+  );
+  const [showStyleOptions, setShowStyleOptions] = useState(false);
+  const [isLoadingPresets, setIsLoadingPresets] = useState(false);
+
+  // Check if this asset supports materials
+  const supportsMaterials = MATERIAL_SUPPORTED_CATEGORIES.some(
+    (cat) =>
+      asset.category?.toLowerCase().includes(cat) ||
+      asset.type?.toLowerCase().includes(cat),
+  );
+
   // Update mesh quality when asset changes
   useEffect(() => {
     setMeshQuality(getMeshQualityForCategory(asset.category));
   }, [asset.category]);
+
+  // Load material presets and game styles
+  useEffect(() => {
+    const loadPresets = async () => {
+      setIsLoadingPresets(true);
+      try {
+        const [materialsRes, stylesRes] = await Promise.all([
+          fetch("/prompts/material-presets.json"),
+          fetch("/prompts/game-style-prompts.json"),
+        ]);
+
+        if (materialsRes.ok) {
+          const materials = await materialsRes.json();
+          setMaterialPresets(materials);
+        }
+
+        if (stylesRes.ok) {
+          const stylesData = await stylesRes.json();
+          const allStyles: Record<string, GameStyleInfo> = {};
+          if (stylesData.default) {
+            Object.entries(stylesData.default).forEach(([id, style]) => {
+              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+            });
+          }
+          if (stylesData.custom) {
+            Object.entries(stylesData.custom).forEach(([id, style]) => {
+              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+            });
+          }
+          setGameStyles(allStyles);
+
+          // Set default game style from asset's generation params
+          const genParams = (
+            asset as { generationParams?: Record<string, unknown> }
+          ).generationParams;
+          const assetStyle =
+            (genParams?.gameStyle as string) ||
+            (genParams?.style as string) ||
+            "runescape";
+          if (allStyles[assetStyle]) {
+            setSelectedGameStyle(assetStyle);
+          }
+
+          // Set default material from asset's generation params
+          const assetMaterial =
+            (genParams?.materialPresetId as string) ||
+            (genParams?.material as string);
+          if (assetMaterial) {
+            setSelectedMaterial(assetMaterial);
+          }
+        }
+      } catch (error) {
+        log.debug("Failed to load presets:", error);
+      } finally {
+        setIsLoadingPresets(false);
+      }
+    };
+
+    loadPresets();
+  }, [asset]);
 
   const handleRegenerate = async () => {
     setIsProcessing(true);
@@ -51,14 +163,36 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
       // Check if this is a CDN asset (not in database)
       const isCDNAsset = asset.source === "CDN";
 
+      // Get selected material and game style info
+      const material = selectedMaterial
+        ? materialPresets.find((m) => m.id === selectedMaterial)
+        : null;
+      const gameStyle = selectedGameStyle
+        ? gameStyles[selectedGameStyle]
+        : null;
+
+      // Build the prompt with material and style info
+      let finalPrompt = prompt;
+      if (!finalPrompt) {
+        finalPrompt = `A ${asset.name.toLowerCase()}, high quality 3D game asset`;
+      }
+
+      // Add material styling to prompt if selected
+      if (material && supportsMaterials) {
+        finalPrompt = `${finalPrompt}, ${material.stylePrompt}`;
+      }
+
+      // Add game style to prompt if selected
+      if (gameStyle?.base) {
+        finalPrompt = `${finalPrompt}, ${gameStyle.base}`;
+      }
+
       const response = await fetch("/api/enhancement/regenerate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assetId: asset.id,
-          prompt:
-            prompt ||
-            `A ${asset.name.toLowerCase()}, high quality 3D game asset`,
+          prompt: finalPrompt,
           variationStrength,
           // Mesh quality settings
           meshOptions: {
@@ -67,6 +201,9 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
             shouldRemesh: meshQuality.shouldRemesh,
             enablePBR: meshQuality.enablePBR,
           },
+          // Material and style metadata
+          materialPresetId: selectedMaterial,
+          gameStyle: selectedGameStyle,
           // Include asset info for CDN assets that aren't in the database
           ...(isCDNAsset && {
             assetName: asset.name,
@@ -160,6 +297,113 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
             </p>
           </div>
 
+          {/* Style & Material Options Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowStyleOptions(!showStyleOptions)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            {showStyleOptions ? "Hide" : "Show"} Style & Material Options
+          </button>
+
+          {/* Style & Material Selection */}
+          {showStyleOptions && (
+            <div className="p-4 rounded-lg bg-glass-bg border border-glass-border space-y-4">
+              {/* Game Style Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  Game Style
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.values(gameStyles).map((style) => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setSelectedGameStyle(style.id)}
+                      className={cn(
+                        "p-2 rounded-lg border text-left transition-all text-sm",
+                        selectedGameStyle === style.id
+                          ? "border-amber-500/50 bg-amber-500/10 text-amber-300"
+                          : "border-glass-border bg-glass-bg/30 hover:border-amber-500/30 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span className="font-medium">{style.name}</span>
+                    </button>
+                  ))}
+                </div>
+                {selectedGameStyle && gameStyles[selectedGameStyle]?.base && (
+                  <p className="text-xs text-muted-foreground italic">
+                    &quot;{gameStyles[selectedGameStyle].base}&quot;
+                  </p>
+                )}
+              </div>
+
+              {/* Material Selection (only for supported categories) */}
+              {supportsMaterials && materialPresets.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-glass-border">
+                  <Label className="flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-purple-400" />
+                    Material Variant
+                  </Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {/* None option */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMaterial(null)}
+                      className={cn(
+                        "p-2 rounded-lg border transition-all flex flex-col items-center",
+                        selectedMaterial === null
+                          ? "border-purple-500/50 bg-purple-500/10"
+                          : "border-glass-border bg-glass-bg/30 hover:border-purple-500/30",
+                      )}
+                    >
+                      <div className="w-6 h-6 rounded-md border border-glass-border bg-zinc-800 mb-1" />
+                      <span className="text-[10px]">Original</span>
+                    </button>
+                    {materialPresets.map((material) => (
+                      <button
+                        key={material.id}
+                        type="button"
+                        onClick={() => setSelectedMaterial(material.id)}
+                        title={material.description || material.stylePrompt}
+                        className={cn(
+                          "p-2 rounded-lg border transition-all flex flex-col items-center",
+                          selectedMaterial === material.id
+                            ? "border-purple-500/50 bg-purple-500/10"
+                            : "border-glass-border bg-glass-bg/30 hover:border-purple-500/30",
+                        )}
+                      >
+                        <div
+                          className="w-6 h-6 rounded-md border border-glass-border mb-1"
+                          style={{ backgroundColor: material.color }}
+                        />
+                        <span className="text-[10px] truncate w-full text-center">
+                          {material.displayName}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {selectedMaterial && (
+                    <p className="text-xs text-muted-foreground">
+                      {materialPresets.find((m) => m.id === selectedMaterial)
+                        ?.description ||
+                        materialPresets.find((m) => m.id === selectedMaterial)
+                          ?.stylePrompt}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isLoadingPresets && (
+                <p className="text-xs text-muted-foreground">
+                  Loading options...
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Mesh Quality Options Toggle */}
           <button
             type="button"
@@ -200,7 +444,7 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
       </div>
 
       {/* Current Settings Summary */}
-      <div className="border-t border-glass-border pt-4">
+      <div className="border-t border-glass-border pt-4 space-y-1">
         <p className="text-xs text-muted-foreground">
           Quality:{" "}
           <span className="text-foreground">
@@ -213,6 +457,28 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
           {" • "}
           <span className="text-foreground">{meshQuality.topology}</span>
         </p>
+        {(selectedGameStyle || selectedMaterial) && (
+          <p className="text-xs text-muted-foreground">
+            {selectedGameStyle && (
+              <>
+                Style:{" "}
+                <span className="text-amber-400">
+                  {gameStyles[selectedGameStyle]?.name || selectedGameStyle}
+                </span>
+              </>
+            )}
+            {selectedGameStyle && selectedMaterial && " • "}
+            {selectedMaterial && (
+              <>
+                Material:{" "}
+                <span className="text-purple-400">
+                  {materialPresets.find((m) => m.id === selectedMaterial)
+                    ?.displayName || selectedMaterial}
+                </span>
+              </>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );

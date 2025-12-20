@@ -16,7 +16,7 @@ import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { Label } from "@/components/ui/label";
 import { NeonInput } from "@/components/ui/neon-input";
 import { cn } from "@/lib/utils";
-import type { WorldEntity } from "@/app/world/page";
+import type { WorldEntity } from "./WorldView";
 
 interface EntityInspectorProps {
   entity: WorldEntity | null;

@@ -79,6 +79,7 @@ export function Select({
         window.removeEventListener("resize", updatePosition);
       };
     }
+    return undefined;
   }, [isOpen, updatePosition]);
 
   // Close when clicking outside

@@ -1,0 +1,1 @@
+please run bun run dev:kill or if this doesnt work please kill all dev proccess

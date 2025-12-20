@@ -1,5 +1,4 @@
 // @ts-nocheck -- Complex hand rigging with dynamic bone manipulation and image processing
-// TODO: Fix type definitions and logger calls
 /**
  * Hand Rigging Service
  * Main service that orchestrates the entire hand rigging process
@@ -147,7 +146,7 @@ export class HandRiggingService {
           );
         }
       } catch (error) {
-        log.error(`Failed to process ${wristInfo.side} hand:`, error);
+        log.error("Failed to process hand", { side: wristInfo.side, error });
       }
     }
 
@@ -401,7 +400,7 @@ export class HandRiggingService {
           }
         }
       } catch (err) {
-        log.warn("Failed to use viewer captures:", err);
+        log.warn("Failed to use viewer captures", { error: err });
         // Fall back to orthographic renderer
       }
     }
@@ -917,38 +916,139 @@ export class HandRiggingService {
   }
 
   /**
-   * Smooth skin weights
+   * Build vertex neighbor topology from geometry index buffer
+   */
+  private buildVertexNeighbors(
+    geometry: THREE.BufferGeometry,
+  ): Map<number, Set<number>> {
+    const neighbors = new Map<number, Set<number>>();
+    const vertexCount = geometry.attributes.position.count;
+
+    // Initialize empty neighbor sets for all vertices
+    for (let i = 0; i < vertexCount; i++) {
+      neighbors.set(i, new Set());
+    }
+
+    const index = geometry.index;
+    if (index) {
+      // Indexed geometry - use index buffer to find neighbors
+      const indices = index.array;
+      for (let i = 0; i < indices.length; i += 3) {
+        const a = indices[i];
+        const b = indices[i + 1];
+        const c = indices[i + 2];
+
+        // Each vertex in a triangle is a neighbor of the other two
+        neighbors.get(a)!.add(b);
+        neighbors.get(a)!.add(c);
+        neighbors.get(b)!.add(a);
+        neighbors.get(b)!.add(c);
+        neighbors.get(c)!.add(a);
+        neighbors.get(c)!.add(b);
+      }
+    } else {
+      // Non-indexed geometry - assume sequential triangles
+      for (let i = 0; i < vertexCount; i += 3) {
+        const a = i;
+        const b = i + 1;
+        const c = i + 2;
+
+        if (b < vertexCount && c < vertexCount) {
+          neighbors.get(a)!.add(b);
+          neighbors.get(a)!.add(c);
+          neighbors.get(b)!.add(a);
+          neighbors.get(b)!.add(c);
+          neighbors.get(c)!.add(a);
+          neighbors.get(c)!.add(b);
+        }
+      }
+    }
+
+    return neighbors;
+  }
+
+  /**
+   * Smooth skin weights using vertex neighbor topology
    */
   private smoothWeights(
     geometry: THREE.BufferGeometry,
     iterations: number,
   ): void {
     const skinWeights = geometry.attributes.skinWeight;
-    const positions = geometry.attributes.position;
+    const vertexCount = geometry.attributes.position.count;
 
-    // For now, just smooth based on spatial proximity
-    // TODO: Build proper vertex neighbor topology for better smoothing
+    // Build vertex neighbor topology for proper smoothing
+    const neighbors = this.buildVertexNeighbors(geometry);
+
     for (let iter = 0; iter < iterations; iter++) {
       const newWeights = new Float32Array(skinWeights.array.length);
 
-      for (let i = 0; i < positions.count; i++) {
-        // Get current weights
-        const weights = [
+      for (let i = 0; i < vertexCount; i++) {
+        // Get current weights for this vertex
+        const currentWeights = [
           skinWeights.getX(i),
           skinWeights.getY(i),
           skinWeights.getZ(i),
           skinWeights.getW(i),
         ];
 
-        // Simple averaging with neighbors (simplified)
-        // In production, use proper mesh topology
-        newWeights[i * 4] = weights[0];
-        newWeights[i * 4 + 1] = weights[1];
-        newWeights[i * 4 + 2] = weights[2];
-        newWeights[i * 4 + 3] = weights[3];
+        // Get neighbor vertices
+        const neighborSet = neighbors.get(i);
+        if (!neighborSet || neighborSet.size === 0) {
+          // No neighbors, keep original weights
+          newWeights[i * 4] = currentWeights[0];
+          newWeights[i * 4 + 1] = currentWeights[1];
+          newWeights[i * 4 + 2] = currentWeights[2];
+          newWeights[i * 4 + 3] = currentWeights[3];
+          continue;
+        }
+
+        // Accumulate weights from neighbors
+        const avgWeights = [0, 0, 0, 0];
+        let neighborCount = 0;
+
+        for (const neighborIdx of neighborSet) {
+          avgWeights[0] += skinWeights.getX(neighborIdx);
+          avgWeights[1] += skinWeights.getY(neighborIdx);
+          avgWeights[2] += skinWeights.getZ(neighborIdx);
+          avgWeights[3] += skinWeights.getW(neighborIdx);
+          neighborCount++;
+        }
+
+        // Average neighbor weights
+        if (neighborCount > 0) {
+          avgWeights[0] /= neighborCount;
+          avgWeights[1] /= neighborCount;
+          avgWeights[2] /= neighborCount;
+          avgWeights[3] /= neighborCount;
+        }
+
+        // Blend current weights with neighbor average (50/50 blend)
+        const blendFactor = 0.5;
+        newWeights[i * 4] =
+          currentWeights[0] * (1 - blendFactor) + avgWeights[0] * blendFactor;
+        newWeights[i * 4 + 1] =
+          currentWeights[1] * (1 - blendFactor) + avgWeights[1] * blendFactor;
+        newWeights[i * 4 + 2] =
+          currentWeights[2] * (1 - blendFactor) + avgWeights[2] * blendFactor;
+        newWeights[i * 4 + 3] =
+          currentWeights[3] * (1 - blendFactor) + avgWeights[3] * blendFactor;
+
+        // Normalize the blended weights
+        const total =
+          newWeights[i * 4] +
+          newWeights[i * 4 + 1] +
+          newWeights[i * 4 + 2] +
+          newWeights[i * 4 + 3];
+        if (total > 0) {
+          newWeights[i * 4] /= total;
+          newWeights[i * 4 + 1] /= total;
+          newWeights[i * 4 + 2] /= total;
+          newWeights[i * 4 + 3] /= total;
+        }
       }
 
-      // Update weights
+      // Update weights for next iteration
       skinWeights.array.set(newWeights);
     }
   }

@@ -773,6 +773,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
         // Detach when not in interactive mode
         transformControlsRef.current.detach();
       }
+      return undefined;
     }, [
       interactiveMode,
       transformMode,

@@ -60,10 +60,10 @@ interface RedPixelBounds {
 }
 
 export class WeaponHandleDetector {
-  private renderer: THREE.WebGLRenderer | null = null;
-  private scene: THREE.Scene | null = null;
-  private camera: THREE.OrthographicCamera | null = null;
-  private loader: GLTFLoader | null = null;
+  private renderer!: THREE.WebGLRenderer;
+  private scene!: THREE.Scene;
+  private camera!: THREE.OrthographicCamera;
+  private loader!: GLTFLoader;
   private initialized = false;
 
   constructor() {
@@ -93,6 +93,28 @@ export class WeaponHandleDetector {
 
     this.loader = new GLTFLoader();
     this.initialized = true;
+  }
+
+  /**
+   * Get initialized components with type assertion
+   * Throws if not initialized
+   */
+  private getComponents(): {
+    renderer: THREE.WebGLRenderer;
+    scene: THREE.Scene;
+    camera: THREE.OrthographicCamera;
+    loader: GLTFLoader;
+  } {
+    this.ensureInitialized();
+    if (!this.renderer || !this.scene || !this.camera || !this.loader) {
+      throw new Error("WeaponHandleDetector not properly initialized");
+    }
+    return {
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.camera,
+      loader: this.loader,
+    };
   }
 
   async detectHandleArea(

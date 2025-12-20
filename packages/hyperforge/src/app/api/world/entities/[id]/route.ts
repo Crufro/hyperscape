@@ -1,6 +1,7 @@
 /**
  * Single Entity API
- * GET/DELETE operations for individual world entities
+ * GET/DELETE/PATCH operations for individual world entities
+ * Proxies to the LIVE game server when available.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,6 +10,10 @@ import path from "path";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("API:world:entity");
+
+// Live game server URL
+const GAME_SERVER_URL =
+  process.env.HYPERSCAPE_SERVER_URL || "http://localhost:5555";
 
 const SERVER_WORLD_DIR =
   process.env.HYPERSCAPE_WORLD_DIR ||
@@ -93,11 +98,47 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 /**
  * DELETE /api/world/entities/[id]
- * Remove an entity from the world
+ * Remove an entity from the world - sends to LIVE server first!
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+
+    // Try to delete from live server first
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const response = await fetch(
+        `${GAME_SERVER_URL}/api/world/entities/${id}`,
+        {
+          method: "DELETE",
+          signal: controller.signal,
+        },
+      );
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const result = await response.json();
+        log.info("Entity deleted from live server", { id });
+        return NextResponse.json({
+          ...result,
+          source: "live",
+        });
+      } else if (response.status !== 404) {
+        log.warn(`Live server returned status ${response.status}`);
+      }
+    } catch (error) {
+      log.debug(
+        "Live server not available for DELETE, falling back to local",
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+
+    // Fallback: delete from local world.json
     const config = await readWorldConfig();
 
     const initialCount = config.entities.length;
@@ -114,6 +155,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: "Entity removed from world",
       removedId: id,
       remainingCount: config.entities.length,
+      source: "local",
     });
   } catch (error) {
     log.error("DELETE error:", error);
@@ -129,13 +171,49 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
 /**
  * PATCH /api/world/entities/[id]
- * Update an entity's properties
+ * Update an entity's properties - sends to LIVE server first!
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const updates = (await request.json()) as EntityUpdateRequest;
 
+    // Try to update on live server first
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const response = await fetch(
+        `${GAME_SERVER_URL}/api/world/entities/${id}`,
+        {
+          method: "PATCH",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updates),
+        },
+      );
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const result = await response.json();
+        log.info("Entity updated on live server", { id });
+        return NextResponse.json({
+          ...result,
+          source: "live",
+        });
+      } else if (response.status !== 404) {
+        log.warn(`Live server returned status ${response.status}`);
+      }
+    } catch (error) {
+      log.debug("Live server not available for PATCH, falling back to local", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    // Fallback: update in local world.json
     const config = await readWorldConfig();
     const entityIndex = config.entities.findIndex((e) => e.id === id);
 
@@ -182,6 +260,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       success: true,
       message: "Entity updated",
       entity,
+      source: "local",
     });
   } catch (error) {
     log.error("PATCH error:", error);

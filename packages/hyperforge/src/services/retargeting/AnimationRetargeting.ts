@@ -1,5 +1,4 @@
 // @ts-nocheck -- Complex Three.js animation retargeting with dynamic bone access patterns
-// TODO: Fix logger calls to use (message, data?) format
 /**
  * AnimationRetargeting.ts - Browser-compatible Animation Retargeting
  *

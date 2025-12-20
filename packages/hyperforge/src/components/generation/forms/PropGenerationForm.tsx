@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PromptInput } from "../PromptInput";
 import { PipelineSelector } from "../PipelineSelector";
 import { Select } from "@/components/ui/select";
@@ -16,21 +16,43 @@ import {
 interface PropGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
   onCancel: () => void;
+  /** Initial config from preset selection */
+  initialConfig?: Partial<GenerationConfig>;
 }
 
 export function PropGenerationForm({
   onGenerate,
   onCancel,
+  initialConfig,
 }: PropGenerationFormProps) {
-  const [prompt, setPrompt] = useState("");
+  // Extract metadata for initializing form fields
+  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+
+  const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
-    "text-to-3d",
+    initialConfig?.pipeline ?? "text-to-3d",
   );
-  const [imageUrl, setImageUrl] = useState("");
-  const [quality, setQuality] = useState<"preview" | "medium" | "high">("high");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [value, setValue] = useState(0);
+  const [imageUrl, setImageUrl] = useState(initialConfig?.imageUrl ?? "");
+  const [quality, setQuality] = useState<"preview" | "medium" | "high">(
+    initialConfig?.quality ?? "high"
+  );
+  const [name, setName] = useState((meta?.name as string) ?? "");
+  const [description, setDescription] = useState((meta?.description as string) ?? "");
+  const [value, setValue] = useState((meta?.value as number) ?? 0);
+
+  // Update form when preset changes
+  useEffect(() => {
+    if (initialConfig) {
+      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      if (initialConfig.prompt) setPrompt(initialConfig.prompt);
+      if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
+      if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
+      if (initialConfig.quality) setQuality(initialConfig.quality);
+      if (m?.name) setName(m.name as string);
+      if (m?.description) setDescription(m.description as string);
+      if (typeof m?.value === "number") setValue(m.value);
+    }
+  }, [initialConfig]);
 
   const handleGenerate = () => {
     const assetId = generateAssetId(name || prompt, "prop");

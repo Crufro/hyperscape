@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PromptInput } from "../PromptInput";
 import { PipelineSelector } from "../PipelineSelector";
 import { Select } from "@/components/ui/select";
@@ -17,28 +17,51 @@ import {
 interface EnvironmentGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
   onCancel: () => void;
+  /** Initial config from preset selection */
+  initialConfig?: Partial<GenerationConfig>;
 }
 
 export function EnvironmentGenerationForm({
   onGenerate,
   onCancel,
+  initialConfig,
 }: EnvironmentGenerationFormProps) {
-  const [prompt, setPrompt] = useState("");
+  // Extract metadata for initializing form fields
+  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+
+  const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
-    "text-to-3d",
+    initialConfig?.pipeline ?? "text-to-3d",
   );
-  const [imageUrl, setImageUrl] = useState("");
-  const [quality, setQuality] = useState<"preview" | "medium" | "high">("high");
-  const [name, setName] = useState("");
-  const [type, setType] = useState("tree");
-  const [scale, setScale] = useState(1.0);
+  const [imageUrl, setImageUrl] = useState(initialConfig?.imageUrl ?? "");
+  const [quality, setQuality] = useState<"preview" | "medium" | "high">(
+    initialConfig?.quality ?? "high"
+  );
+  const [name, setName] = useState((meta?.name as string) ?? "");
+  const [type, setType] = useState((meta?.environmentType as string) ?? "tree");
+  const [scale, setScale] = useState((meta?.scale as number) ?? 1.0);
+
+  // Update form when preset changes
+  useEffect(() => {
+    if (initialConfig) {
+      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      if (initialConfig.prompt) setPrompt(initialConfig.prompt);
+      if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
+      if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
+      if (initialConfig.quality) setQuality(initialConfig.quality);
+      if (m?.name) setName(m.name as string);
+      if (m?.environmentType) setType(m.environmentType as string);
+      if (typeof m?.scale === "number") setScale(m.scale);
+    }
+  }, [initialConfig]);
 
   const handleGenerate = () => {
-    const assetId = generateAssetId(name || prompt, "environment");
-    const defaults = getDefaultMetadata("environment", { scale });
+    // Use "prop" category for environment objects (trees, rocks, etc.)
+    const assetId = generateAssetId(name || prompt, "prop");
+    const defaults = getDefaultMetadata("prop", { scale });
 
     const config: GenerationConfig = {
-      category: "environment",
+      category: "prop",
       prompt: prompt || `A ${type}: ${name || "environment object"}`,
       pipeline,
       imageUrl: imageUrl || undefined,

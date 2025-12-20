@@ -33,7 +33,8 @@ const CONFIG = {
   FORGE_API_PORT: process.env.FORGE_API_PORT || '3001',   // Asset Forge API port
   FORGE_VITE_PORT: process.env.FORGE_VITE_PORT || '3003', // Asset Forge UI port
   PUBLIC_WS_URL: process.env.PUBLIC_WS_URL || `ws://localhost:${process.env.PORT || '5555'}/ws`,
-  PUBLIC_CDN_URL: process.env.PUBLIC_CDN_URL || 'http://localhost:8080',
+  // CDN URL: defaults to game server's static file route for local dev
+  PUBLIC_CDN_URL: process.env.PUBLIC_CDN_URL || `http://localhost:${process.env.PORT || '5555'}/assets/world`,
 }
 
 // Colors

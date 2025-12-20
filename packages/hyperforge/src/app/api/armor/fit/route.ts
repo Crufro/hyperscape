@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { getServiceFactory } from "@/lib/services";
+import { logger } from "@/lib/utils";
+
+const log = logger.child("API:armor-fit");
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +28,7 @@ export async function POST(request: NextRequest) {
     const armorFittingService = factory.getArmorFittingService();
     const meshFittingService = factory.getMeshFittingService();
 
-    console.log("[Armor Fitting] Loading avatar:", avatarUrl);
-    console.log("[Armor Fitting] Loading armor:", armorUrl);
+    log.info("Loading models", { avatarUrl, armorUrl });
 
     // Load both models
     const [avatarGltf, armorGltf] = await Promise.all([
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Re-assign to a const for TypeScript narrowing
     const armorMesh = foundArmorMesh;
 
-    console.log("[Armor Fitting] Starting fitting process...");
+    log.info("Starting fitting process");
 
     // Compute body regions
     const bodyRegions = armorFittingService.computeBodyRegions(
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
       avatarSkeleton,
     );
 
-    console.log(`[Armor Fitting] Found ${bodyRegions.size} body regions`);
+    log.info("Found body regions", { count: bodyRegions.size });
 
     // Perform fitting config
     const fittingConfig = {
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
       smoothingPasses: fittingConfig.smoothingPasses,
     });
 
-    console.log("[Armor Fitting] Fitting complete");
+    log.info("Fitting complete");
 
     // Get vertex count from the modified armor mesh
     // Use the geometry from the mesh we already have reference to
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[API] Armor fitting failed:", error);
+    log.error("Armor fitting failed", { error });
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Armor fitting failed",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PromptInput } from "../PromptInput";
 import { PipelineSelector } from "../PipelineSelector";
 import { Select } from "@/components/ui/select";
@@ -17,26 +17,53 @@ import {
 interface ResourceGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
   onCancel: () => void;
+  /** Initial config from preset selection */
+  initialConfig?: Partial<GenerationConfig>;
 }
 
 export function ResourceGenerationForm({
   onGenerate,
   onCancel,
+  initialConfig,
 }: ResourceGenerationFormProps) {
-  const [prompt, setPrompt] = useState("");
+  // Extract metadata for initializing form fields
+  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+
+  const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
-    "text-to-3d",
+    initialConfig?.pipeline ?? "text-to-3d",
   );
-  const [imageUrl, setImageUrl] = useState("");
-  const [quality, setQuality] = useState<"preview" | "medium" | "high">("high");
-  const [name, setName] = useState("");
-  const [type, setType] = useState("tree");
-  const [examine, setExamine] = useState("");
-  const [harvestSkill, setHarvestSkill] = useState("woodcutting");
-  const [toolRequired, setToolRequired] = useState("");
-  const [levelRequired, setLevelRequired] = useState(1);
-  const [scale, setScale] = useState(1.0);
-  const [depletedScale, setDepletedScale] = useState(0.3);
+  const [imageUrl, setImageUrl] = useState(initialConfig?.imageUrl ?? "");
+  const [quality, setQuality] = useState<"preview" | "medium" | "high">(
+    initialConfig?.quality ?? "high"
+  );
+  const [name, setName] = useState((meta?.name as string) ?? "");
+  const [type, setType] = useState((meta?.resourceType as string) ?? "tree");
+  const [examine, setExamine] = useState((meta?.examine as string) ?? "");
+  const [harvestSkill, setHarvestSkill] = useState((meta?.skill as string) ?? "woodcutting");
+  const [toolRequired, setToolRequired] = useState((meta?.toolRequired as string) ?? "");
+  const [levelRequired, setLevelRequired] = useState((meta?.level as number) ?? 1);
+  const [scale, setScale] = useState((meta?.scale as number) ?? 1.0);
+  const [depletedScale, setDepletedScale] = useState((meta?.depletedScale as number) ?? 0.3);
+
+  // Update form when preset changes
+  useEffect(() => {
+    if (initialConfig) {
+      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      if (initialConfig.prompt) setPrompt(initialConfig.prompt);
+      if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
+      if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
+      if (initialConfig.quality) setQuality(initialConfig.quality);
+      if (m?.name) setName(m.name as string);
+      if (m?.resourceType) setType(m.resourceType as string);
+      if (m?.examine) setExamine(m.examine as string);
+      if (m?.skill) setHarvestSkill(m.skill as string);
+      if (m?.toolRequired) setToolRequired(m.toolRequired as string);
+      if (typeof m?.level === "number") setLevelRequired(m.level);
+      if (typeof m?.scale === "number") setScale(m.scale);
+      if (typeof m?.depletedScale === "number") setDepletedScale(m.depletedScale);
+    }
+  }, [initialConfig]);
 
   const handleGenerate = () => {
     const assetId = generateAssetId(name || prompt, "resource");

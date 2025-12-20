@@ -305,14 +305,14 @@ export async function generate3DModel(
   const options = {
     ...baseOptions,
     // Use custom polycount if provided, otherwise use quality preset
-    targetPolycount: config.targetPolycount ?? baseOptions.targetPolycount,
+    targetPolycount: config.options?.targetPolycount ?? baseOptions.targetPolycount,
     // Use custom PBR setting if provided
-    enablePBR: config.enablePBR ?? baseOptions.enablePBR,
+    enablePBR: config.options?.enablePBR ?? baseOptions.enablePBR,
   };
 
   // Get topology from config or default based on asset type
   const isAvatar = config.category === "npc" || config.category === "character";
-  const topology = config.topology ?? (isAvatar ? "quad" : "triangle");
+  const topology = config.options?.topology ?? (isAvatar ? "quad" : "triangle");
 
   try {
     // Stage 0: GPT-4 Prompt Enhancement (if enabled)
@@ -673,7 +673,7 @@ export async function generate3DModel(
       };
     }
 
-    // Generate asset ID from metadata or task ID
+    // Generate asset ID from metadata or task ID (snake_case for game compatibility)
     const assetId = (metadata?.id as string) || `asset_${result.taskId}`;
 
     // Download and save the GLB model

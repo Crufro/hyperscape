@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { logger } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
 
-const _log = logger.child("Armor");
+const log = logger.child("Armor");
 import {
   Shield,
   AlertTriangle,
@@ -66,6 +67,9 @@ const EQUIPMENT_SLOTS: {
 const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:8080";
 
 export default function ArmorFittingPage() {
+  // Toast notifications
+  const { toast } = useToast();
+
   // Hydration fix
   const [mounted, setMounted] = useState(false);
 
@@ -140,7 +144,7 @@ export default function ArmorFittingPage() {
           ),
         );
       } catch (error) {
-        console.error("Failed to load assets:", error);
+        log.error("Failed to load assets", { error });
       } finally {
         setLoading(false);
       }
@@ -181,7 +185,7 @@ export default function ArmorFittingPage() {
         throw new Error("Missing model URLs");
       }
 
-      console.log("[Armor] Starting fitting:", { avatarUrl, armorUrl });
+      log.info("Starting fitting", { avatarUrl, armorUrl });
 
       // Progress simulation for UX (real fitting happens server-side)
       const progressInterval = setInterval(() => {
@@ -219,9 +223,9 @@ export default function ArmorFittingPage() {
       setIsArmorFitted(true);
       setFittingStats(result.stats);
 
-      console.log("[Armor] Fitting complete:", result);
+      log.info("Fitting complete", { result });
     } catch (error) {
-      console.error("[Armor] Fitting failed:", error);
+      log.error("Fitting failed", { error });
       setFittingProgress(0);
     } finally {
       setIsFitting(false);
@@ -240,7 +244,7 @@ export default function ArmorFittingPage() {
     // In a real implementation, this would transfer weights
     // For now, simulate the binding process
     setIsArmorBound(true);
-    console.log("[Armor] Bound to skeleton");
+    log.info("Bound to skeleton");
   }, [isArmorFitted]);
 
   const handleReset = useCallback(() => {
@@ -256,7 +260,7 @@ export default function ArmorFittingPage() {
     if (!isArmorBound || !selectedAvatar || !selectedArmor) return;
 
     setIsExporting(true);
-    console.log("[Armor] Exporting fitted armor...");
+    log.info("Exporting fitted armor...");
 
     try {
       const avatarUrl = resolveApiUrl(selectedAvatar);
@@ -304,12 +308,14 @@ export default function ArmorFittingPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      console.log("[Armor] Export complete");
+      log.info("Export complete");
     } catch (error) {
-      console.error("[Armor] Export failed:", error);
-      window.alert(
-        `Export failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      log.error("Export failed", { error });
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -320,6 +326,7 @@ export default function ArmorFittingPage() {
     equipmentSlot,
     fittingConfig,
     resolveApiUrl,
+    toast,
   ]);
 
   // Show loading skeleton during SSR to avoid hydration mismatch

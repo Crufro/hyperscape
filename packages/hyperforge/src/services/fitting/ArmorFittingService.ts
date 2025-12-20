@@ -1,5 +1,4 @@
 // @ts-nocheck -- Complex armor fitting with dynamic mesh manipulation and weight transfer
-// TODO: Fix logger calls to use (message, data?) format instead of multiple arguments
 import * as THREE from "three";
 import {
   Vector3,
@@ -134,35 +133,31 @@ export class ArmorFittingService {
       boneIndexMap.set(bone.name, index);
     });
 
-    log.debug(
-      "Avatar scale:",
-      skinnedMesh.scale.x,
-      skinnedMesh.scale.y,
-      skinnedMesh.scale.z,
-    );
-    log.debug("Avatar world matrix:", skinnedMesh.matrixWorld.elements);
+    log.debug("Avatar scale", {
+      x: skinnedMesh.scale.x,
+      y: skinnedMesh.scale.y,
+      z: skinnedMesh.scale.z,
+    });
+    log.debug("Avatar world matrix", { elements: skinnedMesh.matrixWorld.elements });
 
     // Get overall avatar bounds for scale reference
     const avatarBounds = new Box3().setFromObject(skinnedMesh);
     const avatarSize = avatarBounds.getSize(new Vector3());
-    log.debug(
-      "Avatar overall size:",
-      avatarSize.x.toFixed(3),
-      avatarSize.y.toFixed(3),
-      avatarSize.z.toFixed(3),
-    );
-    log.debug(
-      "Avatar bounds min:",
-      avatarBounds.min.x.toFixed(3),
-      avatarBounds.min.y.toFixed(3),
-      avatarBounds.min.z.toFixed(3),
-    );
-    log.debug(
-      "Avatar bounds max:",
-      avatarBounds.max.x.toFixed(3),
-      avatarBounds.max.y.toFixed(3),
-      avatarBounds.max.z.toFixed(3),
-    );
+    log.debug("Avatar overall size", {
+      x: avatarSize.x.toFixed(3),
+      y: avatarSize.y.toFixed(3),
+      z: avatarSize.z.toFixed(3),
+    });
+    log.debug("Avatar bounds min", {
+      x: avatarBounds.min.x.toFixed(3),
+      y: avatarBounds.min.y.toFixed(3),
+      z: avatarBounds.min.z.toFixed(3),
+    });
+    log.debug("Avatar bounds max", {
+      x: avatarBounds.max.x.toFixed(3),
+      y: avatarBounds.max.y.toFixed(3),
+      z: avatarBounds.max.z.toFixed(3),
+    });
 
     // For each region, find bones and compute bounds
     for (const [regionName, patterns] of Object.entries(regionPatterns)) {
@@ -307,7 +302,7 @@ export class ArmorFittingService {
 
             // If torso center is too high (closer to head), move it down
             if (torsoCenter.y > avatarCenter.y + avatarSize.y * 0.2) {
-              log.debug("Torso is too high, adjusting position...");
+              log.debug("Torso is too high, adjusting position");
               const offset =
                 avatarCenter.y - torsoCenter.y + avatarSize.y * 0.1; // Position slightly above center
               boundingBox.min.y += offset;
@@ -346,62 +341,54 @@ export class ArmorFittingService {
     region: BodyRegion,
     margin: number = 0.02,
   ): void {
-    log.info("fitArmorToBoundingBox called for region:", region.name);
+    log.info("fitArmorToBoundingBox called for region", { regionName: region.name });
 
     // Log initial armor state
-    log.debug(
-      "Initial armor position:",
-      armorMesh.position.x.toFixed(3),
-      armorMesh.position.y.toFixed(3),
-      armorMesh.position.z.toFixed(3),
-    );
-    log.debug(
-      "Initial armor scale:",
-      armorMesh.scale.x.toFixed(3),
-      armorMesh.scale.y.toFixed(3),
-      armorMesh.scale.z.toFixed(3),
-    );
+    log.debug("Initial armor position", {
+      x: armorMesh.position.x.toFixed(3),
+      y: armorMesh.position.y.toFixed(3),
+      z: armorMesh.position.z.toFixed(3),
+    });
+    log.debug("Initial armor scale", {
+      x: armorMesh.scale.x.toFixed(3),
+      y: armorMesh.scale.y.toFixed(3),
+      z: armorMesh.scale.z.toFixed(3),
+    });
 
     // Get armor bounds
     const armorBounds = new Box3().setFromObject(armorMesh);
     const armorSize = armorBounds.getSize(new Vector3());
     const armorCenter = armorBounds.getCenter(new Vector3());
 
-    log.debug(
-      "Armor size:",
-      armorSize.x.toFixed(3),
-      armorSize.y.toFixed(3),
-      armorSize.z.toFixed(3),
-    );
-    log.debug(
-      "Armor center:",
-      armorCenter.x.toFixed(3),
-      armorCenter.y.toFixed(3),
-      armorCenter.z.toFixed(3),
-    );
+    log.debug("Armor size", {
+      x: armorSize.x.toFixed(3),
+      y: armorSize.y.toFixed(3),
+      z: armorSize.z.toFixed(3),
+    });
+    log.debug("Armor center", {
+      x: armorCenter.x.toFixed(3),
+      y: armorCenter.y.toFixed(3),
+      z: armorCenter.z.toFixed(3),
+    });
 
     // Get body region bounds
     const bodySize = region.boundingBox.getSize(new Vector3());
     const bodyCenter = region.center;
 
-    log.debug(
-      "Body region size:",
-      bodySize.x.toFixed(3),
-      bodySize.y.toFixed(3),
-      bodySize.z.toFixed(3),
-    );
-    log.debug(
-      "Body region center:",
-      bodyCenter.x.toFixed(3),
-      bodyCenter.y.toFixed(3),
-      bodyCenter.z.toFixed(3),
-    );
-    log.debug(
-      "Body region bounds - min:",
-      region.boundingBox.min.y.toFixed(3),
-      "max:",
-      region.boundingBox.max.y.toFixed(3),
-    );
+    log.debug("Body region size", {
+      x: bodySize.x.toFixed(3),
+      y: bodySize.y.toFixed(3),
+      z: bodySize.z.toFixed(3),
+    });
+    log.debug("Body region center", {
+      x: bodyCenter.x.toFixed(3),
+      y: bodyCenter.y.toFixed(3),
+      z: bodyCenter.z.toFixed(3),
+    });
+    log.debug("Body region bounds", {
+      minY: region.boundingBox.min.y.toFixed(3),
+      maxY: region.boundingBox.max.y.toFixed(3),
+    });
 
     // Calculate scale to fit armor to body with margin
     const targetSize = bodySize.clone().addScalar(margin * 2);
@@ -410,14 +397,11 @@ export class ArmorFittingService {
     const scaleY = targetSize.y / armorSize.y;
     const scaleZ = targetSize.z / armorSize.z;
 
-    log.debug(
-      "Scale factors - X:",
-      scaleX.toFixed(3),
-      "Y:",
-      scaleY.toFixed(3),
-      "Z:",
-      scaleZ.toFixed(3),
-    );
+    log.debug("Scale factors", {
+      x: scaleX.toFixed(3),
+      y: scaleY.toFixed(3),
+      z: scaleZ.toFixed(3),
+    });
 
     // Fixed scaling strategy
     let targetScale = 1.0;
@@ -437,7 +421,7 @@ export class ArmorFittingService {
     // Clamp scale to reasonable values
     targetScale = Math.max(0.5, Math.min(3.0, targetScale));
 
-    log.debug("Final armor scale:", targetScale.toFixed(3));
+    log.debug("Final armor scale", { scale: targetScale.toFixed(3) });
 
     // Apply scale
     armorMesh.scale.setScalar(targetScale);
@@ -471,24 +455,24 @@ export class ArmorFittingService {
         bodyCenter.z - scaledArmorCenter.z + armorMesh.position.z,
       );
 
-      log.debug("Torso positioning");
-      log.debug("  Body region top:", bodyTop.toFixed(3));
-      log.debug("  Current armor bounds top:", armorTop.toFixed(3));
-      log.debug("  Desired armor top:", desiredArmorTop.toFixed(3));
-      log.debug("  Y movement needed:", yMovement.toFixed(3));
-      log.debug("  New Y position:", (currentArmorY + yMovement).toFixed(3));
+      log.debug("Torso positioning", {
+        bodyRegionTop: bodyTop.toFixed(3),
+        currentArmorTop: armorTop.toFixed(3),
+        desiredArmorTop: desiredArmorTop.toFixed(3),
+        yMovementNeeded: yMovement.toFixed(3),
+        newYPosition: (currentArmorY + yMovement).toFixed(3),
+      });
     } else {
       // For other regions, center align
       const offset = bodyCenter.clone().sub(scaledArmorCenter);
       armorMesh.position.add(offset);
     }
 
-    log.debug(
-      "Final armor position:",
-      armorMesh.position.x.toFixed(3),
-      armorMesh.position.y.toFixed(3),
-      armorMesh.position.z.toFixed(3),
-    );
+    log.debug("Final armor position", {
+      x: armorMesh.position.x.toFixed(3),
+      y: armorMesh.position.y.toFixed(3),
+      z: armorMesh.position.z.toFixed(3),
+    });
 
     armorMesh.updateMatrixWorld(true);
     log.info("Armor fitting complete");
@@ -724,7 +708,7 @@ export class ArmorFittingService {
 
     // First compute body regions if needed
     const regions = this.computeBodyRegions(skinnedMesh, skeleton);
-    log.debug("Computed regions:", Array.from(regions.keys()));
+    log.debug("Computed regions", { regions: Array.from(regions.keys()) });
 
     // Get torso region
     const torsoRegion = regions.get("torso");
@@ -733,10 +717,9 @@ export class ArmorFittingService {
       !torsoRegion.vertices ||
       torsoRegion.vertices.length === 0
     ) {
-      log.error(
-        "No torso region found, available regions:",
-        Array.from(regions.keys()),
-      );
+      log.error("No torso region found", {
+        availableRegions: Array.from(regions.keys()),
+      });
       log.debug("Region details:");
       regions.forEach((region, name) => {
         log.debug(`  ${name}: ${region.vertices?.length || 0} vertices`);
@@ -831,7 +814,7 @@ export class ArmorFittingService {
       bounds.expandByPoint(vertex);
     }
 
-    log.debug("Body vertices bounds:", bounds);
+    log.debug("Body vertices bounds", { bounds });
 
     return {
       positions: bodyPositions,
@@ -883,7 +866,7 @@ export class ArmorFittingService {
 
     log.debug("=== BINDING ARMOR TO SKELETON ===");
     log.debug("Converting existing fitted armor to skinned mesh...");
-    log.debug("Apply geometry transform:", applyGeometryTransform);
+    log.debug("Apply geometry transform", { applyGeometryTransform });
 
     // Get avatar skeleton and verify it exists
     const skeleton = avatarMesh.skeleton;
@@ -925,29 +908,24 @@ export class ArmorFittingService {
 
     // Since we're working with extreme scale differences, increase search radius
     const effectiveSearchRadius = searchRadius * 5; // Increase to account for scale issues
-    log.debug("Base search radius:", searchRadius);
-    log.debug("Effective search radius:", effectiveSearchRadius);
+    log.debug("Search radius", { base: searchRadius, effective: effectiveSearchRadius });
 
     // Ensure world matrices are up to date (armor is now aligned with avatar)
     avatarMesh.updateMatrixWorld(true);
     armorMesh.updateMatrixWorld(true);
 
     log.debug("Working in aligned state for weight transfer");
-    log.debug(
-      "- Avatar world pos:",
-      avatarMesh.getWorldPosition(new THREE.Vector3()),
-    );
-    log.debug(
-      "- Armor world pos:",
-      armorMesh.getWorldPosition(new THREE.Vector3()),
-    );
+    log.debug("Working in aligned state", {
+      avatarWorldPos: avatarMesh.getWorldPosition(new THREE.Vector3()),
+      armorWorldPos: armorMesh.getWorldPosition(new THREE.Vector3()),
+    });
 
     // Get current bounds to verify alignment
     const alignedArmorBounds = new THREE.Box3().setFromObject(armorMesh);
     const alignedArmorCenter = alignedArmorBounds.getCenter(
       new THREE.Vector3(),
     );
-    log.debug("- Aligned armor center:", alignedArmorCenter);
+    log.debug("Aligned armor center", { center: alignedArmorCenter });
 
     const avatarVertexTree = new Map<string, number[]>();
     const gridSize = effectiveSearchRadius * 2;
@@ -988,13 +966,12 @@ export class ArmorFittingService {
 
       // Both vertices are in their respective local spaces
       // Since meshes are aligned, they should be close
-      log.debug("Sample avatar vertex (local):", sampleAvatar);
-      log.debug("Sample armor vertex (local):", sampleArmor);
-      log.debug(
-        "Distance between samples:",
-        sampleAvatar.distanceTo(sampleArmor),
-      );
-      log.debug("Effective search radius:", effectiveSearchRadius);
+      log.debug("Sample vertices", {
+        avatarLocal: sampleAvatar,
+        armorLocal: sampleArmor,
+        distance: sampleAvatar.distanceTo(sampleArmor),
+        effectiveSearchRadius,
+      });
     }
 
     log.debug("Transferring bone weights to armor vertices...");
@@ -1124,10 +1101,11 @@ export class ArmorFittingService {
       .getWorldPosition(new THREE.Vector3())
       .clone();
 
-    log.debug("Storing fitted armor transform:");
-    log.debug("- World position:", fittedWorldPosition);
-    log.debug("- Local position:", fittedLocalPosition);
-    log.debug("- Local scale:", fittedLocalScale);
+    log.debug("Storing fitted armor transform", {
+      worldPosition: fittedWorldPosition,
+      localPosition: fittedLocalPosition,
+      localScale: fittedLocalScale,
+    });
 
     // CRITICAL: Find torso region for proper alignment
     log.debug("=== FINDING TORSO REGION FOR BINDING ===");
@@ -1141,14 +1119,16 @@ export class ArmorFittingService {
     const torsoTop = avatarBounds.min.y + avatarHeight * 0.75;
     const torsoCenterY = (torsoBottom + torsoTop) / 2;
 
-    log.debug("Avatar bounds Y:", avatarBounds.min.y, "to", avatarBounds.max.y);
-    log.debug("Torso region Y:", torsoBottom, "to", torsoTop);
-    log.debug("Torso center Y:", torsoCenterY);
+    log.debug("Torso region bounds", {
+      avatarBoundsY: { min: avatarBounds.min.y, max: avatarBounds.max.y },
+      torsoY: { bottom: torsoBottom, top: torsoTop },
+      torsoCenterY,
+    });
 
     // Get armor's current center
     const armorBounds = new THREE.Box3().setFromObject(armorMesh);
     const armorCenter = armorBounds.getCenter(new THREE.Vector3());
-    log.debug("Armor center before alignment:", armorCenter);
+    log.debug("Armor center before alignment", { center: armorCenter });
 
     // Check if armor overlaps with torso region
     const armorMinY = armorBounds.min.y;
@@ -1158,25 +1138,16 @@ export class ArmorFittingService {
     const overlapAmount =
       Math.min(armorMaxY, torsoTop) - Math.max(armorMinY, torsoBottom);
 
-    log.debug("=== ALIGNMENT CHECK ===");
-    log.debug(
-      "Armor Y range:",
-      armorMinY.toFixed(3),
-      "to",
-      armorMaxY.toFixed(3),
-    );
-    log.debug(
-      "Torso Y range:",
-      torsoBottom.toFixed(3),
-      "to",
-      torsoTop.toFixed(3),
-    );
-    log.debug("Has overlap:", hasOverlap);
-    log.debug("Overlap amount:", overlapAmount.toFixed(3));
+    log.debug("Alignment check", {
+      armorYRange: { min: armorMinY.toFixed(3), max: armorMaxY.toFixed(3) },
+      torsoYRange: { bottom: torsoBottom.toFixed(3), top: torsoTop.toFixed(3) },
+      hasOverlap,
+      overlapAmount: overlapAmount.toFixed(3),
+    });
 
     // Only align if armor doesn't overlap with torso at all
     if (!hasOverlap || overlapAmount < torsoHeight * 0.2) {
-      log.debug("Armor has insufficient overlap with torso, aligning...");
+      log.debug("Armor has insufficient overlap with torso, aligning");
       alignmentOffset = new THREE.Vector3(
         0, // Keep X aligned
         torsoCenterY - armorCenter.y, // Align Y to torso center
@@ -1195,13 +1166,11 @@ export class ArmorFittingService {
     armorMesh.position.add(alignmentOffset);
     armorMesh.updateMatrixWorld(true);
 
-    log.debug("Aligned armor with avatar torso for binding");
-    log.debug("- Alignment offset:", alignmentOffset);
-    log.debug("- Armor position after alignment:", armorMesh.position);
-    log.debug(
-      "- Armor center after alignment:",
-      new THREE.Box3().setFromObject(armorMesh).getCenter(new THREE.Vector3()),
-    );
+    log.debug("Aligned armor with avatar torso for binding", {
+      alignmentOffset,
+      armorPosition: armorMesh.position,
+      armorCenter: new THREE.Box3().setFromObject(armorMesh).getCenter(new THREE.Vector3()),
+    });
 
     // Clone the geometry and add skinning attributes
     const skinnedGeometry = armorGeometry.clone();
@@ -1240,22 +1209,24 @@ export class ArmorFittingService {
       skinnedArmorMesh.quaternion.identity();
       skinnedArmorMesh.scale.set(1, 1, 1);
 
-      log.debug("Zeroed mesh transform after baking to geometry");
-      log.debug("- Position before:", worldPosBefore);
-      log.debug("- Position after:", skinnedArmorMesh.position);
+      log.debug("Zeroed mesh transform after baking to geometry", {
+        positionBefore: worldPosBefore,
+        positionAfter: skinnedArmorMesh.position,
+      });
     }
 
-    log.debug("Created skinned mesh");
-    log.debug("- Local position:", skinnedArmorMesh.position);
-    log.debug("- Local scale:", skinnedArmorMesh.scale);
-    log.debug("- Geometry transform applied:", applyGeometryTransform);
+    log.debug("Created skinned mesh", {
+      localPosition: skinnedArmorMesh.position,
+      localScale: skinnedArmorMesh.scale,
+      geometryTransformApplied: applyGeometryTransform,
+    });
 
     // Debug: Check world position before binding
     skinnedArmorMesh.updateMatrixWorld(true);
     const beforeBindWorldPos = skinnedArmorMesh.getWorldPosition(
       new THREE.Vector3(),
     );
-    log.debug("- World position before binding:", beforeBindWorldPos);
+    log.debug("World position before binding", { position: beforeBindWorldPos });
 
     // Copy all other properties
     skinnedArmorMesh.name = armorMesh.name;
@@ -1319,30 +1290,28 @@ export class ArmorFittingService {
     // This is where the armor should end up after parenting to armature
     skinnedArmorMesh.userData.intendedWorldPosition =
       fittedWorldPosition.clone();
-    log.debug("Intended world position stored:", fittedWorldPosition);
+    log.debug("Intended world position stored", { position: fittedWorldPosition });
 
     // Also store the current skinned mesh position for debugging
     const finalSkinnedPos = skinnedArmorMesh.getWorldPosition(
       new THREE.Vector3(),
     );
-    log.debug("Skinned mesh world position after binding:", finalSkinnedPos);
-    log.debug(
-      "Position matches target?",
-      finalSkinnedPos.distanceTo(fittedWorldPosition) < 0.01,
-    );
+    log.debug("Skinned mesh world position after binding", {
+      position: finalSkinnedPos,
+      matchesTarget: finalSkinnedPos.distanceTo(fittedWorldPosition) < 0.01,
+    });
 
     // IMPORTANT: We do NOT add bones to the armor mesh
     // The armor uses the avatar's skeleton via weight transfer
     // The skeleton remains part of the avatar only
 
-    log.debug("=== BINDING COMPLETE ===");
-    log.debug("? Converted existing fitted armor to skinned mesh!");
-    log.debug(
-      `Transferred weights for ${mappedVertices}/${armorVertexCount} vertices`,
-    );
-    log.debug("Skinned mesh position:", skinnedArmorMesh.position);
-    log.debug("Skinned mesh scale:", skinnedArmorMesh.scale);
-    log.debug("Stored world position for parenting:", fittedWorldPosition);
+    log.debug("Binding complete", {
+      mappedVertices,
+      totalVertices: armorVertexCount,
+      skinnedMeshPosition: skinnedArmorMesh.position,
+      skinnedMeshScale: skinnedArmorMesh.scale,
+      storedWorldPosition: fittedWorldPosition,
+    });
 
     return skinnedArmorMesh;
   }
@@ -1611,13 +1580,11 @@ export class ArmorFittingService {
       }
     });
 
-    log.debug(`With ancestors, need ${requiredBoneIndices.size} bones total`);
-
     // Log which bones are being exported
     const boneNames = Array.from(requiredBoneIndices).map(
       (idx) => skeleton.bones[idx].name,
     );
-    log.debug("Exporting bones:", boneNames.join(", "));
+    log.debug("Exporting bones", { count: requiredBoneIndices.size, boneNames });
 
     // Check for unit scale issues
     const avgBoneDistance = this.calculateAverageBoneDistance(skeleton);
@@ -2001,7 +1968,7 @@ export class ArmorFittingService {
       log.debug("Export complete");
       return gltf as ArrayBuffer;
     } catch (error) {
-      log.error("GLTFExporter error:", error);
+      log.error("GLTFExporter error", { error });
 
       // Log scene structure for debugging
       log.debug("Scene structure:");
@@ -2273,7 +2240,7 @@ export class ArmorFittingService {
       }
     });
 
-    log.debug(`With ancestors, need ${requiredBoneIndices.size} bones total`);
+    log.debug("With ancestors", { bonesNeeded: requiredBoneIndices.size });
 
     // CRITICAL: Update skeleton to current pose before export
     skeleton.update();

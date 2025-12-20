@@ -80,8 +80,8 @@ function DialogueEditorContent() {
 
   // Create new dialogue
   const handleCreateNew = useCallback(() => {
-    const newId = `dialogue_${Date.now()}`;
-    const newNpcId = `npc_${Date.now()}`;
+    const newId = `dialogue_${Date.now().toString(36).slice(-6)}`;
+    const newNpcId = `npc_${Date.now().toString(36).slice(-6)}`;
     const newDialogue: SavedDialogue = {
       id: newId,
       npcName,

@@ -4,7 +4,7 @@
  * VRMViewer - Real VRM viewer with animation support
  *
  * Uses @pixiv/three-vrm to load and display VRM files with animation retargeting.
- * Full-featured VRM viewer with animation support for HyperForge.
+ * Based on asset-forge's VRMTestViewer but adapted for hyperforge.
  */
 
 import { logger } from "@/lib/utils";
@@ -24,6 +24,16 @@ import type { VRM } from "@pixiv/three-vrm";
 import { retargetAnimation } from "@/services/retargeting/AnimationRetargeting";
 
 const log = logger.child("VRMViewer");
+
+/**
+ * Material type for VRM models that may have texture maps
+ * Covers both MeshStandardMaterial and MToonMaterial properties
+ */
+interface VRMMaterialWithMaps extends THREE.Material {
+  map?: THREE.Texture | null;
+  shadeMultiplyTexture?: THREE.Texture | null;
+  color?: THREE.Color;
+}
 
 export interface VRMViewerRef {
   loadAnimation: (url: string) => Promise<void>;
@@ -173,10 +183,9 @@ export const VRMViewer = forwardRef<VRMViewerRef, VRMViewerProps>(
       // Cleanup
       return () => {
         window.removeEventListener("resize", handleResize);
-        globalThis.cancelAnimationFrame(animationFrameRef.current);
-        controls.dispose();
+        cancelAnimationFrame(animationFrameRef.current);
         renderer.dispose();
-        rendererRef.current = null;
+        controls.dispose();
       };
     }, []);
 
@@ -220,6 +229,52 @@ export const VRMViewer = forwardRef<VRMViewerRef, VRMViewerProps>(
           }
 
           log.info("VRM loaded:", vrm);
+
+          // #region agent log
+          const vrmMaterialDetails: {
+            name: string;
+            type: string;
+            hasMap: boolean;
+            color: string;
+          }[] = [];
+          vrm.scene.traverse((child: THREE.Object3D) => {
+            if (child instanceof THREE.Mesh) {
+              const mats = Array.isArray(child.material)
+                ? child.material
+                : [child.material];
+              mats.forEach((m: THREE.Material) => {
+                const vrmMat = m as VRMMaterialWithMaps;
+                vrmMaterialDetails.push({
+                  name: m.name || "unnamed",
+                  type: m.type,
+                  hasMap: !!(vrmMat.map || vrmMat.shadeMultiplyTexture),
+                  color: vrmMat.color
+                    ? `#${vrmMat.color.getHexString()}`
+                    : "none",
+                });
+              });
+            }
+          });
+          fetch(
+            "http://127.0.0.1:7242/ingest/ef06d7d2-0f29-426d-9574-6692c61c9819",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                location: "VRMViewer.tsx:218",
+                message: "VRM materials via VRMLoaderPlugin",
+                data: {
+                  vrmUrl,
+                  materialCount: vrmMaterialDetails.length,
+                  materials: vrmMaterialDetails.slice(0, 5),
+                },
+                timestamp: Date.now(),
+                sessionId: "debug-session",
+                hypothesisId: "D",
+              }),
+            },
+          ).catch(() => {});
+          // #endregion
 
           // Handle VRM 0.0 rotation
           // VRM meta can be VRM0Meta or VRM1Meta - check for metaVersion first
@@ -319,8 +374,20 @@ export const VRMViewer = forwardRef<VRMViewerRef, VRMViewerProps>(
           // Progress callback
         },
         (err) => {
-          log.error("Load error:", err);
-          const error = err instanceof Error ? err : new Error(String(err));
+          // Extract meaningful error message from various error formats
+          let errorMessage = "Failed to load VRM";
+          if (err instanceof Error) {
+            errorMessage = err.message;
+          } else if (typeof err === "string") {
+            errorMessage = err;
+          } else if (err && typeof err === "object") {
+            // GLTFLoader sometimes returns an ErrorEvent or object with message
+            const errObj = err as { message?: string; statusText?: string; type?: string };
+            errorMessage = errObj.message || errObj.statusText || errObj.type || "Unknown loading error";
+          }
+          
+          log.warn("VRM load failed:", { errorMessage, url: vrmUrl });
+          const error = new Error(errorMessage);
           setError(error.message);
           onError?.(error);
           setIsLoading(false);

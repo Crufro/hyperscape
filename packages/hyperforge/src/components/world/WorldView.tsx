@@ -37,7 +37,7 @@ type EntityType =
   | "building"
   | "prop";
 
-interface WorldEntity {
+export interface WorldEntity {
   id: string;
   name: string;
   type: EntityType;
@@ -49,6 +49,8 @@ interface WorldEntity {
   metadata?: Record<string, unknown>;
   isActive?: boolean;
   loadedAt?: string;
+  thumbnailUrl?: string;
+  assetId?: string;
 }
 
 interface WorldArea {
@@ -85,7 +87,9 @@ interface EntityRowProps {
 
 function EntityRow({ entity, onRemove, onToggleVisibility }: EntityRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const Icon = entityTypeIcons[entity.type];
+  // Use fallback icon if entity type is not in the icons map
+  const Icon = entityTypeIcons[entity.type] || Box;
+  const colorClass = entityTypeColors[entity.type] || "text-gray-400 bg-gray-500/20";
 
   return (
     <div className="border border-glass-border rounded-lg overflow-hidden">
@@ -102,7 +106,7 @@ function EntityRow({ entity, onRemove, onToggleVisibility }: EntityRowProps) {
           )}
         </button>
 
-        <div className={cn("p-1.5 rounded", entityTypeColors[entity.type])}>
+        <div className={cn("p-1.5 rounded", colorClass)}>
           <Icon className="w-3 h-3" />
         </div>
 
@@ -328,7 +332,7 @@ export function WorldView({ isOpen, onClose }: WorldViewProps) {
     if (!newEntity.name || !newEntity.type) return;
 
     const entity: WorldEntity = {
-      id: `${newEntity.type}_${Date.now()}`,
+      id: `${newEntity.type}_${Date.now().toString(36).slice(-6)}`,
       name: newEntity.name,
       type: newEntity.type as EntityType,
       position: newEntity.position || { x: 0, y: 0, z: 0 },

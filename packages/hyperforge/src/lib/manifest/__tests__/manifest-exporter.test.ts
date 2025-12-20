@@ -183,12 +183,12 @@ describe("Manifest Exporter", () => {
       const thumbnailPath = formatVariantPath(
         "sword",
         "bronze",
-        "thumbnail.png",
+        "concept-art.png",
       );
 
-      expect(thumbnailPath).toContain("thumbnail.png");
+      expect(thumbnailPath).toContain("concept-art.png");
       expect(thumbnailPath).toBe(
-        "asset://models/sword/variants/bronze/thumbnail.png",
+        "asset://models/sword/variants/bronze/concept-art.png",
       );
     });
   });
@@ -253,7 +253,7 @@ describe("Manifest Exporter", () => {
         name: "Rune Sword",
       });
 
-      expect(variant.thumbnailPath).toContain("thumbnail.png");
+      expect(variant.thumbnailPath).toContain("concept-art.png");
       expect(variant.thumbnailPath).toContain("rune");
     });
 

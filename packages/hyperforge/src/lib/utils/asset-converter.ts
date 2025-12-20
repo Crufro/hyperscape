@@ -58,10 +58,13 @@ export function cdnAssetToAssetData(cdnAsset: CDNAssetInput): AssetData {
   // Preserve original source for LOCAL/FORGE assets (Supabase)
   // Only default to "CDN" for actual CDN assets
   const originalSource = cdnAsset.source?.toUpperCase();
-  const source =
+  // Map FORGE to LOCAL since they're both non-CDN sources
+  const source: "CDN" | "LOCAL" | "BASE" =
     originalSource === "LOCAL" || originalSource === "FORGE"
-      ? (originalSource as "LOCAL" | "FORGE" | "CDN")
-      : "CDN";
+      ? "LOCAL"
+      : originalSource === "BASE"
+        ? "BASE"
+        : "CDN";
 
   return {
     id: asset.id,

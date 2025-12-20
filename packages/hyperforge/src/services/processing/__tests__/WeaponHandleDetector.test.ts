@@ -11,7 +11,7 @@
  * - Grip center calculation
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from "vitest";
 import * as THREE from "three";
 
 // Import polyfills for server-side Three.js

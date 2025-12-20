@@ -183,9 +183,9 @@ export async function uploadReferenceImage(
 
     // Generate unique path
     const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
+    const randomId = Math.random().toString(36).substring(2, 6);
     const extension = filename.split(".").pop() || "png";
-    const uniqueFilename = `${timestamp}_${randomId}.${extension}`;
+    const uniqueFilename = `ref-${timestamp.toString(36).slice(-4)}-${randomId}.${extension}`;
     const storagePath = `${REFERENCE_IMAGES_FOLDER}/${uniqueFilename}`;
 
     // Convert File to ArrayBuffer if needed
@@ -229,9 +229,9 @@ export async function uploadConceptArt(
 
     // Generate unique path
     const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
+    const randomId = Math.random().toString(36).substring(2, 6);
     const extension = contentType.includes("png") ? "png" : "jpg";
-    const uniqueFilename = `concept_${timestamp}_${randomId}.${extension}`;
+    const uniqueFilename = `concept-art-${timestamp.toString(36).slice(-4)}-${randomId}.${extension}`;
     const storagePath = `${CONCEPT_ART_FOLDER}/${uniqueFilename}`;
 
     // Upload to image-generation bucket
@@ -259,24 +259,295 @@ export async function uploadConceptArt(
 }
 
 /**
+ * Image types for proper organization
+ */
+export type ImageType = "concept-art" | "sprite" | "texture" | "reference";
+
+/**
+ * Options for structured image upload
+ */
+export interface UploadImageOptions {
+  buffer: Buffer;
+  /** Kebab-case filename without extension (e.g., "bronze-sword-front") */
+  filename: string;
+  /** Image type for folder organization */
+  type: ImageType;
+  /** Content type (default: image/png) */
+  contentType?: string;
+  /** Asset ID this image belongs to */
+  assetId?: string;
+  /** Additional metadata to store alongside the image */
+  metadata?: {
+    prompt?: string;
+    style?: string;
+    view?: string;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Upload image to Supabase Storage (image-generation bucket)
+ * Organizes files by type: concept-art/, sprites/, textures/, reference-images/
+ *
+ * Storage structure:
+ *   image-generation/
+ *     ├── concept-art/{asset-id}/{view}.png
+ *     ├── sprites/{asset-id}/{view}.png
+ *     ├── textures/{asset-id}/{texture-type}.png
+ *     └── reference-images/{filename}.png
+ */
+export async function uploadImage(
+  options: UploadImageOptions,
+): Promise<UploadResult> {
+  try {
+    await ensureBucket();
+
+    const {
+      buffer,
+      filename,
+      type,
+      contentType = "image/png",
+      assetId,
+      metadata,
+    } = options;
+
+    const extension = contentType.includes("png") ? "png" : "jpg";
+    const finalFilename = filename.endsWith(`.${extension}`)
+      ? filename
+      : `${filename}.${extension}`;
+
+    // Build storage path with proper organization
+    let storagePath: string;
+    if (assetId) {
+      storagePath = `${type}/${assetId}/${finalFilename}`;
+    } else {
+      storagePath = `${type}/${finalFilename}`;
+    }
+
+    // Upload image file
+    const result = await uploadFileToBucket(
+      IMAGE_GENERATION_BUCKET,
+      storagePath,
+      buffer,
+      contentType,
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    // Upload metadata JSON alongside the image if provided
+    if (metadata) {
+      const metadataPath = storagePath.replace(/\.(png|jpg)$/, ".json");
+      const metadataBuffer = Buffer.from(JSON.stringify({
+        ...metadata,
+        type,
+        assetId,
+        filename: finalFilename,
+        storagePath,
+        url: result.url,
+        uploadedAt: new Date().toISOString(),
+      }, null, 2));
+
+      await uploadFileToBucket(
+        IMAGE_GENERATION_BUCKET,
+        metadataPath,
+        metadataBuffer,
+        "application/json",
+      );
+    }
+
+    log.info(`Uploaded ${type} image: ${storagePath}`, { url: result.url, assetId });
+
+    return result;
+  } catch (error) {
+    log.error("Image upload error", { error });
+    return {
+      success: false,
+      url: "",
+      path: "",
+      error: error instanceof Error ? error.message : "Upload failed",
+    };
+  }
+}
+
+/**
+ * Upload concept art with proper organization
+ * Storage: image-generation/concept-art/{asset-id}/{view}.png
+ */
+export async function uploadConceptArtForAsset(
+  buffer: Buffer,
+  options: {
+    assetId: string;
+    view?: string;
+    prompt?: string;
+    style?: string;
+    assetType?: string;
+  },
+): Promise<UploadResult> {
+  const view = options.view || "isometric";
+  const filename = `${options.assetId}-${view}`;
+
+  return uploadImage({
+    buffer,
+    filename,
+    type: "concept-art",
+    assetId: options.assetId,
+    metadata: {
+      prompt: options.prompt,
+      style: options.style,
+      view,
+      assetType: options.assetType,
+    },
+  });
+}
+
+/**
+ * Upload sprite with proper organization
+ * Storage: image-generation/sprites/{asset-id}/{view}.png
+ */
+export async function uploadSpriteForAsset(
+  buffer: Buffer,
+  options: {
+    assetId: string;
+    view?: string;
+    style?: string;
+    transparent?: boolean;
+  },
+): Promise<UploadResult> {
+  const view = options.view || "front";
+  const filename = `${options.assetId}-${view}`;
+
+  return uploadImage({
+    buffer,
+    filename,
+    type: "sprite",
+    assetId: options.assetId,
+    metadata: {
+      view,
+      style: options.style,
+      transparent: options.transparent,
+    },
+  });
+}
+
+/**
+ * Upload texture with proper organization
+ * Storage: image-generation/textures/{asset-id}/{texture-type}.png
+ */
+export async function uploadTextureForAsset(
+  buffer: Buffer,
+  options: {
+    assetId: string;
+    textureType: string; // "base-color", "normal", "roughness", etc.
+    seamless?: boolean;
+    resolution?: string;
+  },
+): Promise<UploadResult> {
+  const filename = `${options.assetId}-${options.textureType}`;
+
+  return uploadImage({
+    buffer,
+    filename,
+    type: "texture",
+    assetId: options.assetId,
+    metadata: {
+      textureType: options.textureType,
+      seamless: options.seamless,
+      resolution: options.resolution,
+    },
+  });
+}
+
+/**
+ * Audio types for proper organization
+ */
+export type AudioType = "voice" | "sfx" | "music";
+
+/**
+ * Options for structured audio upload
+ */
+export interface UploadAudioOptions {
+  buffer: Buffer;
+  /** Kebab-case filename without extension (e.g., "goblin-greeting") */
+  filename: string;
+  /** Audio type for folder organization */
+  type: AudioType;
+  /** Content type (default: audio/mpeg) */
+  contentType?: string;
+  /** Additional metadata to store alongside the audio */
+  metadata?: {
+    npcId?: string;
+    dialogueNodeId?: string;
+    category?: string;
+    prompt?: string;
+    duration?: number;
+    [key: string]: unknown;
+  };
+}
+
+/**
  * Upload audio to Supabase Storage (audio-generations bucket)
+ * Organizes files by type: voice/, sfx/, music/
+ *
+ * Storage structure:
+ *   audio-generations/
+ *     ├── voice/{npc-id}/{filename}.mp3
+ *     ├── sfx/{category}/{filename}.mp3
+ *     └── music/{category}/{filename}.mp3
  */
 export async function uploadAudio(
-  buffer: Buffer,
-  filename: string,
+  bufferOrOptions: Buffer | UploadAudioOptions,
+  filename?: string,
   contentType: string = "audio/mpeg",
 ): Promise<UploadResult> {
   try {
     await ensureBucket();
 
-    // Generate unique path
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
-    const extension = filename.split(".").pop() || "mp3";
-    const uniqueFilename = `audio_${timestamp}_${randomId}.${extension}`;
-    const storagePath = `generated/${uniqueFilename}`;
+    // Support both old and new API
+    let buffer: Buffer;
+    let finalFilename: string;
+    let audioType: AudioType = "sfx"; // Default for backwards compatibility
+    let subfolder = "";
+    let metadata: Record<string, unknown> | undefined;
 
-    // Upload to audio-generations bucket
+    if (Buffer.isBuffer(bufferOrOptions)) {
+      // Old API: uploadAudio(buffer, filename, contentType)
+      buffer = bufferOrOptions;
+      finalFilename = filename || `audio-${Date.now()}.mp3`;
+
+      // Try to infer type from filename
+      if (finalFilename.includes("voice") || finalFilename.includes("dialogue")) {
+        audioType = "voice";
+      } else if (finalFilename.includes("music") || finalFilename.includes("ambient")) {
+        audioType = "music";
+      }
+    } else {
+      // New API: uploadAudio(options)
+      const options = bufferOrOptions;
+      buffer = options.buffer;
+      finalFilename = options.filename.endsWith(".mp3")
+        ? options.filename
+        : `${options.filename}.mp3`;
+      audioType = options.type;
+      contentType = options.contentType || "audio/mpeg";
+      metadata = options.metadata;
+
+      // Determine subfolder based on type and metadata
+      if (audioType === "voice" && options.metadata?.npcId) {
+        subfolder = options.metadata.npcId as string;
+      } else if ((audioType === "sfx" || audioType === "music") && options.metadata?.category) {
+        subfolder = options.metadata.category as string;
+      }
+    }
+
+    // Build storage path with proper organization
+    // Pattern: {type}/{subfolder?}/{filename}.mp3
+    const storagePath = subfolder
+      ? `${audioType}/${subfolder}/${finalFilename}`
+      : `${audioType}/${finalFilename}`;
+
+    // Upload audio file
     const result = await uploadFileToBucket(
       AUDIO_GENERATIONS_BUCKET,
       storagePath,
@@ -284,9 +555,31 @@ export async function uploadAudio(
       contentType,
     );
 
-    if (result.success) {
-      log.info(`Uploaded audio to audio-generations: ${result.url}`);
+    if (!result.success) {
+      return result;
     }
+
+    // Upload metadata JSON alongside the audio if provided
+    if (metadata) {
+      const metadataPath = storagePath.replace(/\.mp3$/, ".json");
+      const metadataBuffer = Buffer.from(JSON.stringify({
+        ...metadata,
+        type: audioType,
+        filename: finalFilename,
+        storagePath,
+        url: result.url,
+        uploadedAt: new Date().toISOString(),
+      }, null, 2));
+
+      await uploadFileToBucket(
+        AUDIO_GENERATIONS_BUCKET,
+        metadataPath,
+        metadataBuffer,
+        "application/json",
+      );
+    }
+
+    log.info(`Uploaded ${audioType} audio: ${storagePath}`, { url: result.url });
 
     return result;
   } catch (error) {
@@ -298,6 +591,116 @@ export async function uploadAudio(
       error: error instanceof Error ? error.message : "Upload failed",
     };
   }
+}
+
+/**
+ * Upload voice audio with proper organization
+ * Storage: audio-generations/voice/{npc-id}/{dialogue-id}.mp3
+ */
+export async function uploadVoiceAudio(
+  buffer: Buffer,
+  options: {
+    npcId?: string;
+    dialogueNodeId?: string;
+    text?: string;
+    voiceId?: string;
+    voicePreset?: string;
+    duration?: number;
+  },
+): Promise<UploadResult> {
+  const filename = options.dialogueNodeId
+    ? `${options.npcId || "unknown"}-${options.dialogueNodeId}`
+    : `${options.npcId || "voice"}-${Date.now().toString(36).slice(-4)}`;
+
+  return uploadAudio({
+    buffer,
+    filename,
+    type: "voice",
+    metadata: {
+      npcId: options.npcId,
+      dialogueNodeId: options.dialogueNodeId,
+      text: options.text,
+      voiceId: options.voiceId,
+      voicePreset: options.voicePreset,
+      duration: options.duration,
+    },
+  });
+}
+
+/**
+ * Upload SFX audio with proper organization
+ * Storage: audio-generations/sfx/{category}/{description}-{variant}.mp3
+ */
+export async function uploadSFXAudio(
+  buffer: Buffer,
+  options: {
+    name: string;
+    category?: string;
+    prompt?: string;
+    duration?: number;
+    tags?: string[];
+  },
+): Promise<UploadResult> {
+  // Convert name to kebab-case with variant number
+  const safeName = options.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const timestamp = Date.now().toString(36).slice(-4);
+  const filename = `${safeName}-${timestamp}`;
+
+  return uploadAudio({
+    buffer,
+    filename,
+    type: "sfx",
+    metadata: {
+      category: options.category || "custom",
+      prompt: options.prompt,
+      duration: options.duration,
+      tags: options.tags,
+    },
+  });
+}
+
+/**
+ * Upload music audio with proper organization
+ * Storage: audio-generations/music/{category}/{name}.mp3
+ */
+export async function uploadMusicAudio(
+  buffer: Buffer,
+  options: {
+    name: string;
+    category?: string;
+    prompt?: string;
+    duration?: number;
+    loopable?: boolean;
+    zones?: string[];
+    mood?: string;
+    genre?: string;
+  },
+): Promise<UploadResult> {
+  // Convert name to kebab-case
+  const safeName = options.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const timestamp = Date.now().toString(36).slice(-4);
+  const filename = `${safeName}-${timestamp}`;
+
+  return uploadAudio({
+    buffer,
+    filename,
+    type: "music",
+    metadata: {
+      category: options.category || "ambient",
+      prompt: options.prompt,
+      duration: options.duration,
+      loopable: options.loopable,
+      zones: options.zones,
+      mood: options.mood,
+      genre: options.genre,
+    },
+  });
 }
 
 /**
@@ -315,9 +718,9 @@ export async function uploadContent(
 
     // Generate unique path
     const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
+    const randomId = Math.random().toString(36).substring(2, 6);
     const extension = filename.split(".").pop() || "json";
-    const uniqueFilename = `content_${timestamp}_${randomId}.${extension}`;
+    const uniqueFilename = `content-${timestamp.toString(36).slice(-4)}-${randomId}.${extension}`;
     const storagePath = `${folder}/${uniqueFilename}`;
 
     // Convert string to buffer if needed
@@ -357,7 +760,7 @@ export async function uploadGameContent(
   id: string,
 ): Promise<UploadResult> {
   const content = JSON.stringify(data, null, 2);
-  const filename = `${type}_${id}.json`;
+  const filename = `${type}-${id}.json`;
   const folder = `game/${type}s`;
 
   return uploadContent(content, filename, "application/json", folder);
@@ -583,7 +986,7 @@ export async function saveForgeAsset(
 
   // Upload thumbnail to concept-art-pipeline bucket
   if (thumbnailBuffer) {
-    const thumbnailPath = `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`;
+    const thumbnailPath = `${FORGE_MODELS_FOLDER}/${assetId}/concept-art.png`;
     const thumbnailUpload = await uploadFileToBucket(
       CONCEPT_ART_BUCKET,
       thumbnailPath,
@@ -849,7 +1252,7 @@ function getBucketPublicUrl(bucketName: string, storagePath: string): string {
  *
  * Storage locations:
  * - Models: meshy-models/{assetId}/model.glb
- * - Thumbnails: concept-art-pipeline/forge/models/{assetId}/thumbnail.png
+ * - Concept Art: concept-art-pipeline/forge/models/{assetId}/concept-art.png
  * - VRM: vrm-conversion/{assetId}/model.vrm
  * - Preview: meshy-models/{assetId}/preview.glb
  */
@@ -872,7 +1275,7 @@ export async function getForgeAsset(
     // Thumbnails are in concept-art-pipeline bucket under forge/models folder
     const thumbnailUrl = getBucketPublicUrl(
       CONCEPT_ART_BUCKET,
-      `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`,
+      `${FORGE_MODELS_FOLDER}/${assetId}/concept-art.png`,
     );
 
     // VRM is in vrm-conversion bucket
@@ -955,6 +1358,8 @@ export interface AudioAsset {
   url: string;
   folder: string;
   type: "voice" | "sfx" | "music";
+  /** Category/subfolder (e.g., "combat" for sfx, "ambient" for music, "goblin" for voice) */
+  category?: string;
   createdAt?: string;
   size?: number;
 }
@@ -1027,7 +1432,8 @@ export async function listImageAssets(): Promise<ImageAsset[]> {
 
 /**
  * List audio from audio-generations bucket
- * Folder: /generated/
+ * Organized structure: /voice/, /sfx/, /music/
+ * Also supports legacy /generated/ folder for backwards compatibility
  */
 export async function listAudioAssets(): Promise<AudioAsset[]> {
   if (!isSupabaseConfigured()) return [];
@@ -1035,42 +1441,83 @@ export async function listAudioAssets(): Promise<AudioAsset[]> {
   const supabase = getSupabaseClient();
   const assets: AudioAsset[] = [];
 
-  try {
-    const { data, error } = await supabase.storage
-      .from(AUDIO_GENERATIONS_BUCKET)
-      .list("generated", { limit: 100 });
+  // Audio type folders with their type mapping
+  const audioFolders: Array<{ path: string; type: AudioAsset["type"] }> = [
+    { path: "voice", type: "voice" },
+    { path: "sfx", type: "sfx" },
+    { path: "music", type: "music" },
+    { path: "generated", type: "sfx" }, // Legacy folder - guess type from filename
+  ];
 
-    if (error) {
-      log.warn(`Failed to list audio: ${error.message}`);
-      return [];
-    }
+  for (const folder of audioFolders) {
+    try {
+      // List root folder contents (may include subfolders)
+      const { data: rootData, error: rootError } = await supabase.storage
+        .from(AUDIO_GENERATIONS_BUCKET)
+        .list(folder.path, { limit: 100 });
 
-    for (const file of data || []) {
-      if (file.id === null) continue; // Skip folders
-
-      const storagePath = `generated/${file.name}`;
-      const url = getBucketPublicUrl(AUDIO_GENERATIONS_BUCKET, storagePath);
-
-      // Determine type from filename
-      let type: AudioAsset["type"] = "sfx";
-      if (file.name.includes("voice") || file.name.includes("speech")) {
-        type = "voice";
-      } else if (file.name.includes("music") || file.name.includes("theme")) {
-        type = "music";
+      if (rootError) {
+        log.debug(`Folder ${folder.path} not accessible: ${rootError.message}`);
+        continue;
       }
 
-      assets.push({
-        id: file.name.replace(/\.[^.]+$/, ""),
-        filename: file.name,
-        url,
-        folder: "generated",
-        type,
-        createdAt: file.created_at,
-        size: file.metadata?.size as number | undefined,
-      });
+      // Process files and subfolders
+      for (const item of rootData || []) {
+        if (item.id === null) {
+          // This is a subfolder (category/npc folder) - list its contents
+          const subfolderPath = `${folder.path}/${item.name}`;
+          const { data: subData, error: subError } = await supabase.storage
+            .from(AUDIO_GENERATIONS_BUCKET)
+            .list(subfolderPath, { limit: 100 });
+
+          if (subError) continue;
+
+          for (const file of subData || []) {
+            if (file.id === null || !file.name.endsWith(".mp3")) continue;
+
+            const storagePath = `${subfolderPath}/${file.name}`;
+            const url = getBucketPublicUrl(AUDIO_GENERATIONS_BUCKET, storagePath);
+
+            assets.push({
+              id: file.name.replace(/\.[^.]+$/, ""),
+              filename: file.name,
+              url,
+              folder: subfolderPath,
+              type: folder.type,
+              category: item.name, // Subfolder name is the category/npcId
+              createdAt: file.created_at,
+              size: file.metadata?.size as number | undefined,
+            });
+          }
+        } else if (item.name.endsWith(".mp3")) {
+          // This is a file in the root audio type folder
+          const storagePath = `${folder.path}/${item.name}`;
+          const url = getBucketPublicUrl(AUDIO_GENERATIONS_BUCKET, storagePath);
+
+          // For legacy "generated" folder, try to infer type from filename
+          let audioType = folder.type;
+          if (folder.path === "generated") {
+            if (item.name.includes("voice") || item.name.includes("speech")) {
+              audioType = "voice";
+            } else if (item.name.includes("music") || item.name.includes("theme")) {
+              audioType = "music";
+            }
+          }
+
+          assets.push({
+            id: item.name.replace(/\.[^.]+$/, ""),
+            filename: item.name,
+            url,
+            folder: folder.path,
+            type: audioType,
+            createdAt: item.created_at,
+            size: item.metadata?.size as number | undefined,
+          });
+        }
+      }
+    } catch (error) {
+      log.warn(`Error listing ${folder.path}`, { error });
     }
-  } catch (error) {
-    log.warn("Error listing audio", { error });
   }
 
   return assets.sort((a, b) => {
@@ -1178,7 +1625,7 @@ export async function listMeshyModels(): Promise<ForgeAsset[]> {
         );
         const thumbnailUrl = getBucketPublicUrl(
           CONCEPT_ART_BUCKET,
-          `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`,
+          `${FORGE_MODELS_FOLDER}/${assetId}/concept-art.png`,
         );
         const vrmUrl = getBucketPublicUrl(
           VRM_CONVERSION_BUCKET,
@@ -1236,7 +1683,7 @@ export async function listMeshyModels(): Promise<ForgeAsset[]> {
           // For VRM-only assets, the VRM IS the primary model (like CDN avatars)
           const thumbnailUrl = getBucketPublicUrl(
             CONCEPT_ART_BUCKET,
-            `${FORGE_MODELS_FOLDER}/${assetId}/thumbnail.png`,
+            `${FORGE_MODELS_FOLDER}/${assetId}/concept-art.png`,
           );
 
           assetsMap.set(assetId, {

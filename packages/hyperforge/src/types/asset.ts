@@ -103,19 +103,138 @@ export interface CDNAsset extends BaseAsset {
 // =============================================================================
 
 /**
- * Local Asset - generated or imported locally
- * Includes generation metadata and status tracking
+ * Base fields for all local assets
  */
-export interface LocalAsset extends BaseAsset {
+interface LocalAssetBase extends BaseAsset {
   source: "LOCAL";
   localPath?: string;
-  status?: "draft" | "processing" | "completed" | "failed";
   createdAt?: Date | string;
   updatedAt?: Date | string;
   prompt?: string;
-  generationParams?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-  hasModel?: boolean;
+}
+
+/**
+ * Draft local asset - not yet started generation
+ */
+export interface LocalAssetDraft extends LocalAssetBase {
+  readonly status: "draft";
+  /** Draft-specific: generation not yet started */
+  generationParams?: {
+    pipeline?: string;
+    quality?: string;
+    provider?: string;
+  };
+}
+
+/**
+ * Processing local asset - generation in progress
+ */
+export interface LocalAssetProcessing extends LocalAssetBase {
+  readonly status: "processing";
+  /** Processing-specific: Meshy task ID for tracking */
+  taskId: string;
+  /** Progress percentage (0-100) */
+  progress: number;
+  /** Current pipeline stage */
+  currentStage?: string;
+  /** Estimated time remaining in seconds */
+  estimatedTimeRemaining?: number;
+}
+
+/**
+ * Completed local asset - generation successful
+ */
+export interface LocalAssetCompleted extends LocalAssetBase {
+  readonly status: "completed";
+  /** Completed-specific: always has a model */
+  hasModel: true;
+  /** URL to the generated model (required for completed) */
+  modelUrl: string;
+  /** Generation metadata */
+  metadata: {
+    prompt: string;
+    pipeline: string;
+    quality: string;
+    generatedAt: string;
+    meshyTaskId?: string;
+    polycount?: number;
+    duration?: number;
+  };
+}
+
+/**
+ * Failed local asset - generation failed
+ */
+export interface LocalAssetFailed extends LocalAssetBase {
+  readonly status: "failed";
+  /** Failed-specific: error information */
+  error: {
+    code: string;
+    message: string;
+    retryable: boolean;
+  };
+  /** Optional partial metadata if generation failed mid-way */
+  partialMetadata?: {
+    prompt?: string;
+    pipeline?: string;
+    failedAt?: string;
+  };
+}
+
+/**
+ * Local Asset - discriminated union by status
+ * Use status to access status-specific fields
+ *
+ * @example
+ * function renderAsset(asset: LocalAsset) {
+ *   switch (asset.status) {
+ *     case "draft":
+ *       return <DraftCard params={asset.generationParams} />;
+ *     case "processing":
+ *       return <ProgressBar progress={asset.progress} />;
+ *     case "completed":
+ *       return <ModelViewer url={asset.modelUrl} />;
+ *     case "failed":
+ *       return <ErrorCard error={asset.error} />;
+ *   }
+ * }
+ */
+export type LocalAsset =
+  | LocalAssetDraft
+  | LocalAssetProcessing
+  | LocalAssetCompleted
+  | LocalAssetFailed;
+
+/**
+ * Type guard for draft assets
+ */
+export function isLocalAssetDraft(asset: LocalAsset): asset is LocalAssetDraft {
+  return asset.status === "draft";
+}
+
+/**
+ * Type guard for processing assets
+ */
+export function isLocalAssetProcessing(
+  asset: LocalAsset,
+): asset is LocalAssetProcessing {
+  return asset.status === "processing";
+}
+
+/**
+ * Type guard for completed assets
+ */
+export function isLocalAssetCompleted(
+  asset: LocalAsset,
+): asset is LocalAssetCompleted {
+  return asset.status === "completed";
+}
+
+/**
+ * Type guard for failed assets
+ */
+export function isLocalAssetFailed(asset: LocalAsset): asset is LocalAssetFailed {
+  return asset.status === "failed";
 }
 
 // =============================================================================

@@ -17,7 +17,7 @@ import {
 } from "@/lib/ai/sprite-service";
 import {
   isSupabaseConfigured,
-  uploadConceptArt,
+  uploadSpriteForAsset,
   readForgeAssetMetadata,
   BUCKET_NAMES,
   getSupabasePublicUrl,
@@ -117,14 +117,19 @@ export async function POST(
       for (const sprite of sprites) {
         if (sprite.base64) {
           const buffer = Buffer.from(sprite.base64, "base64");
-          const result = await uploadConceptArt(buffer, "image/png");
+          const result = await uploadSpriteForAsset(buffer, {
+            assetId,
+            view: sprite.angle,
+            style,
+            transparent: true,
+          });
 
           if (result.success) {
             savedSprites.push({
               ...sprite,
               imageUrl: result.url,
             });
-            log.info(`Uploaded sprite to Supabase: ${result.url}`);
+            log.info(`Uploaded sprite to Supabase: ${result.url}`, { assetId, view: sprite.angle });
           }
         }
       }
@@ -151,7 +156,7 @@ export async function POST(
 
           if (supabaseUrl && supabaseKey) {
             const supabase = createClient(supabaseUrl, supabaseKey);
-            const thumbnailPath = `forge/models/${assetId}/thumbnail.png`;
+            const thumbnailPath = `forge/models/${assetId}/concept-art.png`;
 
             const { error } = await supabase.storage
               .from(BUCKET_NAMES.CONCEPT_ART)
@@ -240,8 +245,8 @@ export async function POST(
           savedSprites[0];
 
         if (thumbnailSprite) {
-          // Copy sprite as thumbnail
-          const thumbnailFilename = "thumbnail.png";
+          // Copy sprite as concept-art (thumbnail)
+          const thumbnailFilename = "concept-art.png";
           const thumbnailPath = path.join(
             process.cwd(),
             "public",

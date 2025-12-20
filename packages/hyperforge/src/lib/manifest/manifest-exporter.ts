@@ -205,7 +205,7 @@ export function createManifestVariant(
       formatVariantPath(baseAssetId, variant.id, "model.glb"),
     thumbnailPath:
       variant.thumbnailPath ||
-      formatVariantPath(baseAssetId, variant.id, "thumbnail.png"),
+      formatVariantPath(baseAssetId, variant.id, "concept-art.png"),
     metadata: variant.metadata,
   };
 }

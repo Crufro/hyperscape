@@ -1,7 +1,7 @@
 "use client";
 
 import { logger } from "@/lib/utils";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, Grid } from "@react-three/drei";
 import { Suspense } from "react";
@@ -52,6 +52,14 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
   );
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
 
+  // Track VRM loading failures to fallback to GLB viewer
+  const [vrmFailed, setVrmFailed] = useState(false);
+  
+  // Reset VRM failed state when asset changes
+  useEffect(() => {
+    setVrmFailed(false);
+  }, [selectedAsset?.id]);
+  
   // Derived state from settings
   const environment = viewportSettings.environment;
   const showGrid = viewportSettings.showGrid;
@@ -77,25 +85,41 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
   };
 
   // Check if current asset is a VRM file and get VRM URL
-  // Only trust VRM if we have a full URL (Supabase) - not just hasVRM flag
-  const explicitVrmUrl = (selectedAsset as { vrmUrl?: string } | undefined)
-    ?.vrmUrl;
-
-  // Only use explicit vrmUrl if it's a full HTTP URL ending with .vrm
-  // Don't trust hasVRM flag alone as VRMs might not have been uploaded
-  const validExplicitVrmUrl =
-    explicitVrmUrl?.startsWith("http") &&
-    explicitVrmUrl?.toLowerCase().endsWith(".vrm")
-      ? explicitVrmUrl
+  // Only use VRM viewer if the PRIMARY modelUrl is a VRM (no GLB fallback available)
+  // If there's a separate vrmUrl but also a GLB modelUrl, prefer the GLB for stability
+  const modelUrl = selectedAsset?.modelUrl;
+  const modelUrlIsVrm = modelUrl?.toLowerCase().endsWith(".vrm");
+  
+  // Only use VRM viewer if:
+  // 1. The modelUrl itself ends with .vrm (no GLB alternative), OR
+  // 2. There's no modelUrl but there's a valid vrmUrl
+  // This ensures we prefer GLB when both are available
+  const explicitVrmUrl = (selectedAsset as { vrmUrl?: string } | undefined)?.vrmUrl;
+  
+  // Determine VRM URL - only use if no GLB is available
+  const vrmUrl = modelUrlIsVrm 
+    ? modelUrl  // Model itself is VRM
+    : (!modelUrl && explicitVrmUrl?.startsWith("http") && explicitVrmUrl?.toLowerCase().endsWith(".vrm"))
+      ? explicitVrmUrl  // No model, but have explicit VRM URL
       : null;
+  
+  const isVRM = !!vrmUrl && !vrmFailed;
+  const validExplicitVrmUrl = vrmUrl; // For debug logging
 
-  // Check if modelUrl itself is a VRM
-  const modelUrlIsVrm = selectedAsset?.modelUrl?.toLowerCase().endsWith(".vrm");
-  const modelUrlVrm = modelUrlIsVrm ? selectedAsset?.modelUrl : null;
-
-  // Determine if this is a VRM asset - only if we have a valid VRM URL
-  const vrmUrl = validExplicitVrmUrl || modelUrlVrm;
-  const isVRM = !!vrmUrl;
+  // Debug VRM detection
+  useEffect(() => {
+    if (selectedAsset?.id) {
+      log.debug("VRM detection:", {
+        assetId: selectedAsset.id,
+        modelUrl: modelUrl?.slice(-50),
+        modelUrlIsVrm,
+        explicitVrmUrl: explicitVrmUrl?.slice(-50),
+        vrmUrl: vrmUrl?.slice(-50),
+        isVRM,
+        vrmFailed,
+      });
+    }
+  }, [selectedAsset?.id, modelUrl, modelUrlIsVrm, explicitVrmUrl, vrmUrl, isVRM, vrmFailed]);
 
   // Handle retexture - calls real API
   const handleRetexture = useCallback(async () => {
@@ -251,10 +275,38 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
 
     // Create download link
     const link = document.createElement("a");
-    link.download = `${selectedAsset?.name || "capture"}_${Date.now()}.png`;
+    link.download = `${selectedAsset?.name || "capture"}-${Date.now().toString(36).slice(-6)}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   }, [selectedAsset]);
+
+  // #region agent log - Debug instrumentation
+  if (typeof window !== "undefined") {
+    fetch("http://127.0.0.1:7242/ingest/ef06d7d2-0f29-426d-9574-6692c61c9819", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "Viewport3D.tsx:162",
+        message: "Viewport3D render POST-FIX-v4",
+        data: {
+          isVRM,
+          vrmUrl: vrmUrl?.slice(-50),
+          validExplicitVrmUrl: validExplicitVrmUrl?.slice(-50),
+          explicitVrmUrl: explicitVrmUrl?.slice(-50),
+          modelUrl: selectedAsset?.modelUrl?.slice(-50),
+          modelUrlIsVrm,
+          assetId: selectedAsset?.id,
+          willUseVRMViewer: !!(isVRM && vrmUrl),
+          showModel,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "post-fix-v4",
+        hypothesisId: "A",
+      }),
+    }).catch(() => {});
+  }
+  // #endregion
 
   // Use VRMViewer for VRM assets (standalone component with its own canvas)
   if (isVRM && vrmUrl && showModel) {
@@ -268,7 +320,12 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
             log.info("VRM loaded via VRMViewer:", info);
           }}
           onError={(error) => {
-            log.error("VRM load error:", error);
+            log.info("VRM load failed, falling back to GLB viewer:", { 
+              message: error.message, 
+              vrmUrl,
+              modelUrl: selectedAsset?.modelUrl 
+            });
+            setVrmFailed(true);
           }}
         />
 

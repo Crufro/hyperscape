@@ -200,11 +200,11 @@ export async function generateConceptArt(
       const uploadsDir = path.join(assetsDir, "uploads");
       await fs.mkdir(uploadsDir, { recursive: true });
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(2, 8);
+      // Generate kebab-case filename
+      const timestamp = Date.now().toString(36).slice(-4);
+      const randomId = Math.random().toString(36).substring(2, 6);
       const extension = mediaType.includes("png") ? "png" : "jpg";
-      const filename = `concept_${timestamp}_${randomId}.${extension}`;
+      const filename = `concept-art-${timestamp}-${randomId}.${extension}`;
       const filepath = path.join(uploadsDir, filename);
 
       // Save the file

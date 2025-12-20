@@ -17,6 +17,36 @@ import type {
 } from "./core";
 
 // =============================================================================
+// EXPORTER TYPES
+// =============================================================================
+
+/**
+ * Texture variant manifest entry for export
+ */
+export interface ManifestVariant {
+  id: string;
+  name: string;
+  tier?: number;
+  materialId?: string;
+  modelPath: string;
+  thumbnailPath?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Asset with variant support for export
+ */
+export interface AssetWithVariants {
+  id: string;
+  name: string;
+  baseModelPath: string; // Untextured base mesh
+  texturedModelPath?: string; // Default textured model
+  variants?: ManifestVariant[];
+  // Standard asset fields
+  [key: string]: unknown;
+}
+
+// =============================================================================
 // ITEM MANIFEST
 // =============================================================================
 

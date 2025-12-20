@@ -5,8 +5,11 @@ import { promises as fs } from "fs";
 import path from "path";
 import {
   isSupabaseConfigured,
-  uploadConceptArt,
+  uploadImage,
+  type ImageType,
 } from "@/lib/storage/supabase-storage";
+import { toKebabCase } from "@/lib/utils/asset-naming";
+import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("API:images/generate");
@@ -81,7 +84,7 @@ function buildConceptArtPrompt(
     character: `
 CHARACTER-SPECIFIC REQUIREMENTS (Critical for 3D rigging):
 - T-pose or A-pose with visible limbs, hands, and feet
-- EMPTY HANDS - absolutely no weapons, items, or objects being held
+- EMPTY HANDS - absolutely no weapons, items, or objects being held (weapons are separate 3D assets)
 - NO bulky or oversized armor - keep silhouette clean
 - NO flowing capes, long robes, or loose fabric
 - Form-fitting or simple clothing that shows body shape
@@ -89,7 +92,7 @@ CHARACTER-SPECIFIC REQUIREMENTS (Critical for 3D rigging):
     npc: `
 NPC-SPECIFIC REQUIREMENTS (Critical for 3D rigging):
 - T-pose or A-pose with visible limbs, hands, and feet
-- EMPTY HANDS - absolutely no weapons, tools, or items being held
+- EMPTY HANDS - absolutely no weapons, tools, or items being held (weapons are separate 3D assets)
 - NO bulky armor or oversized shoulder pads
 - NO flowing capes, long robes, or billowing fabric
 - Form-fitting clothing that doesn't obscure body silhouette
@@ -97,7 +100,7 @@ NPC-SPECIFIC REQUIREMENTS (Critical for 3D rigging):
     mob: `
 MOB/CREATURE REQUIREMENTS (Critical for 3D rigging):
 - T-pose or neutral stance with visible limbs
-- EMPTY hands/claws - no weapons or items held
+- EMPTY hands/claws - absolutely no weapons or items held
 - NO excessive spikes, horns, or protrusions that complicate rigging
 - NO flowing elements like long tails, capes, or tentacles
 - Clearly defined body shape and muscle structure
@@ -105,23 +108,28 @@ MOB/CREATURE REQUIREMENTS (Critical for 3D rigging):
     enemy: `
 ENEMY CHARACTER REQUIREMENTS (Critical for 3D rigging):
 - T-pose or A-pose with visible limbs
-- EMPTY HANDS - no weapons being held (weapons are separate assets)
+- EMPTY HANDS - absolutely no weapons being held (weapons are separate 3D assets)
 - NO bulky oversized armor
 - NO flowing capes, robes, or loose clothing
 - Form-fitting design that shows body structure
 - Clean silhouette for easy texturing`,
     weapon: `
 WEAPON REQUIREMENTS:
+- Show the weapon ALONE, isolated - no hands holding it
 - Clear grip/handle area for character attachment
-- Detailed blade/head with visible materials
-- Appropriate scale reference`,
+- Detailed blade/head with visible materials`,
     armor: `
 ARMOR REQUIREMENTS:
 - Form-fitting design, not overly bulky
 - Clear structure with visible plates and straps
-- Material details (metal, leather, cloth) clearly visible`,
-    item: "",
-    prop: "",
+- Material details (metal, leather, cloth) clearly visible
+- Show on mannequin-like form or as isolated pieces`,
+    item: `
+ITEM REQUIREMENTS:
+- Show the item ALONE, isolated - not being held or placed on anything`,
+    prop: `
+PROP REQUIREMENTS:
+- Show ONLY the prop itself, completely isolated`,
   };
 
   const typeGuideline = assetTypeGuidelines[assetType] || "";
@@ -132,9 +140,12 @@ ARMOR REQUIREMENTS:
 
 STYLE: ${styleDescriptions[style] || styleDescriptions.stylized}
 VIEW: ${viewDescriptions[viewAngle] || viewDescriptions.isometric}
-BACKGROUND: Clean, simple gradient background
 
-REQUIREMENTS:
+CRITICAL REQUIREMENTS FOR 3D MODEL GENERATION:
+- SUBJECT ONLY: Show ONLY the subject itself, nothing else in the image
+- NO FLOOR OR BASE: The subject must be floating/isolated with NO ground, platform, pedestal, or surface beneath it
+- NO WEAPONS IN HANDS: If this is a character/NPC, hands must be completely EMPTY (weapons are separate 3D assets)
+- TRANSPARENT/WHITE BACKGROUND: Use a pure white or transparent background - no gradients, no environments, no shadows on ground
 - Clear, well-defined silhouette suitable for 3D modeling
 - Visible material properties (metal should look metallic, wood should look wooden, etc.)
 - Good lighting that reveals form and surface details
@@ -142,7 +153,9 @@ REQUIREMENTS:
 - High detail level appropriate for a AAA game asset
 ${typeGuideline}
 
-Generate ONLY the concept art image, no text, labels, or annotations.`;
+This image will be used as a texture reference for 3D model generation. The subject MUST be completely isolated with no background elements, no floor, no base, and no props in hands.
+
+Generate ONLY the concept art image with the subject floating on a clean transparent/white background. No text, labels, shadows on floor, or annotations.`;
 }
 
 function buildSpritePrompt(
@@ -267,29 +280,48 @@ export async function POST(request: NextRequest) {
     const mediaType = file.mediaType || "image/png";
     const dataUrl = `data:${mediaType};base64,${base64}`;
 
-    // Generate unique ID
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
-    const id = `${type}_${timestamp}_${randomId}`;
+    // Generate kebab-case ID from prompt or type
+    const promptSlug = toKebabCase(prompt.substring(0, 30));
+    const timestamp = Date.now().toString(36).slice(-4);
+    const id = `${promptSlug}-${timestamp}`;
     const extension = mediaType.includes("png") ? "png" : "jpg";
     const filename = `${id}.${extension}`;
 
     let imageUrl = dataUrl;
 
-    // Try to upload to Supabase for persistent storage
+    // Try to upload to Supabase for persistent storage with proper organization
     if (isSupabaseConfigured()) {
       log.info("Uploading to Supabase Storage...");
-      const uploadResult = await uploadConceptArt(buffer, mediaType);
+      
+      // Map type to ImageType
+      const imageType: ImageType = type === "sprite" ? "sprite" 
+        : type === "texture" ? "texture" 
+        : "concept-art";
+
+      const uploadResult = await uploadImage({
+        buffer,
+        filename: id,
+        type: imageType,
+        contentType: mediaType,
+        metadata: {
+          prompt,
+          style: options?.style,
+          view: options?.viewAngle,
+          assetType: options?.assetType,
+        },
+      });
 
       if (uploadResult.success) {
         imageUrl = uploadResult.url;
-        log.info({ imageUrl }, "Uploaded to Supabase");
+        // Invalidate registry cache so new image appears in queries
+        invalidateRegistryCache();
+        log.info({ imageUrl, type: imageType }, "Uploaded to Supabase");
       } else {
         log.warn("Supabase upload failed, using local storage");
       }
     }
 
-    // Fallback to local storage
+    // Fallback to local storage with proper organization
     if (imageUrl === dataUrl) {
       const assetsDir =
         process.env.HYPERFORGE_ASSETS_DIR || path.join(process.cwd(), "assets");
@@ -305,7 +337,7 @@ export async function POST(request: NextRequest) {
         "http://localhost:3500";
       imageUrl = `${cdnUrl}/api/images/file/${type}/${filename}`;
 
-      log.info({ imageUrl }, "Saved locally");
+      log.info({ imageUrl, type }, "Saved locally");
     }
 
     return NextResponse.json({

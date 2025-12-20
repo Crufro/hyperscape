@@ -2,10 +2,51 @@
 
 import { logger } from "@/lib/utils";
 import { useGLTF, Center, Html } from "@react-three/drei";
-import { Suspense, useMemo, useEffect, useState } from "react";
+import { Suspense, useMemo, useEffect, useState, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import * as THREE from "three";
 
 const log = logger.child("ModelViewer");
+
+/**
+ * Error boundary to catch GLB loading errors
+ */
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback: ReactNode;
+  onError?: (error: Error) => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ModelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    log.warn("Model loading error caught:", { 
+      message: error.message,
+      componentStack: errorInfo.componentStack?.slice(0, 200) 
+    });
+    this.props.onError?.(error);
+  }
+
+  override render(): ReactNode {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 interface ModelViewerProps {
   modelUrl?: string;
@@ -80,6 +121,17 @@ function LoadedModel({
   const gltf = useGLTF(modelUrl);
   const [error, _setError] = useState<string | null>(null);
 
+  // Log when model loads
+  useEffect(() => {
+    if (gltf) {
+      log.info("GLTF loaded successfully:", { 
+        url: modelUrl,
+        hasScene: !!gltf.scene,
+        childCount: gltf.scene?.children?.length 
+      });
+    }
+  }, [gltf, modelUrl]);
+
   // Calculate model info
   const modelInfo = useMemo(() => {
     let vertices = 0;
@@ -87,6 +139,50 @@ function LoadedModel({
     let meshCount = 0;
     const materials = new Set<THREE.Material>();
     let hasRig = false;
+
+    // #region agent log
+    const materialDetails: {
+      name: string;
+      type: string;
+      hasMap: boolean;
+      hasNormalMap: boolean;
+      color: string;
+    }[] = [];
+    gltf.scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const mats = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+        mats.forEach((m: THREE.Material) => {
+          const stdMat = m as THREE.MeshStandardMaterial;
+          materialDetails.push({
+            name: m.name || "unnamed",
+            type: m.type,
+            hasMap: !!stdMat.map,
+            hasNormalMap: !!stdMat.normalMap,
+            color: stdMat.color ? `#${stdMat.color.getHexString()}` : "none",
+          });
+        });
+      }
+    });
+    fetch("http://127.0.0.1:7242/ingest/ef06d7d2-0f29-426d-9574-6692c61c9819", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "ModelViewer.tsx:73",
+        message: "Model materials inspection",
+        data: {
+          modelUrl,
+          materialCount: materialDetails.length,
+          materials: materialDetails.slice(0, 5),
+          isVRMFile: modelUrl?.includes(".vrm"),
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        hypothesisId: "A,B",
+      }),
+    }).catch(() => {});
+    // #endregion
 
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -143,9 +239,27 @@ function LoadedModel({
     onModelLoad?.(modelInfo);
   }, [modelInfo, onModelLoad]);
 
-  // Auto-scale and center the model
+  // Auto-scale and center the model, removing invalid meshes
   const scaledScene = useMemo(() => {
     const scene = gltf.scene.clone();
+
+    // Remove meshes with invalid/empty geometry to prevent R3F raycasting errors
+    // R3F's event system tries to access geometry.index.count which crashes on empty geometry
+    const meshesToRemove: THREE.Object3D[] = [];
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const geometry = child.geometry;
+        // Check if geometry exists and has valid position attribute
+        if (!geometry || !geometry.attributes?.position || geometry.attributes.position.count === 0) {
+          log.warn("Removing mesh with invalid geometry:", child.name || "unnamed");
+          meshesToRemove.push(child);
+        }
+      }
+    });
+    // Remove invalid meshes from their parents
+    meshesToRemove.forEach((mesh) => {
+      mesh.parent?.remove(mesh);
+    });
 
     // Calculate bounding box
     const box = new THREE.Box3().setFromObject(scene);
@@ -275,9 +389,22 @@ export function ModelViewer({ modelUrl, onModelLoad }: ModelViewerProps) {
   }
 
   return (
-    <Suspense fallback={<LoadingIndicator />}>
-      <LoadedModel modelUrl={modelUrl} onModelLoad={onModelLoad} />
-    </Suspense>
+    <ModelErrorBoundary
+      fallback={
+        <>
+          <PlaceholderBox />
+          <ErrorDisplay error="Failed to load 3D model" />
+        </>
+      }
+      onError={(error) => {
+        log.warn("Model load failed:", { url: modelUrl, error: error.message });
+        setLoadError(error.message);
+      }}
+    >
+      <Suspense fallback={<LoadingIndicator />}>
+        <LoadedModel modelUrl={modelUrl} onModelLoad={onModelLoad} />
+      </Suspense>
+    </ModelErrorBoundary>
   );
 }
 

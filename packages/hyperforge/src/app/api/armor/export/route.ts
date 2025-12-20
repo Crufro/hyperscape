@@ -130,8 +130,8 @@ export async function POST(request: NextRequest) {
       armorMesh,
       avatarMesh,
       {
-        autoDetectMapping: true,
-        boneNameMapping: {},
+        searchRadius: 0.05,
+        applyGeometryTransform: true,
       },
     );
 
@@ -154,9 +154,11 @@ export async function POST(request: NextRequest) {
     } else if (exportMethod === "static") {
       glbData = await armorFittingService.exportArmorAsStaticMesh(skinnedArmor);
     } else {
+      // At this point, exportMethod is either "full" or "minimal"
+      const exportMethodMapped: "minimal" | "full" = 
+        exportMethod === "minimal" ? "minimal" : "full";
       glbData = await armorFittingService.exportFittedArmor(skinnedArmor, {
-        method: exportMethod === "skinned" ? "full" : exportMethod,
-        includeTextures: config.includeTextures ?? true,
+        method: exportMethodMapped,
       });
     }
 

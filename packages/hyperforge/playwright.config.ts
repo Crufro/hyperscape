@@ -119,17 +119,14 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting tests
-  // Set SKIP_WEBSERVER=true to use an existing server
-  webServer: process.env.SKIP_WEBSERVER
-    ? undefined
-    : {
-        command: "bun run dev",
-        url: baseURL,
-        reuseExistingServer: true, // Always try to reuse existing server
-        timeout: 120000, // 2 minutes for Next.js to start
-        stdout: "pipe",
-        stderr: "pipe",
-      },
+  webServer: {
+    command: "bun run dev",
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000, // 2 minutes for Next.js to start
+    stdout: "pipe",
+    stderr: "pipe",
+  },
 
   // Output directory for test artifacts
   outputDir: "./test-results/playwright",

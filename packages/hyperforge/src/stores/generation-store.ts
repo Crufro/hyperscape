@@ -7,15 +7,9 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { AssetCategory } from "@/types/categories";
 import type { GenerationConfig } from "@/components/generation/GenerationFormRouter";
+import type { GenerationProgress } from "@/types/generation";
 
-export interface GenerationProgress {
-  status: "idle" | "generating" | "completed" | "failed";
-  stage?: string; // Current pipeline stage name
-  progress: number; // 0-100
-  percent?: number; // Alias for progress (SSE compatibility)
-  currentStep?: string;
-  error?: string;
-}
+export type { GenerationProgress };
 
 export interface GeneratedAsset {
   id: string;

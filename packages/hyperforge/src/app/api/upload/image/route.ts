@@ -82,11 +82,11 @@ export async function POST(request: NextRequest) {
     log.info("Using local file storage");
     await ensureUploadsDir();
 
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
+    // Generate kebab-case filename
+    const timestamp = Date.now().toString(36).slice(-4);
+    const randomId = Math.random().toString(36).substring(2, 6);
     const extension = file.name.split(".").pop() || "png";
-    const filename = `${type}_${timestamp}_${randomId}.${extension}`;
+    const filename = `${type}-${timestamp}-${randomId}.${extension}`;
     const filepath = path.join(UPLOADS_DIR, filename);
 
     // Read file data and save

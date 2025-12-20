@@ -115,7 +115,7 @@ export const useVariantStore = create<VariantState>()(
  * Generate a unique variant ID
  */
 export function generateVariantId(): string {
-  return `variant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**

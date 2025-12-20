@@ -17,9 +17,9 @@ import {
   Settings,
   Box,
   Palette,
-  Grid3X3,
-  Layers,
   Map,
+  LayoutDashboard,
+  GitGraph,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,8 +71,24 @@ export function AppSidebar({
         </button>
       </div>
 
-      {/* Generate New Button */}
-      <div className="p-3 border-b border-glass-border">
+      {/* Dashboard + Generate */}
+      <div className="p-3 border-b border-glass-border space-y-2">
+        <Link
+          href="/dashboard"
+          className={`
+            w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+            transition-all duration-200
+            ${collapsed ? "justify-center" : ""}
+            ${
+              pathname === "/dashboard"
+                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+            }
+          `}
+        >
+          <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span>Dashboard</span>}
+        </Link>
         <Link
           href="/generate"
           className={`
@@ -84,7 +100,7 @@ export function AppSidebar({
           `}
         >
           <Plus className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>Generate New</span>}
+          {!collapsed && <span>Create Asset</span>}
         </Link>
       </div>
 
@@ -115,14 +131,14 @@ export function AppSidebar({
             {!collapsed && <span>3D Assets</span>}
           </Link>
           <Link
-            href="/audio"
+            href="/audio/assets"
             title={collapsed ? "Audio Assets" : "Browse audio assets"}
             className={`
               w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
               transition-all duration-200
               ${collapsed ? "justify-center" : ""}
               ${
-                pathname === "/audio"
+                pathname === "/audio/assets"
                   ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
               }
@@ -132,14 +148,14 @@ export function AppSidebar({
             {!collapsed && <span>Audio Assets</span>}
           </Link>
           <Link
-            href="/images/concept-art"
+            href="/images"
             title={collapsed ? "Image Assets" : "Browse image assets"}
             className={`
               w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
               transition-all duration-200
               ${collapsed ? "justify-center" : ""}
               ${
-                pathname?.startsWith("/images")
+                pathname === "/images"
                   ? "bg-pink-500/10 text-pink-400 border border-pink-500/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
               }
@@ -156,7 +172,7 @@ export function AppSidebar({
               transition-all duration-200
               ${collapsed ? "justify-center" : ""}
               ${
-                pathname?.startsWith("/content")
+                pathname === "/content"
                   ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
               }
@@ -167,16 +183,73 @@ export function AppSidebar({
           </Link>
         </nav>
 
-        {/* Studio Pages */}
+        {/* Studios Section */}
         <div
           className={`mt-6 pt-4 border-t border-glass-border ${collapsed ? "px-0" : ""}`}
         >
           {!collapsed && (
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-              Studio
+              Studios
             </div>
           )}
           <nav className="space-y-1">
+            {/* Generation Studios */}
+            <Link
+              href="/images/studio"
+              title={collapsed ? "Image Studio" : "Generate concept art, sprites, and textures"}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
+                transition-all duration-200
+                ${collapsed ? "justify-center" : ""}
+                ${
+                  pathname === "/images/studio"
+                    ? "bg-pink-500/10 text-pink-400 border border-pink-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                }
+              `}
+            >
+              <Palette className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>Image Studio</span>}
+            </Link>
+            <Link
+              href="/audio"
+              title={collapsed ? "Audio Studio" : "Voice, SFX & Music generation"}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                transition-all duration-200
+                ${collapsed ? "justify-center" : ""}
+                ${
+                  pathname === "/audio"
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                }
+              `}
+            >
+              <Music className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>Audio Studio</span>}
+            </Link>
+            <Link
+              href="/content/generate"
+              title={collapsed ? "Content Studio" : "Generate NPCs, quests, areas & items"}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                transition-all duration-200
+                ${collapsed ? "justify-center" : ""}
+                ${
+                  pathname === "/content/generate"
+                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
+                }
+              `}
+            >
+              <Sparkles className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>Content Studio</span>}
+            </Link>
+
+            {/* Divider */}
+            {!collapsed && <div className="my-2 border-t border-glass-border/50" />}
+
+            {/* 3D Processing Studios */}
             {studioPages.map((page) => {
               const isActive = pathname === page.href;
               return (
@@ -230,99 +303,22 @@ export function AppSidebar({
               <Map className="w-4 h-4 flex-shrink-0" />
               {!collapsed && <span>World Editor</span>}
             </Link>
-          </nav>
-        </div>
-
-        {/* Images Section */}
-        <div
-          className={`mt-6 pt-4 border-t border-glass-border ${collapsed ? "px-0" : ""}`}
-        >
-          {!collapsed && (
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-              Images
-            </div>
-          )}
-          <nav className="space-y-1">
             <Link
-              href="/images/concept-art"
-              title={collapsed ? "Concept Art" : undefined}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                transition-all duration-200
-                ${collapsed ? "justify-center" : ""}
-                ${
-                  pathname === "/images/concept-art"
-                    ? "bg-pink-500/10 text-pink-400 border border-pink-500/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                }
-              `}
-            >
-              <Palette className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>Concept Art</span>}
-            </Link>
-            <Link
-              href="/images/sprites"
-              title={collapsed ? "Sprites" : undefined}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                transition-all duration-200
-                ${collapsed ? "justify-center" : ""}
-                ${
-                  pathname === "/images/sprites"
-                    ? "bg-pink-500/10 text-pink-400 border border-pink-500/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                }
-              `}
-            >
-              <Grid3X3 className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>Sprites</span>}
-            </Link>
-            <Link
-              href="/images/textures"
-              title={collapsed ? "Textures" : undefined}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm 
-                transition-all duration-200
-                ${collapsed ? "justify-center" : ""}
-                ${
-                  pathname === "/images/textures"
-                    ? "bg-pink-500/10 text-pink-400 border border-pink-500/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
-                }
-              `}
-            >
-              <Layers className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>Textures</span>}
-            </Link>
-          </nav>
-        </div>
-
-        {/* Audio Section */}
-        <div
-          className={`mt-6 pt-4 border-t border-glass-border ${collapsed ? "px-0" : ""}`}
-        >
-          {!collapsed && (
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-              Audio
-            </div>
-          )}
-          <nav className="space-y-1">
-            <Link
-              href="/audio"
-              title={collapsed ? "Audio Studio" : "Voice, SFX & Music"}
+              href="/graph"
+              title={collapsed ? "Relationship Graph" : "Asset relationship graph"}
               className={`
                 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                 transition-all duration-200
                 ${collapsed ? "justify-center" : ""}
                 ${
-                  pathname === "/audio"
-                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  pathname === "/graph"
+                    ? "bg-violet-500/10 text-violet-400 border border-violet-500/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-glass-bg"
                 }
               `}
             >
-              <Music className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>Audio Studio</span>}
+              <GitGraph className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>Relationship Graph</span>}
             </Link>
           </nav>
         </div>

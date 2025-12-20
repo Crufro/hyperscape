@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { logger } from "@/lib/utils";
 import {
   Play,
@@ -12,6 +13,7 @@ import {
   Wand2,
   FolderOpen,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
@@ -303,9 +305,15 @@ export function AudioAssetsViewer() {
             <div className="text-center py-12 text-muted-foreground">
               <Volume2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p className="text-sm">No audio assets generated yet</p>
-              <p className="text-xs mt-1">
-                Generate voice, SFX, or music using the panels above
+              <p className="text-xs mt-1 mb-4">
+                Generate voice, SFX, or music in the Audio Studio
               </p>
+              <Link href="/audio">
+                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 transition-colors text-sm">
+                  <Sparkles className="w-4 h-4" />
+                  Open Audio Studio
+                </button>
+              </Link>
             </div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">

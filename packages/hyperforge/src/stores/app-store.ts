@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { AssetData } from "@/types/asset";
+import type { BaseAsset } from "@/types/asset";
 
 export type ModuleView =
   | "library"
@@ -28,8 +28,8 @@ interface AppState {
   setActiveModule: (module: ModuleView) => void;
 
   // Selected asset
-  selectedAsset: AssetData | null;
-  setSelectedAsset: (asset: AssetData | null) => void;
+  selectedAsset: BaseAsset | null;
+  setSelectedAsset: (asset: BaseAsset | null) => void;
 
   // Sidebar collapse state
   sidebarCollapsed: boolean;

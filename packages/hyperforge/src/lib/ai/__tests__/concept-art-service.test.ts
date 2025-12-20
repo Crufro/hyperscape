@@ -372,7 +372,7 @@ describe("Concept Art Service", () => {
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substring(2, 8);
       const extension = "png";
-      const filename = `concept_${timestamp}_${randomId}.${extension}`;
+      const filename = `concept-art-${timestamp.toString(36).slice(-4)}-${randomId}.${extension}`;
 
       expect(filename).toMatch(/^concept_\d+_[a-z0-9]+\.png$/);
       expect(filename).toContain("concept_");

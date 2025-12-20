@@ -15,9 +15,10 @@ import {
   getPresetVoiceSettings,
 } from "@/lib/audio/elevenlabs-service";
 import {
-  uploadAudio,
+  uploadVoiceAudio,
   isSupabaseConfigured,
 } from "@/lib/storage/supabase-storage";
+import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 import type { VoiceAsset } from "@/types/audio";
 
@@ -118,21 +119,28 @@ export async function POST(request: NextRequest) {
       generatedAt: new Date().toISOString(),
     };
 
-    // Save audio file
+    // Save audio file with proper organization
     if (saveToAsset) {
-      const filename = `voice_${assetId}.mp3`;
-
-      // Try Supabase first (primary storage)
+      // Try Supabase first (primary storage) with structured upload
       if (isSupabaseConfigured()) {
         try {
-          const uploadResult = await uploadAudio(
-            result.audio,
-            filename,
-            "audio/mpeg",
-          );
+          const uploadResult = await uploadVoiceAudio(result.audio, {
+            npcId,
+            dialogueNodeId,
+            text,
+            voiceId: effectiveVoiceId,
+            voicePreset,
+            duration: durationSeconds,
+          });
           if (uploadResult.success) {
             asset.url = uploadResult.url;
-            log.info("Voice saved to Supabase", { url: uploadResult.url });
+            // Invalidate registry cache so new audio appears in queries
+            invalidateRegistryCache();
+            log.info("Voice saved to Supabase", {
+              url: uploadResult.url,
+              npcId,
+              dialogueNodeId,
+            });
           } else {
             throw new Error(uploadResult.error || "Upload failed");
           }
@@ -147,18 +155,24 @@ export async function POST(request: NextRequest) {
         const assetsDir =
           process.env.HYPERFORGE_ASSETS_DIR ||
           path.join(process.cwd(), "assets");
-        const audioDir = path.join(assetsDir, "audio", "voice");
+        // Organize locally by NPC ID if available
+        const audioDir = npcId
+          ? path.join(assetsDir, "audio", "voice", npcId)
+          : path.join(assetsDir, "audio", "voice");
 
         // Create directory if needed
         await fs.mkdir(audioDir, { recursive: true });
 
-        // Save audio file
+        // Save audio file with proper naming
+        const filename = `${assetId}.mp3`;
         const filepath = path.join(audioDir, filename);
         await fs.writeFile(filepath, result.audio);
 
-        asset.url = `/api/audio/file/voice/${filename}`;
+        asset.url = npcId
+          ? `/api/audio/file/voice/${npcId}/${filename}`
+          : `/api/audio/file/voice/${filename}`;
 
-        log.info("Voice saved locally", { filepath });
+        log.info("Voice saved locally", { filepath, npcId });
       }
     }
 
@@ -197,13 +211,25 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Generate kebab-case ID for voice audio following game asset conventions
+ * Pattern: {npc-id}-{dialogue-node} or {npc-id}-{timestamp}
+ */
 function generateAudioId(npcId?: string, dialogueNodeId?: string): string {
-  const timestamp = Date.now().toString(36);
-  if (npcId && dialogueNodeId) {
-    return `${npcId}_${dialogueNodeId}_${timestamp}`;
+  const timestamp = Date.now().toString(36).slice(-4);
+  // Convert to snake_case (matching game conventions)
+  const safeNpcId = npcId
+    ? npcId.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
+    : null;
+  const safeDialogueId = dialogueNodeId
+    ? dialogueNodeId.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
+    : null;
+
+  if (safeNpcId && safeDialogueId) {
+    return `${safeNpcId}_${safeDialogueId}`;
   }
-  if (npcId) {
-    return `${npcId}_${timestamp}`;
+  if (safeNpcId) {
+    return `${safeNpcId}_${timestamp}`;
   }
   return `voice_${timestamp}`;
 }

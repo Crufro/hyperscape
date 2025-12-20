@@ -283,7 +283,7 @@ function DialogueTreeEditorInner({
   const [nodes, setNodesState, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdgesState, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Update nodes when nodeAudio changes
+  // Update nodes when nodeAudio or audio playback state changes
   useEffect(() => {
     setNodesState((nds) =>
       nds.map((node) => ({
@@ -297,6 +297,57 @@ function DialogueTreeEditorInner({
       })),
     );
   }, [nodeAudio, playingNodeId, isPlayingAudio, setNodesState]);
+
+  // Update node callbacks when handler functions change
+  // This ensures callbacks don't become stale after state updates
+  useEffect(() => {
+    setNodesState((nds) =>
+      nds.map((node) => {
+        // For end nodes, only update the basic callbacks
+        if (node.type === "end") {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              onEdit: () => handleEditNode(node.id),
+              onDelete: () => handleDeleteNode(node.id),
+            },
+          };
+        }
+
+        // For dialogue nodes, get the current node data to construct the DialogueNode
+        const nodeData = node.data as DialogueNodeData;
+        const dialogueNode: DialogueNode = {
+          id: node.id,
+          text: nodeData.text || "",
+          responses: nodeData.responses || [],
+          audio: nodeAudio.get(node.id),
+        };
+
+        // Update all callbacks for dialogue nodes
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isEntry: node.id === entryNodeId,
+            onEdit: () => handleEditNode(node.id),
+            onDelete: () => handleDeleteNode(node.id),
+            onDuplicate: () => handleDuplicateNode(node.id),
+            onSetEntry: () => handleSetEntry(node.id),
+            onGenerateAudio: () => handleGenerateNodeAudio(dialogueNode),
+            onPlayAudio: () => handlePlayNodeAudio(node.id),
+            isGeneratingAudio,
+          },
+        };
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    entryNodeId,
+    isGeneratingAudio,
+    nodeAudio,
+    setNodesState,
+  ]);
 
   // Initialize history
   useEffect(() => {
@@ -387,12 +438,23 @@ function DialogueTreeEditorInner({
   // Node handlers
   const handleEditNode = useCallback(
     (nodeId: string) => {
-      const node = initialTree?.nodes.find((n) => n.id === nodeId);
-      if (node) {
-        setEditingNode({ ...node });
+      // Get the current node from React Flow to have the latest data
+      const flowNode = getNodes().find((n) => n.id === nodeId);
+      if (flowNode) {
+        const nodeData = flowNode.data as DialogueNodeData | EndNodeData;
+        const dialogueNode: DialogueNode = {
+          id: flowNode.id,
+          text: nodeData.text || "",
+          responses:
+            flowNode.type === "dialogue"
+              ? (nodeData as DialogueNodeData).responses || []
+              : undefined,
+          audio: nodeAudio.get(flowNode.id),
+        };
+        setEditingNode(dialogueNode);
       }
     },
-    [initialTree],
+    [getNodes, nodeAudio],
   );
 
   const handleDeleteNode = useCallback(
@@ -436,7 +498,7 @@ function DialogueTreeEditorInner({
       const node = getNodes().find((n) => n.id === nodeId);
       if (!node) return;
 
-      const newId = `${nodeId}_copy_${Date.now()}`;
+      const newId = `${nodeId}_copy_${Date.now().toString(36).slice(-4)}`;
       const newNode: Node = {
         ...node,
         id: newId,
@@ -499,12 +561,23 @@ function DialogueTreeEditorInner({
   // Edge handlers
   const handleEditEdge = useCallback(
     (sourceNodeId: string, _responseIndex: number) => {
-      const node = initialTree?.nodes.find((n) => n.id === sourceNodeId);
-      if (node) {
-        setEditingNode({ ...node });
+      // Get the current node from React Flow
+      const flowNode = getNodes().find((n) => n.id === sourceNodeId);
+      if (flowNode) {
+        const nodeData = flowNode.data as DialogueNodeData | EndNodeData;
+        const dialogueNode: DialogueNode = {
+          id: flowNode.id,
+          text: nodeData.text || "",
+          responses:
+            flowNode.type === "dialogue"
+              ? (nodeData as DialogueNodeData).responses || []
+              : undefined,
+          audio: nodeAudio.get(flowNode.id),
+        };
+        setEditingNode(dialogueNode);
       }
     },
-    [initialTree],
+    [getNodes, nodeAudio],
   );
 
   const handleDeleteEdge = useCallback(
@@ -563,7 +636,7 @@ function DialogueTreeEditorInner({
 
   // Connection validation
   const isValidConnection = useCallback(
-    (connection: Connection): boolean => {
+    (connection: Edge | Connection): boolean => {
       // No self-connections
       if (connection.source === connection.target) {
         return false;
@@ -581,7 +654,7 @@ function DialogueTreeEditorInner({
   );
 
   // Context menu handlers
-  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
+  const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
     event.preventDefault();
     setContextMenu({
       isOpen: true,
@@ -632,7 +705,7 @@ function DialogueTreeEditorInner({
         y: event.clientY,
       });
 
-      const newId = `node_${Date.now()}`;
+      const newId = `node_${Date.now().toString(36).slice(-6)}`;
       const isEntry = getNodes().length === 0;
 
       const baseData = {
@@ -694,7 +767,7 @@ function DialogueTreeEditorInner({
         y: contextMenu.position.y,
       });
 
-      const newId = `node_${Date.now()}`;
+      const newId = `node_${Date.now().toString(36).slice(-6)}`;
       const isEntry = getNodes().length === 0;
 
       const baseData = {
@@ -962,14 +1035,22 @@ function DialogueTreeEditorInner({
 
   // Node click handler
   const onNodeClick: NodeMouseHandler = useCallback(
-    (event, node) => {
+    (_event, node) => {
       setSelectedNodeId(node.id);
-      const dialogueNode = initialTree?.nodes.find((n) => n.id === node.id);
-      if (dialogueNode) {
-        setEditingNode({ ...dialogueNode });
-      }
+      // Use the node data from React Flow directly
+      const nodeData = node.data as DialogueNodeData | EndNodeData;
+      const dialogueNode: DialogueNode = {
+        id: node.id,
+        text: nodeData.text || "",
+        responses:
+          node.type === "dialogue"
+            ? (nodeData as DialogueNodeData).responses || []
+            : undefined,
+        audio: nodeAudio.get(node.id),
+      };
+      setEditingNode(dialogueNode);
     },
-    [initialTree],
+    [nodeAudio],
   );
 
   // Update node in editor panel
@@ -1241,7 +1322,7 @@ function DialogueTreeEditorInner({
             const position = screenToFlowPosition(contextMenu.position);
             const newNode = {
               ...clipboard,
-              id: `${clipboard.id}_paste_${Date.now()}`,
+              id: `${clipboard.id}_paste_${Date.now().toString(36).slice(-4)}`,
               position,
             };
             setNodesState((nds) => [...nds, newNode]);

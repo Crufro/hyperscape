@@ -5,6 +5,7 @@ import {
   getTaskStatus,
 } from "@/lib/meshy/client";
 import { downloadAndSaveModel } from "@/lib/storage/asset-storage";
+import { generateAssetId } from "@/lib/utils/asset-naming";
 import { logger } from "@/lib/utils";
 
 const routeLogger = logger.child("API:test/generate-and-save");
@@ -42,8 +43,8 @@ export async function POST(request: NextRequest) {
     logStep(`Starting generation for: ${name}`);
     logStep(`Prompt: ${prompt}`);
 
-    // Generate unique asset ID
-    const assetId = `gen-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    // Generate contextual asset ID from the name
+    const assetId = generateAssetId(name, { category: "weapon", type: "sword" });
     logStep(`Asset ID: ${assetId}`);
 
     let modelUrl = "";

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveAssetFiles } from "@/lib/storage/asset-storage";
-import { v4 as uuidv4 } from "uuid";
+import { isSupabaseConfigured } from "@/lib/storage/supabase-storage";
+import {
+  generateAssetId,
+  createStandardMetadata,
+  validateAssetId,
+} from "@/lib/utils/asset-naming";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("API:assets:upload");
@@ -107,8 +112,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate asset ID
-    const assetId = `uploaded-${Date.now()}-${uuidv4().slice(0, 8)}`;
+    // Generate contextual asset ID from the name
+    const assetId = generateAssetId(metadata.name, {
+      category: metadata.category,
+      type: metadata.type,
+    });
+
+    // Validate the generated ID
+    const validation = validateAssetId(assetId);
+    if (!validation.valid) {
+      log.warn("Generated asset ID has issues", { assetId, issues: validation.issues });
+    }
 
     // Determine model format
     const format = fileName.endsWith(".vrm")
@@ -123,17 +137,28 @@ export async function POST(request: NextRequest) {
       ? Buffer.from(await thumbnailFile.arrayBuffer())
       : undefined;
 
-    // Build full metadata object
-    const fullMetadata = {
-      id: assetId,
+    // Determine source based on storage destination
+    const initialSource = isSupabaseConfigured() ? "FORGE" : "LOCAL";
+
+    // Build standard metadata following game conventions
+    const standardMeta = createStandardMetadata(assetId, {
       name: metadata.name.trim(),
-      source: "LOCAL" as const,
-      category: metadata.category,
       type: metadata.type || metadata.category,
-      description: metadata.description,
+      subtype: metadata.weaponType || metadata.npcCategory,
+      description: metadata.description || `Uploaded ${metadata.category}`,
+      source: initialSource,
+      workflow: "Manual Upload",
+      hasModel: true,
+      hasConceptArt: !!thumbnailFile,
+    });
+
+    // Build full metadata object with game-specific properties
+    const fullMetadata = {
+      ...standardMeta,
+      id: assetId,
+      category: metadata.category,
       rarity: metadata.rarity || "common",
       status: "completed" as const,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       originalFileName: modelFile.name,
       fileSize: modelFile.size,

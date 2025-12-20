@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
+import { ErrorBoundary, type RecoveryAction } from "@/components/ui/error-boundary";
 import { CategorySelector } from "./CategorySelector";
 import {
   GenerationFormRouter,
@@ -10,22 +11,37 @@ import {
 } from "./GenerationFormRouter";
 import { ProgressTracker } from "./ProgressTracker";
 import { ResultPreview } from "./ResultPreview";
+import { PresetSelector } from "./PresetSelector";
 import { useGenerationStore } from "@/stores/generation-store";
 import { useToast } from "@/components/ui/toast";
 import type { AssetCategory } from "@/types/categories";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Zap, RefreshCw } from "lucide-react";
 
 export function GenerationPanel() {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [presetConfig, setPresetConfig] = useState<GenerationConfig | null>(null);
   const { toast } = useToast();
   const {
     selectedCategory,
     setSelectedCategory,
+    currentGeneration,
     setCurrentGeneration,
     progress,
     setProgress,
     addGeneratedAsset,
+    reset,
   } = useGenerationStore();
+
+  // Handle preset selection
+  const handlePresetSelect = useCallback((config: GenerationConfig) => {
+    setPresetConfig(config);
+    setSelectedCategory(config.category);
+    toast({
+      title: "Preset Loaded",
+      description: "Form populated with preset settings",
+      duration: 2000,
+    });
+  }, [setSelectedCategory, toast]);
 
   const handleCategorySelect = (category: AssetCategory) => {
     setSelectedCategory(category);
@@ -107,6 +123,12 @@ export function GenerationPanel() {
     }
   };
 
+  // Quick generate with preset (one-click)
+  const handleQuickGenerate = useCallback(() => {
+    if (!presetConfig) return;
+    handleGenerate(presetConfig);
+  }, [presetConfig]);
+
   const handleCancel = () => {
     setSelectedCategory(null);
     setCurrentGeneration(null);
@@ -118,9 +140,28 @@ export function GenerationPanel() {
 
   const isGenerating = progress.status === "generating";
 
+  // Recovery actions for ErrorBoundary
+  const recoveryActions: RecoveryAction[] = useMemo(() => [
+    {
+      id: "reset-generation",
+      label: "Reset Generation",
+      icon: <RefreshCw className="w-4 h-4" />,
+      action: () => {
+        reset();
+        setPresetConfig(null);
+      },
+      forCategories: ["generation"],
+    },
+  ], [reset]);
+
   return (
+    <ErrorBoundary
+      recoveryActions={recoveryActions}
+      context="Generation Panel"
+      showHistory
+    >
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-glass-border">
+      <div className="p-4 border-b border-glass-border space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Generate Asset</h2>
           <SpectacularButton
@@ -132,6 +173,27 @@ export function GenerationPanel() {
             New
           </SpectacularButton>
         </div>
+
+        {/* Preset Selector with Quick Generate */}
+        {selectedCategory && !isGenerating && progress.status !== "completed" && (
+          <div className="flex gap-2">
+            <PresetSelector
+              category={selectedCategory}
+              currentConfig={presetConfig || currentGeneration || undefined}
+              onPresetSelect={handlePresetSelect}
+              className="flex-1"
+            />
+            {presetConfig && (
+              <SpectacularButton
+                size="sm"
+                onClick={handleQuickGenerate}
+                title="Quick Generate with Preset"
+              >
+                <Zap className="w-4 h-4" />
+              </SpectacularButton>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -166,6 +228,7 @@ export function GenerationPanel() {
                 category={selectedCategory}
                 onGenerate={handleGenerate}
                 onCancel={handleCancel}
+                initialConfig={presetConfig ?? undefined}
               />
             )}
           </TabsContent>
@@ -196,5 +259,6 @@ export function GenerationPanel() {
         onSelect={handleCategorySelect}
       />
     </div>
+    </ErrorBoundary>
   );
 }

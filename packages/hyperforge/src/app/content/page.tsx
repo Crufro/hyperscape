@@ -464,12 +464,20 @@ export default function ContentGenerationPage() {
                 Past {contentTabs.find((t) => t.id === activeTab)?.label}:
               </span>
               {filteredContent.slice(0, 8).map((content) => (
-                <button
+                <div
                   key={content.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectContent(content)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectContent(content);
+                    }
+                  }}
                   className={`
                     flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap
-                    transition-all duration-200 group
+                    transition-all duration-200 group cursor-pointer
                     ${
                       selectedContent?.id === content.id
                         ? "bg-primary text-primary-foreground"
@@ -487,7 +495,7 @@ export default function ContentGenerationPage() {
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
-                </button>
+                </div>
               ))}
             </div>
           </div>

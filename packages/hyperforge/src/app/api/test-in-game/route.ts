@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create test entity
-    const testEntityId = `test_${assetId}_${Date.now()}`;
+    const testEntityId = `test_${assetId}_${Date.now().toString(36).slice(-6)}`;
     const entityType =
       category === "npc" || category === "mob" || hasVRM ? "npc" : "app";
 
@@ -165,19 +165,40 @@ export async function POST(request: NextRequest) {
     await fs.writeFile(WORLD_JSON_PATH, JSON.stringify(worldConfig, null, 2));
     log.info({ testEntityId }, "Entity added to world.json");
 
-    // Step 3: Reload game server
-    let serverReloaded = false;
+    // Step 3: Add entity to running game server via API
+    // This injects the entity into the live world without a full restart
+    let entityInjected = false;
     try {
-      const reloadRes = await fetch(`${SERVER_URL}/api/reload`, {
+      const injectRes = await fetch(`${SERVER_URL}/api/world/entities`, {
         method: "POST",
-        signal: globalThis.AbortSignal.timeout(3000),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: testEntityId,
+          name: `[Test] ${assetName}`,
+          type: entityType,
+          modelPath: modelPath,
+          blueprint: modelPath,
+          position: spawnPosition,
+          data: {
+            assetId,
+            category,
+            spawnArea,
+            isTestSpawn: true,
+            createdAt: new Date().toISOString(),
+          },
+        }),
+        signal: globalThis.AbortSignal.timeout(5000),
       });
-      serverReloaded = reloadRes.ok;
-      if (serverReloaded) {
-        log.info("Game server reloaded");
+      
+      if (injectRes.ok) {
+        entityInjected = true;
+        log.info({ testEntityId }, "Entity injected into running world");
+      } else {
+        const err = await injectRes.json().catch(() => ({}));
+        log.warn({ error: err }, "Failed to inject entity into world");
       }
-    } catch {
-      log.warn("Server not running or reload failed");
+    } catch (err) {
+      log.warn({ error: err }, "Server not running - entity will load on next start");
     }
 
     return NextResponse.json({
@@ -188,7 +209,8 @@ export async function POST(request: NextRequest) {
       entityType,
       spawnPosition,
       spawnArea,
-      serverReloaded,
+      entityInjected,
+      savedToWorldJson: true,
       gameUrl: GAME_URL,
     });
   } catch (error) {

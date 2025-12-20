@@ -227,7 +227,7 @@ export function generateAssetId(
     }
   }
 
-  // Ensure uniqueness
+  // Ensure uniqueness (use snake_case counter suffix)
   let finalId = assetId;
   let counter = 1;
   while (existingIds.includes(finalId)) {

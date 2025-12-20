@@ -25,6 +25,18 @@ import {
   Edit3,
   RefreshCw,
   Gamepad2,
+  Palette,
+  Wand2,
+  Image,
+  Upload,
+  Globe,
+  Layers,
+  Camera,
+  Shield,
+  Hammer,
+  Crown,
+  Database,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,11 +66,31 @@ interface RecentGeneration {
   createdAt: string;
 }
 
+interface MaterialPreset {
+  id: string;
+  name: string;
+  displayName: string;
+  category: string;
+  tier: number;
+  color: string;
+  stylePrompt: string;
+  description?: string;
+}
+
+interface GameStyleInfo {
+  id: string;
+  name: string;
+  base: string;
+  enhanced?: string;
+  generation?: string;
+}
+
 const STORAGE_KEY_PROMPTS = "hyperforge-saved-prompts";
 const STORAGE_KEY_RECENT = "hyperforge-recent-generations";
 const STORAGE_KEY_INITIALIZED = "hyperforge-prompts-initialized";
+const STORAGE_KEY_GAME_STYLE = "hyperforge-active-game-style";
 
-type PaletteView = "commands" | "prompts" | "prompt-editor";
+type PaletteView = "commands" | "prompts" | "prompt-editor" | "game-styles" | "materials";
 
 // Hyperscape game-specific prompt categories
 const PROMPT_CATEGORIES = [
@@ -210,6 +242,9 @@ export function CommandPalette() {
   const [editingPrompt, setEditingPrompt] = useState<SavedPrompt | null>(null);
   const [newPromptText, setNewPromptText] = useState("");
   const [newPromptCategory, setNewPromptCategory] = useState("mob");
+  const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([]);
+  const [gameStyles, setGameStyles] = useState<Record<string, GameStyleInfo>>({});
+  const [activeGameStyle, setActiveGameStyle] = useState<string>("runescape");
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -244,6 +279,57 @@ export function CommandPalette() {
     loadData();
   }, [isOpen, loadData]);
 
+  // Load material presets and game styles
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadPresets = async () => {
+      try {
+        const [materialsRes, stylesRes] = await Promise.all([
+          fetch("/prompts/material-presets.json"),
+          fetch("/prompts/game-style-prompts.json"),
+        ]);
+
+        if (materialsRes.ok) {
+          const materials = await materialsRes.json();
+          setMaterialPresets(materials);
+        }
+
+        if (stylesRes.ok) {
+          const stylesData = await stylesRes.json();
+          const allStyles: Record<string, GameStyleInfo> = {};
+          if (stylesData.default) {
+            Object.entries(stylesData.default).forEach(([id, style]) => {
+              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+            });
+          }
+          if (stylesData.custom) {
+            Object.entries(stylesData.custom).forEach(([id, style]) => {
+              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+            });
+          }
+          setGameStyles(allStyles);
+        }
+
+        // Load active game style from storage
+        const savedStyle = localStorage.getItem(STORAGE_KEY_GAME_STYLE);
+        if (savedStyle) {
+          setActiveGameStyle(savedStyle);
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+
+    loadPresets();
+  }, [isOpen]);
+
+  // Save active game style
+  const setAndSaveGameStyle = useCallback((styleId: string) => {
+    setActiveGameStyle(styleId);
+    localStorage.setItem(STORAGE_KEY_GAME_STYLE, styleId);
+  }, []);
+
   // Delete a saved prompt
   const deletePrompt = useCallback(
     (promptId: string) => {
@@ -270,7 +356,7 @@ export function CommandPalette() {
     } else {
       // Add new
       const newPrompt: SavedPrompt = {
-        id: `prompt-${Date.now()}`,
+        id: `prompt_${Date.now()}`,
         prompt: newPromptText,
         category: newPromptCategory,
         createdAt: new Date().toISOString(),
@@ -302,9 +388,11 @@ export function CommandPalette() {
 
       // Escape to close or go back
       if (e.key === "Escape" && isOpen) {
-        if (view !== "commands") {
-          setView("commands");
+        if (view === "prompt-editor") {
+          setView("prompts");
           setEditingPrompt(null);
+        } else if (view !== "commands") {
+          setView("commands");
         } else {
           setIsOpen(false);
         }
@@ -470,6 +558,166 @@ export function CommandPalette() {
       },
     );
 
+    // Game Style & Material actions
+    items.push(
+      {
+        id: "game-styles",
+        title: "Game Styles",
+        description: `Active: ${gameStyles[activeGameStyle]?.name || activeGameStyle}`,
+        icon: <Sparkles className="w-4 h-4 text-amber-400" />,
+        category: "action",
+        action: () => setView("game-styles"),
+        keywords: ["style", "runescape", "custom", "theme", "aesthetic"],
+      },
+      {
+        id: "materials",
+        title: "Material Presets",
+        description: `${materialPresets.length} materials available`,
+        icon: <Palette className="w-4 h-4 text-purple-400" />,
+        category: "action",
+        action: () => setView("materials"),
+        keywords: ["material", "bronze", "iron", "steel", "mithril", "leather", "wood", "texture"],
+      },
+    );
+
+    // Quick material application (top materials as quick actions)
+    materialPresets.slice(0, 4).forEach((material) => {
+      items.push({
+        id: `quick-material-${material.id}`,
+        title: `Apply ${material.displayName} Material`,
+        description: material.description || material.stylePrompt.slice(0, 50),
+        icon: (
+          <div
+            className="w-4 h-4 rounded-sm border border-zinc-600"
+            style={{ backgroundColor: material.color }}
+          />
+        ),
+        category: "action",
+        action: () => {
+          // Copy material prompt to clipboard
+          navigator.clipboard.writeText(material.stylePrompt);
+          router.push(`/generate?material=${material.id}`);
+        },
+        keywords: ["material", material.name, material.category],
+      });
+    });
+
+    // Utility actions
+    items.push(
+      {
+        id: "screenshot",
+        title: "Capture Viewport Screenshot",
+        description: "Save current 3D view as PNG",
+        icon: <Camera className="w-4 h-4 text-pink-400" />,
+        category: "action",
+        action: () => {
+          const canvas = document.querySelector("canvas");
+          if (canvas) {
+            const link = document.createElement("a");
+            link.download = `hyperforge-${Date.now().toString(36)}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+          }
+        },
+        keywords: ["screenshot", "capture", "save", "image", "png"],
+      },
+      {
+        id: "copy-asset-id",
+        title: "Copy Selected Asset ID",
+        description: "Copy asset ID to clipboard",
+        icon: <Copy className="w-4 h-4 text-cyan-400" />,
+        category: "action",
+        action: () => {
+          // Get asset ID from URL or state
+          const urlParams = new URLSearchParams(window.location.search);
+          const assetId = urlParams.get("asset");
+          if (assetId) {
+            navigator.clipboard.writeText(assetId);
+          }
+        },
+        keywords: ["copy", "id", "asset", "clipboard"],
+      },
+      {
+        id: "world-editor",
+        title: "Open World Editor",
+        description: "Edit world layout and spawn points",
+        icon: <Globe className="w-4 h-4 text-blue-400" />,
+        category: "navigation",
+        action: () => router.push("/world"),
+        keywords: ["world", "map", "editor", "spawn", "layout"],
+      },
+      {
+        id: "bulk-generate",
+        title: "Bulk Generation",
+        description: "Generate multiple assets at once",
+        icon: <Layers className="w-4 h-4 text-orange-400" />,
+        category: "action",
+        action: () => router.push("/generate?mode=bulk"),
+        keywords: ["bulk", "batch", "multiple", "mass"],
+      },
+      {
+        id: "quick-sprites",
+        title: "Generate Sprites for Asset",
+        description: "Create 2D sprites from 3D model",
+        icon: <Image className="w-4 h-4 text-emerald-400" />,
+        category: "action",
+        action: async () => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const assetId = urlParams.get("asset");
+          if (assetId) {
+            try {
+              await fetch("/api/sprites/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  assetId,
+                  views: ["front", "side", "back", "isometric"],
+                  style: "clean",
+                  updateThumbnail: true,
+                }),
+              });
+            } catch {
+              // Handle error
+            }
+          }
+        },
+        keywords: ["sprite", "2d", "icon", "thumbnail"],
+      },
+      {
+        id: "export-all",
+        title: "Export All Assets",
+        description: "Export all local assets to game",
+        icon: <Upload className="w-4 h-4 text-green-400" />,
+        category: "action",
+        action: async () => {
+          try {
+            await fetch("/api/export/all", { method: "POST" });
+          } catch {
+            // Handle error
+          }
+        },
+        keywords: ["export", "all", "game", "deploy"],
+      },
+      {
+        id: "graph-view",
+        title: "Asset Graph View",
+        description: "Visualize asset relationships",
+        icon: <Database className="w-4 h-4 text-violet-400" />,
+        category: "navigation",
+        action: () => router.push("/graph"),
+        keywords: ["graph", "relationships", "dependencies", "tree"],
+      },
+      {
+        id: "open-supabase",
+        title: "Open Supabase Dashboard",
+        description: "Manage cloud storage",
+        icon: <ExternalLink className="w-4 h-4 text-emerald-400" />,
+        category: "action",
+        action: () => window.open("https://supabase.com/dashboard", "_blank"),
+        keywords: ["supabase", "storage", "cloud", "database"],
+      },
+    );
+
     // Recent generations - with Test in Game option
     recentGenerations.slice(0, 5).forEach((gen) => {
       // View asset action
@@ -541,7 +789,7 @@ export function CommandPalette() {
     });
 
     return items;
-  }, [router, recentGenerations, savedPrompts]);
+  }, [router, recentGenerations, savedPrompts, materialPresets, gameStyles, activeGameStyle]);
 
   // Filter commands by query
   const filteredCommands = useMemo(() => {
@@ -862,6 +1110,202 @@ export function CommandPalette() {
     </>
   );
 
+  // Render Game Styles View
+  const renderGameStyles = () => (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/50">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setView("commands")}
+            className="text-zinc-400 hover:text-white transition-colors"
+          >
+            <ArrowRight className="w-4 h-4 rotate-180" />
+          </button>
+          <Sparkles className="w-5 h-5 text-amber-400" />
+          <span className="text-white font-medium">Game Styles</span>
+        </div>
+        <span className="text-xs text-zinc-500">
+          Active: {gameStyles[activeGameStyle]?.name || activeGameStyle}
+        </span>
+      </div>
+
+      {/* Style Grid */}
+      <div className="p-4 space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
+        <p className="text-xs text-zinc-400">
+          Select a game style to apply to all new generations. This affects
+          the visual aesthetic and prompt styling.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {Object.values(gameStyles).map((style) => (
+            <button
+              key={style.id}
+              onClick={() => {
+                setAndSaveGameStyle(style.id);
+                setView("commands");
+              }}
+              className={cn(
+                "p-3 rounded-lg border text-left transition-all",
+                activeGameStyle === style.id
+                  ? "border-amber-500/50 bg-amber-500/10"
+                  : "border-zinc-700 bg-zinc-800/50 hover:border-amber-500/30",
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                {activeGameStyle === style.id && (
+                  <Crown className="w-3 h-3 text-amber-400" />
+                )}
+                <span className="text-sm font-medium text-white">
+                  {style.name}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 line-clamp-2">
+                {style.base}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        {/* Add Custom Style */}
+        <div className="pt-3 border-t border-zinc-700/50">
+          <p className="text-xs text-zinc-500 mb-2">
+            Edit styles in{" "}
+            <code className="text-amber-400">
+              /public/prompts/game-style-prompts.json
+            </code>
+          </p>
+          <button
+            onClick={() =>
+              window.open(
+                "vscode://file" +
+                  window.location.pathname.replace(/\/[^/]*$/, "") +
+                  "/public/prompts/game-style-prompts.json",
+                "_blank",
+              )
+            }
+            className="flex items-center gap-2 px-3 py-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg hover:border-amber-500/50 transition-colors"
+          >
+            <Edit3 className="w-3 h-3" />
+            Edit in VS Code
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  // Render Materials View
+  const renderMaterials = () => {
+    // Group materials by category
+    const materialsByCategory: Record<string, MaterialPreset[]> = {};
+    materialPresets.forEach((mat) => {
+      if (!materialsByCategory[mat.category]) {
+        materialsByCategory[mat.category] = [];
+      }
+      materialsByCategory[mat.category].push(mat);
+    });
+
+    const categoryIcons: Record<string, React.ReactNode> = {
+      metal: <Shield className="w-4 h-4 text-zinc-400" />,
+      leather: <Box className="w-4 h-4 text-amber-700" />,
+      wood: <TreePine className="w-4 h-4 text-amber-600" />,
+      custom: <Wand2 className="w-4 h-4 text-purple-400" />,
+    };
+
+    return (
+      <>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/50">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView("commands")}
+              className="text-zinc-400 hover:text-white transition-colors"
+            >
+              <ArrowRight className="w-4 h-4 rotate-180" />
+            </button>
+            <Palette className="w-5 h-5 text-purple-400" />
+            <span className="text-white font-medium">Material Presets</span>
+          </div>
+          <span className="text-xs text-zinc-500">
+            {materialPresets.length} materials
+          </span>
+        </div>
+
+        {/* Material Grid by Category */}
+        <div className="p-4 space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
+          <p className="text-xs text-zinc-400">
+            Click a material to copy its style prompt. Use in Regenerate panel
+            to create material variants.
+          </p>
+
+          {Object.entries(materialsByCategory).map(([category, materials]) => (
+            <div key={category}>
+              <div className="flex items-center gap-2 mb-2">
+                {categoryIcons[category] || <Hammer className="w-4 h-4 text-zinc-500" />}
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+                  {category}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {materials.map((material) => (
+                  <button
+                    key={material.id}
+                    onClick={() => {
+                      navigator.clipboard.writeText(material.stylePrompt);
+                      setView("commands");
+                    }}
+                    className="p-2 rounded-lg border border-zinc-700 bg-zinc-800/50 hover:border-purple-500/50 transition-all text-left group"
+                    title={material.stylePrompt}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div
+                        className="w-5 h-5 rounded border border-zinc-600"
+                        style={{ backgroundColor: material.color }}
+                      />
+                      <span className="text-xs font-medium text-white truncate">
+                        {material.displayName}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-500">
+                        Tier {material.tier}
+                      </span>
+                      <Copy className="w-3 h-3 text-zinc-600 group-hover:text-purple-400 transition-colors" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Add Custom Material */}
+          <div className="pt-3 border-t border-zinc-700/50">
+            <p className="text-xs text-zinc-500 mb-2">
+              Edit materials in{" "}
+              <code className="text-purple-400">
+                /public/prompts/material-presets.json
+              </code>
+            </p>
+            <button
+              onClick={() =>
+                window.open(
+                  "vscode://file" +
+                    window.location.pathname.replace(/\/[^/]*$/, "") +
+                    "/public/prompts/material-presets.json",
+                  "_blank",
+                )
+              }
+              className="flex items-center gap-2 px-3 py-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg hover:border-purple-500/50 transition-colors"
+            >
+              <Edit3 className="w-3 h-3" />
+              Edit in VS Code
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   // Render Commands View (default)
   const renderCommands = () => (
     <>
@@ -1031,6 +1475,8 @@ export function CommandPalette() {
         {view === "commands" && renderCommands()}
         {view === "prompts" && renderPromptVault()}
         {view === "prompt-editor" && renderPromptEditor()}
+        {view === "game-styles" && renderGameStyles()}
+        {view === "materials" && renderMaterials()}
       </div>
     </div>
   );
@@ -1080,7 +1526,7 @@ export function savePrompt(prompt: string, category: string) {
     const prompts: SavedPrompt[] = existing ? JSON.parse(existing) : [];
 
     const newPrompt: SavedPrompt = {
-      id: `prompt-${Date.now()}`,
+      id: `prompt_${Date.now()}`,
       prompt,
       category,
       createdAt: new Date().toISOString(),
@@ -1119,4 +1565,21 @@ export function addRecentGeneration(gen: Omit<RecentGeneration, "createdAt">) {
   } catch {
     // Ignore storage errors
   }
+}
+
+/**
+ * Get the currently active game style from localStorage
+ * Falls back to "runescape" if not set
+ */
+export function getActiveGameStyle(): string {
+  if (typeof window === "undefined") return "runescape";
+  return localStorage.getItem(STORAGE_KEY_GAME_STYLE) || "runescape";
+}
+
+/**
+ * Set the active game style in localStorage
+ */
+export function setActiveGameStyle(styleId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY_GAME_STYLE, styleId);
 }

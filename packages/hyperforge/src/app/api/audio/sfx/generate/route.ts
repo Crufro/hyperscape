@@ -13,9 +13,10 @@ import {
   SFX_PROMPTS,
 } from "@/lib/audio/elevenlabs-service";
 import {
-  uploadAudio,
+  uploadSFXAudio,
   isSupabaseConfigured,
 } from "@/lib/storage/supabase-storage";
+import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 import type { SoundEffectAsset, SoundEffectCategory } from "@/types/audio";
 
@@ -80,21 +81,27 @@ export async function POST(request: NextRequest) {
       generatedAt: new Date().toISOString(),
     };
 
-    // Save audio file
+    // Save audio file with proper organization
     if (saveToAsset) {
-      const filename = `sfx_${category}_${assetId}.mp3`;
-
-      // Try Supabase first (primary storage)
+      // Try Supabase first (primary storage) with structured upload
       if (isSupabaseConfigured()) {
         try {
-          const uploadResult = await uploadAudio(
-            result.audio,
-            filename,
-            "audio/mpeg",
-          );
+          const uploadResult = await uploadSFXAudio(result.audio, {
+            name: effectiveName || assetId,
+            category,
+            prompt: effectivePrompt,
+            duration,
+            tags: [...tags, category],
+          });
           if (uploadResult.success) {
             asset.url = uploadResult.url;
-            log.info("SFX saved to Supabase", { url: uploadResult.url });
+            // Invalidate registry cache so new SFX appears in queries
+            invalidateRegistryCache();
+            log.info("SFX saved to Supabase", {
+              url: uploadResult.url,
+              category,
+              name: effectiveName,
+            });
           } else {
             throw new Error(uploadResult.error || "Upload failed");
           }
@@ -109,18 +116,20 @@ export async function POST(request: NextRequest) {
         const assetsDir =
           process.env.HYPERFORGE_ASSETS_DIR ||
           path.join(process.cwd(), "assets");
+        // Organize by category: audio/sfx/{category}/
         const audioDir = path.join(assetsDir, "audio", "sfx", category);
 
         // Create directory if needed
         await fs.mkdir(audioDir, { recursive: true });
 
-        // Save audio file
+        // Save audio file with proper naming
+        const filename = `${assetId}.mp3`;
         const filepath = path.join(audioDir, filename);
         await fs.writeFile(filepath, result.audio);
 
         asset.url = `/api/audio/file/sfx/${category}/${filename}`;
 
-        log.info("SFX saved locally", { filepath });
+        log.info("SFX saved locally", { filepath, category });
       }
     }
 
@@ -170,15 +179,19 @@ export async function GET() {
   return NextResponse.json({ presets });
 }
 
+/**
+ * Generate kebab-case ID for SFX following game asset conventions
+ * Pattern: {description}-{variant} (e.g., sword-clash-001)
+ */
 function generateSFXId(name?: string, _category?: string): string {
-  const timestamp = Date.now().toString(36);
+  const timestamp = Date.now().toString(36).slice(-4);
   const safeName = name
     ? name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
         .replace(/^_+|_+$/g, "")
     : "sfx";
-  return `${safeName}_${timestamp}`;
+  return `${safeName}-${timestamp}`;
 }
 
 function categorizePreset(id: string): SoundEffectCategory {

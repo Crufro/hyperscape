@@ -3,7 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface SliderProps {
+export interface SliderProps {
   value?: number[];
   defaultValue?: number[];
   min: number;
@@ -11,6 +11,7 @@ interface SliderProps {
   step?: number;
   onValueChange?: (value: number[]) => void;
   className?: string;
+  disabled?: boolean;
 }
 
 // Simple custom slider since we don't have Radix UI installed yet
@@ -23,6 +24,7 @@ export function Slider({
   step = 1,
   onValueChange,
   className,
+  disabled = false,
 }: SliderProps) {
   const [internalValue, setInternalValue] = React.useState(
     defaultValue ?? [min],
@@ -49,7 +51,11 @@ export function Slider({
         step={step}
         value={value[0]}
         onChange={handleChange}
-        className="absolute w-full h-1 bg-transparent appearance-none cursor-pointer z-20"
+        disabled={disabled}
+        className={cn(
+          "absolute w-full h-1 bg-transparent appearance-none cursor-pointer z-20",
+          disabled && "cursor-not-allowed opacity-50"
+        )}
       />
 
       {/* Track Background */}

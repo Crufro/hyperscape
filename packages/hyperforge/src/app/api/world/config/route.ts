@@ -1,12 +1,13 @@
 /**
  * World Config API
- * Read/write world.json configuration file
+ * Read/write world.json and world-areas.json configuration files
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { logger } from "@/lib/utils";
+import type { WorldAreasConfig } from "@/lib/game/manifests";
 
 const log = logger.child("API:world:config");
 
@@ -15,7 +16,12 @@ const SERVER_WORLD_DIR =
   process.env.HYPERSCAPE_WORLD_DIR ||
   path.resolve(process.cwd(), "..", "server", "world");
 
+const MANIFESTS_DIR =
+  process.env.HYPERSCAPE_MANIFESTS_DIR ||
+  path.resolve(process.cwd(), "..", "server", "world", "assets", "manifests");
+
 const WORLD_CONFIG_PATH = path.join(SERVER_WORLD_DIR, "world.json");
+const WORLD_AREAS_PATH = path.join(MANIFESTS_DIR, "world-areas.json");
 
 interface WorldEntity {
   id: string;
@@ -72,19 +78,41 @@ async function writeWorldConfig(config: WorldConfig): Promise<void> {
 }
 
 /**
+ * Read world-areas.json for tile editor
+ */
+async function readWorldAreas(): Promise<WorldAreasConfig> {
+  try {
+    const content = await fs.readFile(WORLD_AREAS_PATH, "utf-8");
+    return JSON.parse(content);
+  } catch {
+    // Return default config if file doesn't exist
+    return {
+      starterTowns: {},
+      level1Areas: {},
+      level2Areas: {},
+      level3Areas: {},
+    };
+  }
+}
+
+/**
+ * Write world-areas.json
+ */
+async function writeWorldAreas(config: WorldAreasConfig): Promise<void> {
+  await fs.mkdir(MANIFESTS_DIR, { recursive: true });
+  await fs.writeFile(WORLD_AREAS_PATH, JSON.stringify(config, null, 2));
+}
+
+/**
  * GET /api/world/config
- * Read current world configuration
+ * Read current world configuration (world-areas.json for tile editor)
  */
 export async function GET() {
   try {
-    const config = await readWorldConfig();
+    // Return world-areas.json for the tile editor
+    const worldAreas = await readWorldAreas();
 
-    return NextResponse.json({
-      success: true,
-      config,
-      path: WORLD_CONFIG_PATH,
-      entityCount: config.entities?.length || 0,
-    });
+    return NextResponse.json(worldAreas);
   } catch (error) {
     log.error("GET error:", error);
     return NextResponse.json(
@@ -93,6 +121,53 @@ export async function GET() {
           error instanceof Error
             ? error.message
             : "Failed to read world config",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PUT /api/world/config
+ * Replace world-areas.json entirely (used by tile editor save)
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const worldAreas: WorldAreasConfig = await request.json();
+    
+    // Validate structure
+    if (!worldAreas.starterTowns && !worldAreas.level1Areas && 
+        !worldAreas.level2Areas && !worldAreas.level3Areas) {
+      return NextResponse.json(
+        { error: "Invalid world areas format" },
+        { status: 400 }
+      );
+    }
+    
+    await writeWorldAreas(worldAreas);
+    
+    // Count areas
+    const areaCount = 
+      Object.keys(worldAreas.starterTowns || {}).length +
+      Object.keys(worldAreas.level1Areas || {}).length +
+      Object.keys(worldAreas.level2Areas || {}).length +
+      Object.keys(worldAreas.level3Areas || {}).length;
+    
+    log.info("Saved world areas", { areaCount });
+    
+    return NextResponse.json({
+      success: true,
+      message: "World areas saved",
+      areaCount,
+    });
+  } catch (error) {
+    log.error("PUT error:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to save world config",
       },
       { status: 500 },
     );

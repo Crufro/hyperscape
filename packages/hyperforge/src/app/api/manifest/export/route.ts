@@ -24,14 +24,26 @@ import type {
 type ManifestEntry = ItemManifest | NPCManifest | ResourceManifest;
 
 /**
- * Request body for POST /api/manifest/export
+ * Single asset export request
  */
-interface ManifestExportRequest {
+interface SingleAssetExport {
   assetId?: string;
   category?: AssetCategory;
   metadata?: Record<string, unknown>;
   modelPath?: string;
+}
+
+/**
+ * Request body for POST /api/manifest/export
+ *
+ * Supports both single and batch exports:
+ * - Single: { assetId: "bronze-sword", action: "write" }
+ * - Batch: { assets: [{ assetId: "bronze-sword" }, { assetId: "iron-sword" }], action: "write" }
+ */
+interface ManifestExportRequest extends SingleAssetExport {
   action?: "preview" | "write";
+  // Batch export: array of assets
+  assets?: SingleAssetExport[];
 }
 
 // Path to game manifests
@@ -85,99 +97,169 @@ async function writeManifest(
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
+/**
+ * Process a single asset for export
+ */
+async function processAssetForExport(
+  asset: SingleAssetExport,
+): Promise<{ entry: ManifestEntry; category: AssetCategory; error?: string }> {
+  const { assetId, category, metadata, modelPath } = asset;
+
+  let assetMetadata = metadata;
+  let assetCategory = category as AssetCategory;
+
+  if (assetId) {
+    const dbAsset = await getAssetById(assetId);
+    if (!dbAsset) {
+      throw new Error(`Asset not found: ${assetId}`);
+    }
+    assetMetadata = {
+      id: dbAsset.id,
+      name: dbAsset.name,
+      description: dbAsset.description,
+      type: dbAsset.type,
+      category: dbAsset.category,
+      tags: dbAsset.tags,
+      prompt: dbAsset.prompt,
+      ...dbAsset.generationParams,
+    };
+    assetCategory = (dbAsset.category || dbAsset.type) as AssetCategory;
+  }
+
+  if (!assetCategory || !assetMetadata) {
+    throw new Error("Category and metadata required");
+  }
+
+  const manifestEntry = generateManifestEntry(
+    assetCategory,
+    assetMetadata as Record<string, unknown>,
+    modelPath ||
+      (assetMetadata.modelPath as string) ||
+      `asset://models/${assetMetadata.id}/${assetMetadata.id}.glb`,
+  ) as ManifestEntry;
+
+  return { entry: manifestEntry, category: assetCategory };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ManifestExportRequest;
-    const { assetId, category, metadata, modelPath, action = "preview" } = body;
+    const { action = "preview", assets } = body;
 
-    // If assetId is provided, fetch from database
-    let assetMetadata = metadata;
-    let assetCategory = category as AssetCategory;
+    // Determine if this is a batch or single export
+    const assetList: SingleAssetExport[] = assets?.length
+      ? assets
+      : [{ assetId: body.assetId, category: body.category, metadata: body.metadata, modelPath: body.modelPath }];
 
-    if (assetId) {
-      const asset = await getAssetById(assetId);
-      if (!asset) {
-        return NextResponse.json({ error: "Asset not found" }, { status: 404 });
-      }
-      assetMetadata = {
-        id: asset.id,
-        name: asset.name,
-        description: asset.description,
-        type: asset.type,
-        category: asset.category,
-        tags: asset.tags,
-        prompt: asset.prompt,
-        ...asset.generationParams,
-      };
-      assetCategory = (asset.category || asset.type) as AssetCategory;
-    }
-
-    if (!assetCategory || !assetMetadata) {
+    if (assetList.length === 0 || (!assetList[0].assetId && !assetList[0].metadata)) {
       return NextResponse.json(
-        { error: "Category and metadata required" },
+        { error: "At least one asset (assetId or metadata) required" },
         { status: 400 },
       );
     }
 
-    // Generate manifest entry
-    const manifestEntry = generateManifestEntry(
-      assetCategory,
-      assetMetadata as Record<string, unknown>,
-      modelPath ||
-        (assetMetadata.modelPath as string) ||
-        `asset://models/${assetMetadata.id}/${assetMetadata.id}.glb`,
-    ) as ManifestEntry;
+    // Process all assets
+    const results: {
+      assetId: string;
+      manifestEntry: ManifestEntry;
+      manifestFile: string;
+      action: "added" | "updated";
+      error?: string;
+    }[] = [];
 
-    // Determine manifest file
-    const manifestFileName = getManifestFileName(assetCategory);
-    const manifestType = manifestFileName.replace(".json", "");
+    const errors: { assetId: string; error: string }[] = [];
 
-    // Preview only - just return what would be written
+    // Group entries by manifest file for batch writing
+    const manifestGroups: Map<string, { entries: ManifestEntry[]; category: AssetCategory }> = new Map();
+
+    for (const asset of assetList) {
+      try {
+        const { entry, category } = await processAssetForExport(asset);
+        const manifestFileName = getManifestFileName(category);
+
+        if (!manifestGroups.has(manifestFileName)) {
+          manifestGroups.set(manifestFileName, { entries: [], category });
+        }
+        manifestGroups.get(manifestFileName)!.entries.push(entry);
+
+        results.push({
+          assetId: entry.id,
+          manifestEntry: entry,
+          manifestFile: manifestFileName,
+          action: "added", // Will be updated below if writing
+        });
+      } catch (error) {
+        const assetId = asset.assetId || (asset.metadata?.id as string) || "unknown";
+        errors.push({
+          assetId,
+          error: error instanceof Error ? error.message : "Processing failed",
+        });
+      }
+    }
+
+    // Preview only - return what would be written
     if (action === "preview") {
       return NextResponse.json({
-        success: true,
-        manifestEntry,
-        manifestType,
-        manifestFile: manifestFileName,
-        message: "Preview only - use action: 'write' to save to manifest",
+        success: errors.length === 0,
+        isBatch: assetList.length > 1,
+        count: results.length,
+        results,
+        errors: errors.length > 0 ? errors : undefined,
+        message: "Preview only - use action: 'write' to save to manifests",
       });
     }
 
-    // Write to manifest file
+    // Write to manifest files
     if (action === "write") {
-      // Read existing manifest
-      const existingManifest = await readManifest(manifestFileName);
+      const writeResults: {
+        manifestFile: string;
+        added: number;
+        updated: number;
+        total: number;
+      }[] = [];
 
-      // Check if entry already exists
-      const existingIndex = existingManifest.findIndex(
-        (entry) => entry.id === manifestEntry.id,
-      );
+      for (const [manifestFileName, { entries }] of manifestGroups) {
+        // Read existing manifest
+        const existingManifest = await readManifest(manifestFileName);
+        let added = 0;
+        let updated = 0;
 
-      if (existingIndex >= 0) {
-        // Update existing entry
-        existingManifest[existingIndex] = manifestEntry;
-        log.info(
-          `📝 Updated existing entry in ${manifestFileName}: ${manifestEntry.id}`,
-        );
-      } else {
-        // Add new entry
-        existingManifest.push(manifestEntry);
-        log.info(
-          `📝 Added new entry to ${manifestFileName}: ${manifestEntry.id}`,
-        );
+        for (const entry of entries) {
+          const existingIndex = existingManifest.findIndex((e) => e.id === entry.id);
+
+          if (existingIndex >= 0) {
+            existingManifest[existingIndex] = entry;
+            updated++;
+            // Update result action
+            const result = results.find((r) => r.assetId === entry.id);
+            if (result) result.action = "updated";
+          } else {
+            existingManifest.push(entry);
+            added++;
+          }
+        }
+
+        // Write updated manifest
+        await writeManifest(manifestFileName, existingManifest);
+
+        writeResults.push({
+          manifestFile: manifestFileName,
+          added,
+          updated,
+          total: existingManifest.length,
+        });
+
+        log.info(`📝 Batch export to ${manifestFileName}: ${added} added, ${updated} updated`);
       }
 
-      // Write updated manifest
-      await writeManifest(manifestFileName, existingManifest);
-
       return NextResponse.json({
-        success: true,
-        manifestEntry,
-        manifestType,
-        manifestFile: manifestFileName,
-        action: existingIndex >= 0 ? "updated" : "added",
-        totalEntries: existingManifest.length,
-        message: `Asset exported to ${manifestFileName}`,
+        success: errors.length === 0,
+        isBatch: assetList.length > 1,
+        count: results.length,
+        results,
+        writeResults,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Exported ${results.length} assets to ${writeResults.length} manifest(s)`,
       });
     }
 

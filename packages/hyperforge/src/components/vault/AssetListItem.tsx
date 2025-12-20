@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
   Box,
@@ -19,6 +20,12 @@ import {
   Copy,
   EyeOff,
   Eye,
+  Square,
+  CheckSquare,
+  Sparkles,
+  Upload,
+  Trash2,
+  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type LibraryAsset } from "@/hooks/useCDNAssets";
@@ -40,18 +47,28 @@ type AssetWithSource = LibraryAsset & {
 interface AssetListItemProps {
   asset: AssetWithSource;
   isSelected?: boolean;
+  /** Whether the asset is selected for multi-select operations */
+  isMultiSelected?: boolean;
   isFavorite?: boolean;
   /** Whether the asset is currently hidden */
   isHidden?: boolean;
   /** Optional thumbnail override URL (e.g., from generated sprites) */
   thumbnailOverride?: string;
   onSelect?: (asset: AssetWithSource) => void;
+  /** Callback for multi-select toggle (Cmd/Ctrl+Click) */
+  onMultiSelect?: (asset: AssetWithSource) => void;
   onFavorite?: (asset: AssetWithSource) => void;
   onCreateVariant?: (asset: AssetWithSource) => void;
   /** Callback to hide the asset from the list */
   onHide?: (asset: AssetWithSource) => void;
   /** Callback to unhide (restore) the asset */
   onUnhide?: (asset: AssetWithSource) => void;
+  /** Callback to open enhancement panel (retexture/regenerate) */
+  onEnhance?: (asset: AssetWithSource) => void;
+  /** Callback to export asset to game */
+  onExport?: (asset: AssetWithSource) => void;
+  /** Callback to delete local asset */
+  onDelete?: (asset: AssetWithSource) => void;
 }
 
 // Rarity colors
@@ -78,17 +95,22 @@ function getCategoryIcon(category: string, type?: string) {
   return Box;
 }
 
-export function AssetListItem({
+export const AssetListItem = memo(function AssetListItem({
   asset,
   isSelected,
+  isMultiSelected = false,
   isFavorite = false,
   isHidden = false,
   thumbnailOverride,
   onSelect,
+  onMultiSelect,
   onFavorite,
   onCreateVariant,
   onHide,
   onUnhide,
+  onEnhance,
+  onExport,
+  onDelete,
 }: AssetListItemProps) {
   const [storeInfo, setStoreInfo] = useState<ItemStoreInfo[] | null>(null);
   const [showStoreInfo, setShowStoreInfo] = useState(false);
@@ -96,7 +118,28 @@ export function AssetListItem({
   // Use thumbnail override if available, otherwise fall back to asset's thumbnail
   const displayThumbnailUrl = thumbnailOverride || asset.thumbnailUrl;
   const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [thumbnailError, setThumbnailError] = useState(false);
+
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
+  };
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showContextMenu) {
+        setShowContextMenu(false);
+        setContextMenuPosition(null);
+      }
+    };
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [showContextMenu]);
 
   const isLocal = asset.source === "LOCAL";
   const hasVRM =
@@ -164,11 +207,22 @@ export function AssetListItem({
       className={cn(
         "w-full flex items-center gap-3 p-3 mb-1 rounded-lg cursor-pointer relative",
         "transition-all duration-200 hover:bg-glass-bg/50",
-        isSelected
-          ? "bg-neon-blue/10 border border-neon-blue/20"
-          : "border border-transparent",
+        isMultiSelected
+          ? "bg-cyan-500/10 border border-cyan-500/30"
+          : isSelected
+            ? "bg-neon-blue/10 border border-neon-blue/20"
+            : "border border-transparent",
       )}
-      onClick={() => onSelect?.(asset)}
+      onContextMenu={handleContextMenu}
+      onClick={(e) => {
+        // Cmd/Ctrl+Click for multi-select
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          onMultiSelect?.(asset);
+        } else {
+          onSelect?.(asset);
+        }
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -176,6 +230,25 @@ export function AssetListItem({
         }
       }}
     >
+      {/* Multi-select checkbox - 44px touch target */}
+      {onMultiSelect && (
+        <button
+          type="button"
+          className="w-11 h-11 min-w-[44px] min-h-[44px] flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-glass-bg transition-colors -m-2"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMultiSelect(asset);
+          }}
+          title="Toggle selection"
+        >
+          {isMultiSelected ? (
+            <CheckSquare className="w-5 h-5 text-cyan-400" />
+          ) : (
+            <Square className="w-5 h-5 text-muted-foreground/50" />
+          )}
+        </button>
+      )}
+
       {/* Thumbnail or Icon */}
       <div
         className={cn(
@@ -274,10 +347,10 @@ export function AssetListItem({
         )}
       </div>
 
-      {/* Favorite */}
+      {/* Favorite - 44px touch target */}
       <button
         type="button"
-        className="w-6 h-6 p-0 flex-shrink-0 flex items-center justify-center rounded hover:bg-glass-bg transition-colors"
+        className="w-11 h-11 min-w-[44px] min-h-[44px] p-0 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-glass-bg transition-colors -m-2"
         onClick={(e) => {
           e.stopPropagation();
           onFavorite?.(asset);
@@ -286,7 +359,7 @@ export function AssetListItem({
       >
         <Star
           className={cn(
-            "w-4 h-4 transition-colors",
+            "w-5 h-5 transition-colors",
             isFavorite
               ? "text-yellow-400 fill-yellow-400"
               : "text-muted-foreground hover:text-yellow-400",
@@ -294,102 +367,162 @@ export function AssetListItem({
         />
       </button>
 
-      {/* Context Menu Button */}
+      {/* Context Menu Button - 44px touch target */}
       <div className="relative">
         <button
           type="button"
-          className="w-6 h-6 p-0 flex-shrink-0 flex items-center justify-center rounded hover:bg-glass-bg transition-colors"
+          className="w-11 h-11 min-w-[44px] min-h-[44px] p-0 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-glass-bg transition-colors -m-2"
           onClick={(e) => {
             e.stopPropagation();
             setShowContextMenu(!showContextMenu);
           }}
         >
-          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+          <MoreVertical className="w-5 h-5 text-muted-foreground" />
         </button>
 
-        {/* Context Menu Dropdown */}
-        {showContextMenu && (
-          <div
-            className="absolute right-0 top-full mt-1 z-50 w-48 py-1 rounded-lg bg-zinc-900 border border-zinc-700 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Create Texture Variant */}
-            <button
-              type="button"
-              className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowContextMenu(false);
-                onCreateVariant?.(asset);
-              }}
+        {/* Context Menu Dropdown with animation */}
+        <AnimatePresence>
+          {showContextMenu && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute right-0 top-full mt-1 z-50 w-48 py-1 rounded-lg bg-zinc-900 border border-zinc-700 shadow-xl origin-top-right"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Palette className="w-4 h-4 text-purple-400" />
-              Create Texture Variant
-            </button>
+              {/* Enhance (Retexture/Regenerate) */}
+              {onEnhance && (
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowContextMenu(false);
+                    onEnhance(asset);
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  Enhance Asset
+                </button>
+              )}
 
-            {/* Download */}
-            {asset.modelPath && (
-              <a
-                href={asset.modelPath}
-                download
-                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowContextMenu(false);
-                }}
-              >
-                <Download className="w-4 h-4 text-cyan-400" />
-                Download Model
-              </a>
-            )}
-
-            {/* Copy ID */}
-            <button
-              type="button"
-              className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(asset.id);
-                setShowContextMenu(false);
-              }}
-            >
-              <Copy className="w-4 h-4 text-muted-foreground" />
-              Copy Asset ID
-            </button>
-
-            {/* Divider */}
-            <div className="my-1 border-t border-glass-border" />
-
-            {/* Hide/Unhide Asset */}
-            {isHidden ? (
+              {/* Create Texture Variant */}
               <button
                 type="button"
-                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-green-500/10 transition-colors text-left text-muted-foreground hover:text-green-400"
+                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowContextMenu(false);
-                  onUnhide?.(asset);
+                  onCreateVariant?.(asset);
                 }}
               >
-                <Eye className="w-4 h-4" />
-                Unhide Asset
+                <Palette className="w-4 h-4 text-purple-400" />
+                Create Texture Variant
               </button>
-            ) : (
+
+              {/* Export to Game */}
+              {onExport && (
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowContextMenu(false);
+                    onExport(asset);
+                  }}
+                >
+                  <Upload className="w-4 h-4 text-green-400" />
+                  Export to Game
+                </button>
+              )}
+
+              {/* Divider */}
+              <div className="my-1 border-t border-glass-border" />
+
+              {/* Download */}
+              {asset.modelPath && (
+                <a
+                  href={asset.modelPath}
+                  download
+                  className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowContextMenu(false);
+                  }}
+                >
+                  <Download className="w-4 h-4 text-cyan-400" />
+                  Download Model
+                </a>
+              )}
+
+              {/* Copy ID */}
               <button
                 type="button"
-                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-red-500/10 transition-colors text-left text-muted-foreground hover:text-red-400"
+                className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-glass-bg transition-colors text-left"
                 onClick={(e) => {
                   e.stopPropagation();
+                  navigator.clipboard.writeText(asset.id);
                   setShowContextMenu(false);
-                  onHide?.(asset);
                 }}
               >
-                <EyeOff className="w-4 h-4" />
-                Hide Asset
+                <Copy className="w-4 h-4 text-muted-foreground" />
+                Copy Asset ID
               </button>
-            )}
-          </div>
-        )}
+
+              {/* Divider */}
+              <div className="my-1 border-t border-glass-border" />
+
+              {/* Hide/Unhide Asset */}
+              {isHidden ? (
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-green-500/10 transition-colors text-left text-muted-foreground hover:text-green-400"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowContextMenu(false);
+                    onUnhide?.(asset);
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                  Unhide Asset
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-red-500/10 transition-colors text-left text-muted-foreground hover:text-red-400"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowContextMenu(false);
+                    onHide?.(asset);
+                  }}
+                >
+                  <EyeOff className="w-4 h-4" />
+                  Hide Asset
+                </button>
+              )}
+
+              {/* Delete (local assets only) */}
+              {onDelete && asset.source === "LOCAL" && (
+                <>
+                  <div className="my-1 border-t border-glass-border" />
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 flex items-center gap-2 text-sm hover:bg-red-500/10 transition-colors text-left text-red-400 hover:text-red-300"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowContextMenu(false);
+                      onDelete(asset);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Asset
+                  </button>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Store Info Popup */}
@@ -441,6 +574,117 @@ export function AssetListItem({
           )}
         </div>
       )}
+
+      {/* Right-click Context Menu (positioned at cursor) with animation */}
+      <AnimatePresence>
+        {showContextMenu && contextMenuPosition && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="fixed z-[100] w-48 py-1 rounded-lg bg-black/95 border border-white/20 shadow-xl backdrop-blur-sm origin-top-left"
+            style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Open/Select */}
+            <button
+              type="button"
+              className="w-full px-4 py-2 flex items-center gap-2 text-sm hover:bg-white/10 transition-colors text-left"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowContextMenu(false);
+                setContextMenuPosition(null);
+                onSelect?.(asset);
+              }}
+            >
+              <Box className="w-4 h-4 text-cyan-400" />
+              Open
+            </button>
+
+            {/* Create Texture Variant */}
+            <button
+              type="button"
+              className="w-full px-4 py-2 flex items-center gap-2 text-sm hover:bg-white/10 transition-colors text-left"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowContextMenu(false);
+                setContextMenuPosition(null);
+                onCreateVariant?.(asset);
+              }}
+            >
+              <Palette className="w-4 h-4 text-purple-400" />
+              Create Variant
+            </button>
+
+            {/* Download */}
+            {asset.modelPath && (
+              <a
+                href={asset.modelPath}
+                download
+                className="w-full px-4 py-2 flex items-center gap-2 text-sm hover:bg-white/10 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowContextMenu(false);
+                  setContextMenuPosition(null);
+                }}
+              >
+                <Download className="w-4 h-4 text-green-400" />
+                Export
+              </a>
+            )}
+
+            {/* Copy ID */}
+            <button
+              type="button"
+              className="w-full px-4 py-2 flex items-center gap-2 text-sm hover:bg-white/10 transition-colors text-left"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(asset.id);
+                setShowContextMenu(false);
+                setContextMenuPosition(null);
+              }}
+            >
+              <Copy className="w-4 h-4 text-muted-foreground" />
+              Copy ID
+            </button>
+
+            {/* Divider */}
+            <div className="my-1 border-t border-white/10" />
+
+            {/* Hide/Unhide */}
+            {isHidden ? (
+              <button
+                type="button"
+                className="w-full px-4 py-2 flex items-center gap-2 text-sm hover:bg-white/10 transition-colors text-left text-green-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowContextMenu(false);
+                  setContextMenuPosition(null);
+                  onUnhide?.(asset);
+                }}
+              >
+                <Eye className="w-4 h-4" />
+                Unhide
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="w-full px-4 py-2 flex items-center gap-2 text-sm hover:bg-white/10 transition-colors text-left text-red-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowContextMenu(false);
+                  setContextMenuPosition(null);
+                  onHide?.(asset);
+                }}
+              >
+                <EyeOff className="w-4 h-4" />
+                Delete
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-}
+});

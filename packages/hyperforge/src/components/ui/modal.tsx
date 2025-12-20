@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { GlassPanel } from "./glass-panel";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,12 +28,29 @@ export function Modal({
     large: "max-w-4xl",
     full: "max-w-7xl",
   };
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -53,11 +70,12 @@ export function Modal({
             <GlassPanel intensity="high" className="flex flex-col max-h-[90vh]">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-border">
-                <h2 className="text-lg font-bold text-foreground tracking-wide">
+                <h2 id="modal-title" className="text-lg font-bold text-foreground tracking-wide">
                   {title}
                 </h2>
                 <button
                   onClick={onClose}
+                  aria-label="Close"
                   className="p-1 text-muted hover:text-foreground transition-colors"
                 >
                   <X className="w-5 h-5" />

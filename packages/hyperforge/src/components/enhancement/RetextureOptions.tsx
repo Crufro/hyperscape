@@ -29,7 +29,8 @@ interface LibraryImage {
   url: string;
   thumbnailUrl: string;
   type: string;
-  source: "cdn" | "supabase" | "local";
+  /** Asset origin: CDN = game repo, FORGE = HyperForge/Supabase, LOCAL = filesystem */
+  source: "CDN" | "FORGE" | "LOCAL";
 }
 
 const log = logger.child("RetextureOptions");

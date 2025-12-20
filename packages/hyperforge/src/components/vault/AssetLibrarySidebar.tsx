@@ -14,12 +14,12 @@ import { CategoryTree } from "./CategoryTree";
 import { AssetFilters } from "./AssetFilters";
 import { AssetUploadModal } from "./AssetUploadModal";
 
-import type { AssetData } from "@/types/asset";
+import type { BaseAsset } from "@/types/asset";
 
 interface AssetLibrarySidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  onAssetSelect?: (asset: AssetData) => void;
+  onAssetSelect?: (asset: BaseAsset) => void;
 }
 
 export function AssetLibrarySidebar({

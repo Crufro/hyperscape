@@ -1,5 +1,4 @@
 // @ts-nocheck -- Complex mesh fitting with dynamic vertex manipulation and bone weights
-// TODO: Fix logger calls to use (message, data?) format instead of multiple arguments
 import * as THREE from "three";
 import {
   BufferGeometry,
@@ -266,7 +265,7 @@ export class MeshFittingService {
     // Log classification statistics
     const counts = { front: 0, back: 0, left: 0, right: 0 };
     sidedness.forEach((s) => counts[s as keyof typeof counts]++);
-    log.debug("Vertex classification:", counts);
+    log.debug("Vertex classification", { counts });
 
     return sidedness;
   }
@@ -411,7 +410,7 @@ export class MeshFittingService {
         pushedCount++;
 
         if (pushedCount % 100 === 0) {
-          log.debug(`Vertex ${i}: Inside mesh, restoring to original position`);
+          log.debug("Restoring vertex to original position", { vertexIndex: i });
         }
       }
     }
@@ -486,9 +485,9 @@ export class MeshFittingService {
     parameters: MeshFittingParameters,
   ): void {
     log.info("Starting iterative fitting");
-    log.debug("Source mesh:", sourceMesh);
-    log.debug("Target mesh:", targetMesh);
-    log.debug("Parameters:", parameters);
+    log.debug("Source mesh", { sourceMesh });
+    log.debug("Target mesh", { targetMesh });
+    log.debug("Parameters", { parameters });
 
     // Warn about performance with SkinnedMesh targets
     if (targetMesh instanceof THREE.SkinnedMesh) {
@@ -504,7 +503,7 @@ export class MeshFittingService {
     const position = sourceGeometry.attributes.position as BufferAttribute;
     const vertexCount = position.count;
 
-    log.debug("Source vertex count:", vertexCount);
+    log.debug("Source vertex count", { count: vertexCount });
 
     // Safety check
     if (!position || vertexCount === 0) {
@@ -568,11 +567,11 @@ export class MeshFittingService {
     const constraintBounds = parameters.targetBounds?.clone();
     if (constraintBounds) {
       const constraintSize = constraintBounds.getSize(new Vector3());
-      log.debug("Using constraint bounds to limit fitting region:", {
+      log.debug("Using constraint bounds to limit fitting region", {
         min: constraintBounds.min,
         max: constraintBounds.max,
+        size: constraintSize,
       });
-      log.debug("Constraint bounds size:", constraintSize);
 
       // If constraint bounds are too small, expand them
       if (
@@ -591,10 +590,9 @@ export class MeshFittingService {
             Math.max(constraintSize.z, minSize),
           ),
         );
-        log.debug(
-          "Expanded constraint bounds to:",
-          constraintBounds.getSize(new Vector3()),
-        );
+        log.debug("Expanded constraint bounds", {
+          size: constraintBounds.getSize(new Vector3()),
+        });
       }
     }
 
@@ -634,16 +632,14 @@ export class MeshFittingService {
     // Check if target is a box geometry
     const isBox = this.detectFlatFaces(targetMesh);
 
-    log.debug(
-      `Target appears to be ${isSphere ? "sphere" : isBox ? "box" : "complex mesh"}, radius: ${sphereRadius}`,
-    );
-    log.debug(`Processing ${vertexCount} vertices`);
-    log.debug(`Target center:`, targetCenter);
-    log.debug(`Target bounds:`, {
-      min: targetBounds.min,
-      max: targetBounds.max,
+    log.debug("Target mesh info", {
+      type: isSphere ? "sphere" : isBox ? "box" : "complex mesh",
+      sphereRadius,
+      vertexCount,
+      targetCenter,
+      targetBounds: { min: targetBounds.min, max: targetBounds.max },
+      isBox,
     });
-    log.debug(`Target is box geometry: ${isBox}`);
 
     // If constraint bounds provided, use them to filter raycasting
     if (constraintBounds) {
@@ -737,10 +733,10 @@ export class MeshFittingService {
 
         // Debug first vertex
         if (vertexIndex === 0 && iter === 0) {
-          log.debug(
-            `First vertex local: ${position.getX(0)}, ${position.getY(0)}, ${position.getZ(0)}`,
-          );
-          log.debug(`First vertex world:`, vertex);
+          log.debug("First vertex position", {
+            local: { x: position.getX(0), y: position.getY(0), z: position.getZ(0) },
+            world: vertex,
+          });
         }
 
         // CRITICAL: Skip vertices that are outside the constraint bounds
@@ -801,7 +797,7 @@ export class MeshFittingService {
             const boxCenter = worldBox.getCenter(new Vector3());
 
             if (vertexIndex < 5) {
-              log.debug(`Box world bounds: min:`, { boxMin, boxMax });
+              log.debug("Box world bounds", { boxMin, boxMax });
             }
 
             // Improved: Consider the vertex's direction from center to better assign faces
@@ -858,7 +854,8 @@ export class MeshFittingService {
             found = true;
 
             if (vertexIndex < 5) {
-              log.debug(`Vertex ${vertexIndex} at`, {
+              log.debug("Vertex position", {
+                vertexIndex,
                 vertex,
                 targetPoint,
                 targetNormal,
@@ -1909,7 +1906,7 @@ export class MeshFittingService {
 
       // If most vertices are in contact, we're done
       if (contactCount > vertexCount * 0.9) {
-        log.debug("   Most vertices in contact, stopping early");
+        log.debug("Most vertices in contact, stopping early");
         break;
       }
     }
@@ -1978,8 +1975,7 @@ export class MeshFittingService {
     const bodyBounds = new Box3().setFromObject(bodyMesh);
     const bodyCenter = bodyBounds.getCenter(new Vector3());
 
-    log.debug("Armor center:", armorCenter);
-    log.debug("Body center:", bodyCenter);
+    log.debug("Mesh centers", { armorCenter, bodyCenter });
 
     // Pre-compute body triangles for closest point queries
     const bodyPositions = bodyGeometry.attributes.position as BufferAttribute;
@@ -2185,7 +2181,7 @@ export class MeshFittingService {
     const index = geometry.index;
 
     if (!index) {
-      log.warn("⚠️ Mesh has no index buffer, edge detection may be incomplete");
+      log.warn("Mesh has no index buffer, edge detection may be incomplete");
       return { edgeVertices: new Set(), edgeLoops: [] };
     }
 
@@ -3324,8 +3320,10 @@ export class MeshFittingService {
       }
     }
 
-    log.debug("Head bone:", headBone ? (headBone as Bone).name : "not found");
-    log.debug("Neck bone:", neckBone ? (neckBone as Bone).name : "not found");
+    log.debug("Found bones", {
+      headBone: headBone ? (headBone as Bone).name : "not found",
+      neckBone: neckBone ? (neckBone as Bone).name : "not found",
+    });
 
     // Get bone positions
     let headBonePos: Vector3 | null = null;
@@ -3334,13 +3332,13 @@ export class MeshFittingService {
     if (headBone) {
       headBonePos = new Vector3();
       (headBone as Bone).getWorldPosition(headBonePos);
-      log.debug("Head bone position:", headBonePos);
+      log.debug("Head bone position", { position: headBonePos });
     }
 
     if (neckBone) {
       neckBonePos = new Vector3();
       (neckBone as Bone).getWorldPosition(neckBonePos);
-      log.debug("Neck bone position:", neckBonePos);
+      log.debug("Neck bone position", { position: neckBonePos });
     }
 
     // Initialize bounds
@@ -3359,19 +3357,19 @@ export class MeshFittingService {
     if (neckBonePos) {
       // Use neck bone position as cutoff
       neckCutoffY = neckBonePos.y;
-      log.debug("Using neck bone for cutoff at Y:", neckCutoffY);
+      log.debug("Using neck bone for cutoff", { cutoffY: neckCutoffY });
     } else if (headBonePos) {
       // Estimate based on head bone - neck is typically 10-15% of model height below head
       neckCutoffY = headBonePos.y - modelHeight * 0.12;
-      log.debug("Estimating neck from head bone at Y:", neckCutoffY);
+      log.debug("Estimating neck from head bone", { cutoffY: neckCutoffY });
     } else {
       // No bones - use top 25% of model
       neckCutoffY = modelTop - modelHeight * 0.25;
-      log.debug("No bones - using top 25% cutoff at Y:", neckCutoffY);
+      log.debug("No bones - using top 25% cutoff", { cutoffY: neckCutoffY });
     }
 
     // COLLECT ALL VERTICES ABOVE NECK/SHOULDER LINE
-    log.debug("Collecting ALL vertices above Y:", neckCutoffY);
+    log.debug("Collecting ALL vertices above Y", { cutoffY: neckCutoffY });
     let verticesCollected = 0;
 
     for (let i = 0; i < vertexCount; i++) {
@@ -3421,16 +3419,12 @@ export class MeshFittingService {
 
     // Get size before expansion
     const preExpandSize = headBounds.getSize(new Vector3());
-    log.debug("Head size before expansion:", preExpandSize);
+    log.debug("Head size before expansion", { size: preExpandSize });
 
     // RAISE THE BOTTOM 20% HIGHER OFF SHOULDERS
     const raiseAmount = preExpandSize.y * 0.2; // 20% raise
     headBounds.min.y += raiseAmount;
-    log.debug(
-      "Raised bottom by",
-      raiseAmount,
-      "units (20% of height above shoulders)",
-    );
+    log.debug("Raised bottom", { raiseAmount, note: "20% of height above shoulders" });
 
     // EXPAND BY 15% ON ALL SIDES - FRONT, BACK, LEFT, RIGHT, TOP, BOTTOM
     const expansionFactor = 0.15; // 15% larger
@@ -3463,32 +3457,16 @@ export class MeshFittingService {
       z: ((finalSize.z / preExpandSize.z - 1) * 100).toFixed(1),
     };
 
-    log.debug("=== FINAL HEAD BOUNDS ===");
-    log.debug("Bounds:", headBounds.min, "to", headBounds.max);
-    log.debug("Center:", headCenter);
-    log.debug("Size:", finalSize);
-    log.debug(
-      "Expansion: +" +
-        expansionAmount.x +
-        "% width, +" +
-        expansionAmount.y +
-        "% height, +" +
-        expansionAmount.z +
-        "% depth",
-    );
-    log.debug("Bottom raised 20% above neck/shoulders");
-    log.debug(
-      "Bottom Y position:",
-      headBounds.min.y,
-      "(was at",
-      neckCutoffY,
-      ")",
-    );
-    log.debug(
-      "Percentage of model height:",
-      ((finalSize.y / modelHeight) * 100).toFixed(1) + "%",
-    );
-    log.debug("========================");
+    log.debug("Final head bounds", {
+      boundsMin: headBounds.min,
+      boundsMax: headBounds.max,
+      center: headCenter,
+      size: finalSize,
+      expansion: expansionAmount,
+      bottomYPosition: headBounds.min.y,
+      originalCutoffY: neckCutoffY,
+      percentageOfModelHeight: ((finalSize.y / modelHeight) * 100).toFixed(1) + "%",
+    });
 
     return {
       headBone,
@@ -3548,13 +3526,10 @@ export class MeshFittingService {
       if (onProgress) onProgress(0.3, "Calculating optimal position...");
 
       log.debug("Helmet fitting - before transform:");
-      log.debug(
-        "- Helmet scale:",
-        helmetMesh.scale.x,
-        helmetMesh.scale.y,
-        helmetMesh.scale.z,
-      );
-      log.debug("- Head bounds:", headInfo.headBounds);
+      log.debug("Helmet initial state", {
+        scale: { x: helmetMesh.scale.x, y: helmetMesh.scale.y, z: helmetMesh.scale.z },
+        headBounds: headInfo.headBounds,
+      });
 
       const optimalTransform = this.calculateOptimalHelmetTransform(
         helmetMesh,
@@ -3564,17 +3539,17 @@ export class MeshFittingService {
         fitTightness,
       );
 
-      log.debug("Helmet fitting - calculated transform:");
-      log.debug("- Position:", optimalTransform.position);
-      log.debug("- Scale:", optimalTransform.scale);
+      log.debug("Helmet fitting - calculated transform", {
+        position: optimalTransform.position,
+        scale: optimalTransform.scale,
+      });
 
       // Apply transform
       helmetMesh.position.copy(optimalTransform.position);
       helmetMesh.rotation.copy(optimalTransform.rotation);
       helmetMesh.scale.setScalar(optimalTransform.scale);
 
-      log.debug("Helmet fitting - after transform:");
-      log.debug("- Final helmet scale:", helmetMesh.scale.x);
+      log.debug("Helmet fitting - after transform", { finalScale: helmetMesh.scale.x });
 
       // Fine-tune position to avoid penetration
       if (onProgress) onProgress(0.6, "Fine-tuning position...");
@@ -3728,9 +3703,7 @@ export class MeshFittingService {
       finalScale = absoluteMinScale;
     }
 
-    log.debug("Base scale (with wall thickness):", baseScale);
-    log.debug("Absolute minimum scale:", absoluteMinScale);
-    log.debug("Final scale:", finalScale);
+    log.debug("Scale calculations", { baseScale, absoluteMinScale, finalScale });
 
     // Calculate what the final helmet size will be
     const finalHelmetSize = helmetSize.clone().multiplyScalar(finalScale);
@@ -3740,117 +3713,46 @@ export class MeshFittingService {
 
     // No offset needed - the margins ensure proper wrap-around
 
-    log.debug("=== HELMET FITTING - OVER THE BOUNDING BOX ===");
-    log.debug(
-      "Head bounds (15% expanded, 20% raised):",
-      headBounds.min,
-      "to",
-      headBounds.max,
-    );
-    log.debug("Head size:", headSize);
-    log.debug("Helmet original size:", helmetSize);
-    log.debug(
-      "Helmet inner size (90%):",
-      helmetSize.clone().multiplyScalar(helmetWallFactor),
-    );
-    log.debug("");
-    log.debug("Scale calculation (helmet OVER bounds):");
-    log.debug("  - Head bounds already include 15% expansion on all sides");
-    log.debug("  - Bottom raised 20% above neck/shoulders");
-    log.debug("  - Helmet inner surface must be >= head bounds");
-    log.debug(
-      "  - Scale X:",
-      scaleX.toFixed(3),
-      "= head",
-      headSize.x.toFixed(2),
-      "/ (helmet",
-      helmetSize.x.toFixed(2),
-      "* 0.9)",
-    );
-    log.debug(
-      "  - Scale Y:",
-      scaleY.toFixed(3),
-      "= head",
-      headSize.y.toFixed(2),
-      "/ (helmet",
-      helmetSize.y.toFixed(2),
-      "* 0.9)",
-    );
-    log.debug(
-      "  - Scale Z:",
-      scaleZ.toFixed(3),
-      "= head",
-      headSize.z.toFixed(2),
-      "/ (helmet",
-      helmetSize.z.toFixed(2),
-      "* 0.9)",
-    );
-    log.debug(
-      "  - Max scale required:",
-      Math.max(scaleX, scaleY, scaleZ).toFixed(3),
-    );
-    log.debug("  - Safety margin: 2%");
-    log.debug("  - Base scale:", baseScale.toFixed(3));
-    log.debug("  - User multiplier:", sizeMultiplier);
-    log.debug("  - Final scale:", finalScale.toFixed(3));
-    log.debug("");
-    log.debug("Resulting helmet outer size:", finalHelmetSize);
-    log.debug(
-      "Resulting helmet inner size:",
-      finalHelmetSize.clone().multiplyScalar(0.9),
-    );
-    log.debug(
-      "  => Helmet scaled to",
-      (finalScale * 100).toFixed(0),
-      "% of original size",
-    );
-    log.debug("Size comparison (bounds vs helmet outer):");
-    log.debug(
-      "  - Head X:",
-      headSize.x.toFixed(3),
-      " -> Helmet outer X:",
-      finalHelmetSize.x.toFixed(3),
-    );
-    log.debug(
-      "  - Head Y:",
-      headSize.y.toFixed(3),
-      " -> Helmet outer Y:",
-      finalHelmetSize.y.toFixed(3),
-    );
-    log.debug(
-      "  - Head Z:",
-      headSize.z.toFixed(3),
-      " -> Helmet outer Z:",
-      finalHelmetSize.z.toFixed(3),
-    );
-    log.debug("Helmet inner surface vs head bounds:");
+    log.debug("Helmet fitting - over bounding box", {
+      headBoundsMin: headBounds.min,
+      headBoundsMax: headBounds.max,
+      headSize,
+      helmetOriginalSize: helmetSize,
+      helmetInnerSize90: helmetSize.clone().multiplyScalar(helmetWallFactor),
+      scaleX: scaleX.toFixed(3),
+      scaleY: scaleY.toFixed(3),
+      scaleZ: scaleZ.toFixed(3),
+      maxScaleRequired: Math.max(scaleX, scaleY, scaleZ).toFixed(3),
+      baseScale: baseScale.toFixed(3),
+      sizeMultiplier,
+      finalScale: finalScale.toFixed(3),
+      resultingHelmetOuterSize: finalHelmetSize,
+      resultingHelmetInnerSize: finalHelmetSize.clone().multiplyScalar(0.9),
+      scaledPercentage: (finalScale * 100).toFixed(0) + "%",
+    });
     const innerSize = finalHelmetSize.clone().multiplyScalar(0.9);
-    log.debug(
-      "  - Inner is",
-      ((innerSize.x / headSize.x - 1) * 100).toFixed(1),
-      "% larger than head X",
-    );
-    log.debug(
-      "  - Inner is",
-      ((innerSize.y / headSize.y - 1) * 100).toFixed(1),
-      "% larger than head Y",
-    );
-    log.debug(
-      "  - Inner is",
-      ((innerSize.z / headSize.z - 1) * 100).toFixed(1),
-      "% larger than head Z",
-    );
+    log.debug("Size comparison", {
+      headX: headSize.x.toFixed(3),
+      helmetOuterX: finalHelmetSize.x.toFixed(3),
+      headY: headSize.y.toFixed(3),
+      helmetOuterY: finalHelmetSize.y.toFixed(3),
+      headZ: headSize.z.toFixed(3),
+      helmetOuterZ: finalHelmetSize.z.toFixed(3),
+    });
+    log.debug("Helmet inner vs head", {
+      innerWiderByXPercent: ((innerSize.x / headSize.x - 1) * 100).toFixed(1),
+      innerWiderByYPercent: ((innerSize.y / headSize.y - 1) * 100).toFixed(1),
+      innerWiderByZPercent: ((innerSize.z / headSize.z - 1) * 100).toFixed(1),
+    });
 
     if (
       finalHelmetSize.x < headSize.x ||
       finalHelmetSize.y < headSize.y ||
       finalHelmetSize.z < headSize.z
     ) {
-      log.error(
-        "ERROR: Helmet is SMALLER than head in at least one dimension!",
-      );
+      log.error("Helmet is SMALLER than head in at least one dimension");
     } else {
-      log.debug("✓ Helmet is bigger than head in all dimensions");
+      log.debug("Helmet is bigger than head in all dimensions");
     }
 
     // VERIFY: Ensure helmet is OUTSIDE the head bounds
@@ -3877,86 +3779,45 @@ export class MeshFittingService {
     helmetMesh.scale.copy(originalScale);
     helmetMesh.rotation.copy(originalRotation);
 
-    log.debug("================================");
-    log.debug("VERIFICATION - HELMET OVER BOUNDING BOX:");
-    log.debug(
-      "  - Head bounds (15% expanded, 20% raised):",
-      headBounds.min,
-      "to",
-      headBounds.max,
-    );
-    log.debug(
-      "  - Helmet outer bounds:",
-      testHelmetBounds.min,
-      "to",
-      testHelmetBounds.max,
-    );
-    log.debug(
-      "  - Helmet inner bounds (90%):",
-      testInnerBounds.min,
-      "to",
-      testInnerBounds.max,
-    );
-    log.debug(
-      "  - Inner surface >= head bounds?",
-      isContained
-        ? "✓ YES - HELMET IS OVER THE BOX"
-        : "❌ NO - HELMET TOO SMALL",
-    );
+    log.debug("Verification - helmet over bounding box", {
+      headBoundsMin: headBounds.min,
+      headBoundsMax: headBounds.max,
+      helmetOuterBoundsMin: testHelmetBounds.min,
+      helmetOuterBoundsMax: testHelmetBounds.max,
+      helmetInnerBoundsMin: testInnerBounds.min,
+      helmetInnerBoundsMax: testInnerBounds.max,
+      isContained,
+      result: isContained ? "HELMET IS OVER THE BOX" : "HELMET TOO SMALL",
+    });
 
     if (!isContained) {
-      log.error("WARNING: Helmet inner surface does not contain head bounds!");
-
       // Calculate how much bigger the helmet needs to be
-      const innerSize = testHelmetSize.clone().multiplyScalar(0.9);
-      const neededScaleX = headSize.x / innerSize.x;
-      const neededScaleY = headSize.y / innerSize.y;
-      const neededScaleZ = headSize.z / innerSize.z;
+      const calculatedInnerSize = testHelmetSize.clone().multiplyScalar(0.9);
+      const neededScaleX = headSize.x / calculatedInnerSize.x;
+      const neededScaleY = headSize.y / calculatedInnerSize.y;
+      const neededScaleZ = headSize.z / calculatedInnerSize.z;
       const neededMultiplier =
         Math.max(neededScaleX, neededScaleY, neededScaleZ) * 1.02;
 
-      log.debug("  - Current helmet scale:", finalScale);
-      log.debug(
-        "  - Needs to be",
-        (neededMultiplier * 100).toFixed(1),
-        "% bigger",
-      );
-      log.debug("  - Suggested scale:", finalScale * neededMultiplier);
+      log.error("Helmet inner surface does not contain head bounds", {
+        currentScale: finalScale,
+        neededBiggerPercent: (neededMultiplier * 100).toFixed(1),
+        suggestedScale: finalScale * neededMultiplier,
+      });
     }
 
-    log.debug("================================");
-    log.debug("FINAL RESULT:");
-    log.debug("  - Position:", position);
-    log.debug("  - Scale:", finalScale);
-    log.debug(
-      "  - Head bounds size:",
-      headSize.x.toFixed(2),
-      "x",
-      headSize.y.toFixed(2),
-      "x",
-      headSize.z.toFixed(2),
-    );
-    log.debug(
-      "  - Helmet outer size:",
-      finalHelmetSize.x.toFixed(2),
-      "x",
-      finalHelmetSize.y.toFixed(2),
-      "x",
-      finalHelmetSize.z.toFixed(2),
-    );
-    log.debug(
-      "  - Helmet inner size:",
-      innerSize.x.toFixed(2),
-      "x",
-      innerSize.y.toFixed(2),
-      "x",
-      innerSize.z.toFixed(2),
-    );
-    log.debug("  - Clearance (inner - head):");
-    log.debug("    X:", (innerSize.x - headSize.x).toFixed(3), "units");
-    log.debug("    Y:", (innerSize.y - headSize.y).toFixed(3), "units");
-    log.debug("    Z:", (innerSize.z - headSize.z).toFixed(3), "units");
-    log.debug("================================");
+    log.debug("Final result", {
+      position,
+      scale: finalScale,
+      headBoundsSize: `${headSize.x.toFixed(2)} x ${headSize.y.toFixed(2)} x ${headSize.z.toFixed(2)}`,
+      helmetOuterSize: `${finalHelmetSize.x.toFixed(2)} x ${finalHelmetSize.y.toFixed(2)} x ${finalHelmetSize.z.toFixed(2)}`,
+      helmetInnerSize: `${innerSize.x.toFixed(2)} x ${innerSize.y.toFixed(2)} x ${innerSize.z.toFixed(2)}`,
+      clearance: {
+        x: (innerSize.x - headSize.x).toFixed(3),
+        y: (innerSize.y - headSize.y).toFixed(3),
+        z: (innerSize.z - headSize.z).toFixed(3),
+      },
+    });
 
     const rotation = new Euler(0, 0, 0);
 

@@ -122,7 +122,7 @@ export default function GeneratePage() {
 
   // Mesh quality settings (polycount, topology)
   const [meshQuality, setMeshQuality] = useState<MeshQualitySettings>(() =>
-    getMeshQualityForCategory("weapon"),
+    getMeshQualityForCategory("weapon")
   );
 
   // Result state for navigating to VRM viewer
@@ -410,13 +410,10 @@ export default function GeneratePage() {
 
       if (reader) {
         let buffer = "";
-        let reading = true;
-        while (reading) {
+
+        while (true) {
           const { done, value } = await reader.read();
-          if (done) {
-            reading = false;
-            continue;
-          }
+          if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n\n");
@@ -464,7 +461,7 @@ export default function GeneratePage() {
                   setActiveView("results");
                   // Refresh history to include the new asset
                   refreshHistory();
-
+                  
                   // Save to command palette recent generations
                   if (result.metadata?.assetId) {
                     addRecentGeneration({
@@ -472,8 +469,7 @@ export default function GeneratePage() {
                       name: assetName || result.metadata.assetId,
                       category: generationType || "item",
                       prompt: description,
-                      thumbnailUrl:
-                        result.localThumbnailUrl || result.thumbnailUrl,
+                      thumbnailUrl: result.localThumbnailUrl || result.thumbnailUrl,
                     });
                   }
                 } else if (data.type === "error") {
@@ -766,7 +762,7 @@ export default function GeneratePage() {
                           "Describe your asset in detail..."
                         }
                         rows={4}
-                        className="w-full px-4 py-2 bg-glass-bg border border-glass-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
+                        className="w-full px-4 py-2 bg-glass-bg border border-glass-border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
                       />
                     </div>
 

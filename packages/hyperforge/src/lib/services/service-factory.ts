@@ -125,3 +125,39 @@ export class ServiceFactory {
 export function getServiceFactory(): ServiceFactory {
   return ServiceFactory.getInstance();
 }
+
+/**
+ * Get commonly used services with a single call
+ *
+ * @example
+ * ```typescript
+ * const { armor, vrm, weapon } = getServices();
+ *
+ * // Fit armor to VRM
+ * const fittedArmor = await armor.fitToVRM(armorMesh, vrmModel);
+ *
+ * // Convert to VRM format
+ * const vrmBlob = await vrm.convert(model);
+ * ```
+ *
+ * @returns Object containing all commonly used service instances
+ */
+export function getServices() {
+  const factory = ServiceFactory.getInstance();
+  return {
+    /** Armor fitting service for VRM models */
+    armor: factory.getArmorFittingService(),
+    /** General mesh fitting service */
+    mesh: factory.getMeshFittingService(),
+    /** Weapon fitting and grip detection */
+    weapon: factory.getWeaponFittingService(),
+    /** VRM format conversion */
+    vrm: factory.getVRMConverter(),
+    /** Asset normalization (scale, rotation, etc.) */
+    normalization: factory.getNormalizationService(),
+    /** Hand rigging for weapons/tools (may be null if deps missing) */
+    hand: factory.getHandRiggingService(),
+    /** Sprite sheet generation from 3D models */
+    sprite: factory.getSpriteGenerationService(),
+  };
+}

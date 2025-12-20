@@ -305,7 +305,7 @@ export function AudioStudioPanel({
 
     const link = document.createElement("a");
     link.href = currentAudio;
-    link.download = `hyperforge_audio_${Date.now()}.mp3`;
+    link.download = `hyperforge-audio-${Date.now().toString(36).slice(-6)}.mp3`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

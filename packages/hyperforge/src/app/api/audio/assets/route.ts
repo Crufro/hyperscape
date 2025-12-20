@@ -29,7 +29,8 @@ interface AudioAsset {
   url: string;
   size: number;
   createdAt: string;
-  source: "cdn" | "supabase" | "local";
+  /** Asset origin: CDN = game repo, FORGE = HyperForge/Supabase, LOCAL = filesystem */
+  source: "CDN" | "FORGE" | "LOCAL";
   metadata?: {
     text?: string;
     voicePreset?: string;
@@ -77,7 +78,7 @@ export async function GET() {
           url: audioUrl,
           size: 0, // CDN doesn't provide size info
           createdAt: new Date().toISOString(),
-          source: "cdn",
+          source: "CDN",
           metadata: {
             musicType: music.type,
             category: music.subtype,
@@ -106,7 +107,7 @@ export async function GET() {
             url: audio.url,
             size: audio.size || 0,
             createdAt: audio.createdAt || new Date().toISOString(),
-            source: "supabase",
+            source: "FORGE",
           });
         }
         log.info("Loaded audio files from Supabase", { count: supabaseAudio.length });
@@ -140,10 +141,11 @@ export async function GET() {
           
           // Generate unique ID using relative path (not just filename)
           // This prevents collisions like voice/combat/attack.mp3 vs voice/dialogue/attack.mp3
-          // ID format: type_subdir_filename (e.g., "voice_combat_attack" or "sfx_attack")
+          // ID format: type-subdir-filename (e.g., "voice-combat-attack" or "sfx-attack")
           const relativeDir = path.dirname(relativePath);
           const filenameWithoutExt = filename.replace(/\.[^.]+$/, "");
-          const id = relativeDir !== "." 
+          // Generate snake_case ID (matching game conventions)
+          const id = relativeDir !== "."
             ? `${type}_${relativeDir.replace(/[/\\]/g, "_")}_${filenameWithoutExt}`
             : `${type}_${filenameWithoutExt}`;
           
@@ -163,7 +165,7 @@ export async function GET() {
             url: `${apiUrl}/api/audio/file/${folder}/${urlPath}`,
             size: stats.size,
             createdAt: stats.mtime.toISOString(),
-            source: "local",
+            source: "LOCAL",
             metadata: {
               category: relativeDir !== "." ? relativeDir : undefined,
             },

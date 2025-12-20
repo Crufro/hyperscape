@@ -20,7 +20,7 @@ export function EnvironmentControls({
   onEnvironmentChange,
 }: EnvironmentControlsProps) {
   return (
-    <div className="absolute bottom-4 right-4 z-10 w-32">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-32">
       <Select
         value={environment}
         onChange={onEnvironmentChange}

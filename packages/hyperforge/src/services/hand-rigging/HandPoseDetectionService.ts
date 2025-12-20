@@ -1,17 +1,19 @@
 /**
  * Hand Pose Detection Service
  * Uses TensorFlow.js and MediaPipe Hands to detect hand landmarks in 2D/3D
+ * 
+ * TensorFlow is dynamically imported to reduce initial bundle size.
  */
 
-import * as tf from "@tensorflow/tfjs";
-import * as handPoseDetection from "@tensorflow-models/hand-pose-detection";
-import "@tensorflow/tfjs-backend-webgl";
-import "@mediapipe/hands";
-import * as THREE from "three";
+import { Vector3, Vector4, Matrix4 } from "three";
 
 import { HAND_LANDMARKS, FINGER_JOINTS } from "@/constants";
 import { logger } from "@/lib/utils";
 import type { TensorFlowHand, TensorFlowKeypoint } from "@/types";
+
+// Types for dynamically imported TensorFlow modules
+type TFModule = typeof import("@tensorflow/tfjs");
+type HandPoseDetectionModule = typeof import("@tensorflow-models/hand-pose-detection");
 
 const log = logger.child("HandPoseDetectionService");
 
@@ -47,12 +49,20 @@ export interface FingerJoints {
   pinky: number[];
 }
 
+// HandDetector type from the module
+type HandDetector = Awaited<ReturnType<HandPoseDetectionModule["createDetector"]>>;
+
 export class HandPoseDetectionService {
-  private detector: handPoseDetection.HandDetector | null = null;
+  private detector: HandDetector | null = null;
   private isInitialized = false;
+  
+  // Dynamically loaded modules
+  private tf: TFModule | null = null;
+  private handPoseDetection: HandPoseDetectionModule | null = null;
 
   /**
    * Initialize the hand pose detection model
+   * Dynamically loads TensorFlow.js to reduce initial bundle size
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -60,19 +70,34 @@ export class HandPoseDetectionService {
     log.info("🤖 Initializing hand pose detection...");
 
     try {
+      // Dynamically import TensorFlow and hand pose detection
+      log.info("Loading TensorFlow.js modules...");
+      const [tf, handPoseDetection] = await Promise.all([
+        import("@tensorflow/tfjs"),
+        import("@tensorflow-models/hand-pose-detection"),
+      ]);
+      
+      // Import backends and MediaPipe
+      await Promise.all([
+        import("@tensorflow/tfjs-backend-webgl"),
+        import("@mediapipe/hands"),
+      ]);
+      
+      this.tf = tf;
+      this.handPoseDetection = handPoseDetection;
+      
       // Wait for TensorFlow.js to be ready
       await tf.ready();
       log.info("✅ TensorFlow.js ready, backend:", tf.getBackend());
 
       // Create the detector with MediaPipe Hands
       const model = handPoseDetection.SupportedModels.MediaPipeHands;
-      const detectorConfig: handPoseDetection.MediaPipeHandsMediaPipeModelConfig =
-        {
-          runtime: "mediapipe",
-          solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands",
-          modelType: "full",
-          maxHands: 2,
-        };
+      const detectorConfig = {
+        runtime: "mediapipe" as const,
+        solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands",
+        modelType: "full" as const,
+        maxHands: 2,
+      };
 
       this.detector = await handPoseDetection.createDetector(
         model,
@@ -159,8 +184,8 @@ export class HandPoseDetectionService {
    */
   convertTo3DCoordinates(
     landmarks2D: Point2D[],
-    cameraMatrix: THREE.Matrix4,
-    projectionMatrix: THREE.Matrix4,
+    cameraMatrix: Matrix4,
+    projectionMatrix: Matrix4,
     depthEstimates?: number[],
   ): Point3D[] {
     const landmarks3D: Point3D[] = [];
@@ -178,7 +203,7 @@ export class HandPoseDetectionService {
       const depth = depthEstimates?.[i] || 0.5;
 
       // Create point in clip space
-      const clipSpace = new THREE.Vector4(ndcX, ndcY, depth, 1);
+      const clipSpace = new Vector4(ndcX, ndcY, depth, 1);
 
       // Transform to world space
       clipSpace.applyMatrix4(invProjection);

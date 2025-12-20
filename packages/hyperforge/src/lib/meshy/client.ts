@@ -254,21 +254,34 @@ export async function getTaskStatusV2(taskId: string): Promise<MeshyTask> {
 
 /**
  * Get task status (auto-detect API version)
- * Tries v2 first, falls back to v1 if needed
+ * Tries v2 first, falls back to v1 if needed.
+ * Collects all errors and reports them in an aggregated error if all attempts fail.
  */
 export async function getTaskStatus(taskId: string): Promise<MeshyTask> {
+  const errors: Error[] = [];
+
   try {
     return await getTaskStatusV2(taskId);
-  } catch {
+  } catch (v2Error) {
+    errors.push(v2Error instanceof Error ? v2Error : new Error(String(v2Error)));
+
     // Fallback to v1 endpoints
     for (const endpoint of ["image-to-3d", "retexture", "rigging"] as const) {
       try {
         return await getTaskStatusV1(taskId, endpoint);
-      } catch {
-        // Try next endpoint
+      } catch (v1Error) {
+        errors.push(v1Error instanceof Error ? v1Error : new Error(String(v1Error)));
       }
     }
-    throw new Error(`Failed to get task status for ${taskId}`);
+
+    // Create aggregated error with all attempts
+    const aggregatedError = new Error(
+      `Failed to get task status for ${taskId}. ` +
+      `Tried v2 and v1 endpoints (${errors.length} attempts). ` +
+      `Last error: ${errors[errors.length - 1]?.message}`
+    );
+    (aggregatedError as Error & { cause: Error[] }).cause = errors;
+    throw aggregatedError;
   }
 }
 
