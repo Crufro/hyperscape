@@ -2579,6 +2579,9 @@ export class CombatSystem extends SystemBase {
     // Clean up rate limiter (Phase 6.5)
     this.rateLimiter.destroy();
 
+    // Clean up event store (Phase 7)
+    this.eventStore.destroy();
+
     // Release pooled tiles back to pool
     tilePool.release(this._attackerTile);
     tilePool.release(this._targetTile);

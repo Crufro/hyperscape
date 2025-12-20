@@ -347,6 +347,17 @@ export class EventStore {
   }
 
   /**
+   * Destroy the event store and release all resources
+   *
+   * Call this when the store is no longer needed (e.g., during system shutdown).
+   * For consistency with other services that have destroy() methods.
+   */
+  destroy(): void {
+    this.clear();
+    // Future: Close any open resources, cancel timers, flush to disk, etc.
+  }
+
+  /**
    * Compute FNV-1a checksum of critical state
    * Fast hash for desync detection
    */
