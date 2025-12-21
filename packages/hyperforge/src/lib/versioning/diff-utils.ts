@@ -207,7 +207,7 @@ export function formatDiff(changes: FieldChange[]): string {
   // Group changes by top-level path
   const grouped = groupChangesByTopLevel(changes);
 
-  for (const [section, sectionChanges] of Object.entries(grouped)) {
+  for (const [section, sectionChanges] of grouped) {
     if (sectionChanges.length > 0) {
       lines.push(`[${section}]`);
       for (const change of sectionChanges) {
@@ -224,15 +224,17 @@ export function formatDiff(changes: FieldChange[]): string {
  */
 function groupChangesByTopLevel(
   changes: FieldChange[]
-): Record<string, FieldChange[]> {
-  const grouped: Record<string, FieldChange[]> = {};
+): Map<string, FieldChange[]> {
+  const grouped = new Map<string, FieldChange[]>();
 
   for (const change of changes) {
     const topLevel = change.path.split(".")[0];
-    if (!grouped[topLevel]) {
-      grouped[topLevel] = [];
+    const existing = grouped.get(topLevel);
+    if (existing) {
+      existing.push(change);
+    } else {
+      grouped.set(topLevel, [change]);
     }
-    grouped[topLevel].push(change);
   }
 
   return grouped;
@@ -260,7 +262,7 @@ export function formatDiffForUI(changes: FieldChange[]): FormattedDiffSection[] 
   const grouped = groupChangesByTopLevel(changes);
   const sections: FormattedDiffSection[] = [];
 
-  for (const [path, sectionChanges] of Object.entries(grouped)) {
+  for (const [path, sectionChanges] of grouped) {
     sections.push({
       path,
       changes: sectionChanges.map((change) => ({

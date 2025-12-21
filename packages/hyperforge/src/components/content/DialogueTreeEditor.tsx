@@ -258,6 +258,7 @@ function DialogueTreeEditorInner({
 
       return { nodes, edges };
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler functions are created inline in node data; adding them would cause infinite loops
     [nodeAudio, playingNodeId, isPlayingAudio, isGeneratingAudio],
   );
 
@@ -407,24 +408,28 @@ function DialogueTreeEditorInner({
     if (deletePressed && selectedNodeId) {
       handleDeleteNode(selectedNodeId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler is stable enough; adding it would cause unwanted re-runs
   }, [deletePressed, selectedNodeId]);
 
   useEffect(() => {
     if (undoPressed) {
       handleUndo();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler is stable enough; adding it would cause unwanted re-runs
   }, [undoPressed]);
 
   useEffect(() => {
     if (redoPressed) {
       handleRedo();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler is stable enough; adding it would cause unwanted re-runs
   }, [redoPressed]);
 
   useEffect(() => {
     if (duplicatePressed && selectedNodeId) {
       handleDuplicateNode(selectedNodeId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler is stable enough; adding it would cause unwanted re-runs
   }, [duplicatePressed, selectedNodeId]);
 
   useEffect(() => {
@@ -533,6 +538,7 @@ function DialogueTreeEditorInner({
         description: `Created copy: ${newId}`,
       });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler functions in node.data are created inline; adding them would cause infinite loops
     [getNodes, getEdges, setNodesState, pushState, toast],
   );
 
@@ -756,6 +762,7 @@ function DialogueTreeEditorInner({
       // Push to history
       pushState([...getNodes(), newNode], getEdges());
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler functions in node.data are created inline; adding them would cause infinite loops
     [screenToFlowPosition, getNodes, getEdges, setNodesState, pushState],
   );
 
@@ -816,6 +823,7 @@ function DialogueTreeEditorInner({
 
       pushState([...getNodes(), newNode], getEdges());
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Handler functions in node.data are created inline; adding them would cause infinite loops
     [
       contextMenu.position,
       screenToFlowPosition,

@@ -13,6 +13,11 @@ import {
   generateAssetId,
   getDefaultMetadata,
 } from "@/lib/generation/category-schemas";
+import {
+  getStringProperty,
+  getNumberProperty,
+  isObject,
+} from "@/types/guards";
 
 interface ResourceGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
@@ -21,13 +26,42 @@ interface ResourceGenerationFormProps {
   initialConfig?: Partial<GenerationConfig>;
 }
 
+/**
+ * Extract resource form values from metadata using type-safe property access
+ */
+function extractResourceMetadata(metadata: unknown) {
+  if (!isObject(metadata)) {
+    return {
+      name: "",
+      resourceType: "tree",
+      examine: "",
+      skill: "woodcutting",
+      toolRequired: "",
+      level: 1,
+      scale: 1.0,
+      depletedScale: 0.3,
+    };
+  }
+
+  return {
+    name: getStringProperty(metadata, "name") ?? "",
+    resourceType: getStringProperty(metadata, "resourceType") ?? "tree",
+    examine: getStringProperty(metadata, "examine") ?? "",
+    skill: getStringProperty(metadata, "skill") ?? "woodcutting",
+    toolRequired: getStringProperty(metadata, "toolRequired") ?? "",
+    level: getNumberProperty(metadata, "level") ?? 1,
+    scale: getNumberProperty(metadata, "scale") ?? 1.0,
+    depletedScale: getNumberProperty(metadata, "depletedScale") ?? 0.3,
+  };
+}
+
 export function ResourceGenerationForm({
   onGenerate,
   onCancel,
   initialConfig,
 }: ResourceGenerationFormProps) {
-  // Extract metadata for initializing form fields
-  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+  // Extract metadata using type-safe helper
+  const initialMeta = extractResourceMetadata(initialConfig?.metadata);
 
   const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
@@ -37,31 +71,31 @@ export function ResourceGenerationForm({
   const [quality, setQuality] = useState<"preview" | "medium" | "high">(
     initialConfig?.quality ?? "high"
   );
-  const [name, setName] = useState((meta?.name as string) ?? "");
-  const [type, setType] = useState((meta?.resourceType as string) ?? "tree");
-  const [examine, setExamine] = useState((meta?.examine as string) ?? "");
-  const [harvestSkill, setHarvestSkill] = useState((meta?.skill as string) ?? "woodcutting");
-  const [toolRequired, setToolRequired] = useState((meta?.toolRequired as string) ?? "");
-  const [levelRequired, setLevelRequired] = useState((meta?.level as number) ?? 1);
-  const [scale, setScale] = useState((meta?.scale as number) ?? 1.0);
-  const [depletedScale, setDepletedScale] = useState((meta?.depletedScale as number) ?? 0.3);
+  const [name, setName] = useState(initialMeta.name);
+  const [type, setType] = useState(initialMeta.resourceType);
+  const [examine, setExamine] = useState(initialMeta.examine);
+  const [harvestSkill, setHarvestSkill] = useState(initialMeta.skill);
+  const [toolRequired, setToolRequired] = useState(initialMeta.toolRequired);
+  const [levelRequired, setLevelRequired] = useState(initialMeta.level);
+  const [scale, setScale] = useState(initialMeta.scale);
+  const [depletedScale, setDepletedScale] = useState(initialMeta.depletedScale);
 
   // Update form when preset changes
   useEffect(() => {
     if (initialConfig) {
-      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      const meta = extractResourceMetadata(initialConfig.metadata);
       if (initialConfig.prompt) setPrompt(initialConfig.prompt);
       if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
       if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
       if (initialConfig.quality) setQuality(initialConfig.quality);
-      if (m?.name) setName(m.name as string);
-      if (m?.resourceType) setType(m.resourceType as string);
-      if (m?.examine) setExamine(m.examine as string);
-      if (m?.skill) setHarvestSkill(m.skill as string);
-      if (m?.toolRequired) setToolRequired(m.toolRequired as string);
-      if (typeof m?.level === "number") setLevelRequired(m.level);
-      if (typeof m?.scale === "number") setScale(m.scale);
-      if (typeof m?.depletedScale === "number") setDepletedScale(m.depletedScale);
+      if (meta.name) setName(meta.name);
+      if (meta.resourceType) setType(meta.resourceType);
+      if (meta.examine) setExamine(meta.examine);
+      if (meta.skill) setHarvestSkill(meta.skill);
+      if (meta.toolRequired) setToolRequired(meta.toolRequired);
+      setLevelRequired(meta.level);
+      setScale(meta.scale);
+      setDepletedScale(meta.depletedScale);
     }
   }, [initialConfig]);
 
@@ -85,7 +119,7 @@ export function ResourceGenerationForm({
         type,
         examine: examine || `A ${name || type}`,
         harvestSkill,
-        toolRequired: toolRequired || null,
+        toolRequired: toolRequired || undefined,
         levelRequired,
         scale,
         depletedScale,

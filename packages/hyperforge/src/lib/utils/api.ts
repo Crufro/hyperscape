@@ -3,6 +3,8 @@
  * Server-side and client-side API utilities for Next.js
  */
 
+import type { ZodSchema } from "zod";
+
 /**
  * JSON-serializable value types for API payloads
  */
@@ -82,6 +84,10 @@ export async function apiFetch(
 
 /**
  * Fetch JSON with automatic parsing and error handling
+ * 
+ * ⚠️ WARNING: This function uses an unsafe type assertion.
+ * For external APIs, use fetchJsonValidated() with a Zod schema instead.
+ * This is acceptable for internal APIs where the type is guaranteed.
  */
 export async function fetchJson<T>(
   input: string,
@@ -99,9 +105,12 @@ export async function fetchJson<T>(
     let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
 
     try {
-      const errorBody = await response.json();
-      if (errorBody.error) {
-        errorMessage = errorBody.error;
+      const errorBody: unknown = await response.json();
+      if (typeof errorBody === "object" && errorBody !== null && "error" in errorBody) {
+        const err = errorBody as { error?: string };
+        if (err.error) {
+          errorMessage = err.error;
+        }
       }
     } catch {
       // Ignore JSON parse errors for error responses
@@ -110,7 +119,89 @@ export async function fetchJson<T>(
     throw new ApiError(errorMessage, response.status);
   }
 
+  // Internal API calls can use type assertion when caller guarantees type.
+  // For external APIs, use fetchJsonValidated() instead.
   return response.json() as Promise<T>;
+}
+
+/**
+ * Fetch JSON with Zod schema validation
+ * Use this for external APIs to ensure type safety at runtime
+ * 
+ * @throws ApiError if request fails
+ * @throws ZodError if response doesn't match schema
+ */
+export async function fetchJsonValidated<T>(
+  input: string,
+  schema: ZodSchema<T>,
+  init: ApiRequestOptions = {},
+): Promise<T> {
+  const response = await apiFetch(input, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
+
+    try {
+      const errorBody: unknown = await response.json();
+      if (typeof errorBody === "object" && errorBody !== null && "error" in errorBody) {
+        const err = errorBody as { error?: string };
+        if (err.error) {
+          errorMessage = err.error;
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors for error responses
+    }
+
+    throw new ApiError(errorMessage, response.status);
+  }
+
+  // Parse JSON and validate with Zod schema
+  const data: unknown = await response.json();
+  return schema.parse(data);
+}
+
+/**
+ * Fetch JSON without validation - returns unknown
+ * Use this when you need to manually handle validation
+ */
+export async function fetchJsonRaw(
+  input: string,
+  init: ApiRequestOptions = {},
+): Promise<unknown> {
+  const response = await apiFetch(input, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
+
+    try {
+      const errorBody: unknown = await response.json();
+      if (typeof errorBody === "object" && errorBody !== null && "error" in errorBody) {
+        const err = errorBody as { error?: string };
+        if (err.error) {
+          errorMessage = err.error;
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors for error responses
+    }
+
+    throw new ApiError(errorMessage, response.status);
+  }
+
+  return response.json();
 }
 
 /**
@@ -145,6 +236,9 @@ export async function putJson<T>(
 
 /**
  * DELETE request
+ * 
+ * ⚠️ WARNING: This function uses an unsafe type assertion for non-void returns.
+ * For typed responses, use deleteRequestValidated() with a Zod schema.
  */
 export async function deleteRequest<T = void>(
   url: string,
@@ -163,11 +257,42 @@ export async function deleteRequest<T = void>(
   }
 
   // Return undefined for void responses
-  // Callers expecting data should use apiGet or apiPost instead
   const text = await response.text();
   if (!text) return undefined as T;
 
+  // For internal APIs only - use deleteRequestValidated for external APIs
   return JSON.parse(text) as T;
+}
+
+/**
+ * DELETE request with Zod schema validation
+ * Use this for external APIs to ensure type safety at runtime
+ */
+export async function deleteRequestValidated<T>(
+  url: string,
+  schema: ZodSchema<T>,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const response = await apiFetch(url, {
+    ...options,
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new ApiError(
+      `Delete request failed: ${response.status}`,
+      response.status,
+    );
+  }
+
+  const text = await response.text();
+  if (!text) {
+    // If schema accepts undefined, parse it; otherwise this will throw
+    return schema.parse(undefined);
+  }
+
+  const data: unknown = JSON.parse(text);
+  return schema.parse(data);
 }
 
 /**

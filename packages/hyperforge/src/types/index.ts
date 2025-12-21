@@ -33,14 +33,32 @@ export type {
   WeaponType,
   AttackType,
   CombatBonuses,
+  CombatBonusesFull,
   Requirements,
+  SkillType,
+  SkillRequirements,
   NPCCategory,
   ItemType,
   Position3D,
   GeneratedMetadata,
 } from "./core";
 
-export { CATEGORY_TO_MANIFEST, RARITY_COLORS } from "./core";
+export { CATEGORY_TO_MANIFEST, RARITY_COLORS, fillCombatBonuses } from "./core";
+
+// =============================================================================
+// METADATA TYPES
+// =============================================================================
+
+export type {
+  GenerationMetadata,
+  UploadMetadata,
+  BatchItemMetadata,
+  EntityMetadata,
+  AssetVersionMetadata,
+  AssetUploadFormMetadata,
+  RegistryAssetMetadata,
+  GenerationFormMetadata,
+} from "./metadata";
 
 // =============================================================================
 // ASSET TYPES
@@ -75,6 +93,10 @@ export type {
   BiomeManifest,
   CategoryDefinition,
   CategoryMetadataSchema,
+  CategoryDefaults,
+  VariantGenerationInfo,
+  ManifestVariant,
+  AssetWithVariants,
 } from "./manifest";
 
 export {
@@ -118,6 +140,7 @@ export type {
   SoundEffectGenerationRequest,
   MusicGenerationRequest,
   AudioLibrary,
+  ZoneId,
 } from "./audio";
 
 // =============================================================================
@@ -146,6 +169,8 @@ export type {
   HandRiggingOptions,
   RequiredHandRiggingOptions,
   HandRiggingResult,
+  FingerName,
+  FingerBoneCounts,
   // Debug types
   Point3D,
   DetectedHandPose,
@@ -184,6 +209,73 @@ export { NORMALIZATION_CONVENTIONS, getConvention } from "./service-types";
 // =============================================================================
 // TYPE UTILITIES
 // =============================================================================
+
+// =============================================================================
+// TYPE GUARDS
+// =============================================================================
+
+export {
+  // Primitive guards
+  isArray,
+  isFiniteNumber,
+  isNonNegativeNumber,
+  isInteger,
+  isPositiveInteger,
+  // Enum/union type guards
+  isAssetCategory,
+  isRarity,
+  isEquipSlot,
+  isWeaponType,
+  isAttackType,
+  isNPCCategory,
+  isSkillType,
+  isItemType,
+  isAssetSource,
+  // Three.js guards
+  isMesh,
+  isSkinnedMesh,
+  isBone,
+  isGroup,
+  hasBufferGeometry,
+  // Generic guards
+  isNonNull,
+  isObject as isObjectGuard,
+  hasProperty,
+  hasStringProperty,
+  hasNonEmptyStringProperty,
+  hasNumberProperty,
+  hasBooleanProperty,
+  hasArrayProperty,
+  hasObjectProperty,
+  isString,
+  isNumber,
+  isBoolean,
+  isArrayOf,
+  isNonEmptyArray,
+  // Asset-specific guards
+  hasModelUrl,
+  hasModelPath,
+  hasThumbnailUrl,
+  hasVRM,
+  hasSprites,
+  isEquipment,
+  isWeaponAsset,
+  hasCombatBonuses,
+  hasRequirements,
+  isResourceAsset,
+  isNPCAsset,
+  isAttackableAsset,
+  // Manifest guards
+  isItemManifest,
+  isNPCManifest,
+  isResourceManifest,
+  isGLTFDocument,
+  // Safe property access
+  getProperty,
+  getStringProperty,
+  getNumberProperty,
+  getObjectProperty,
+} from "./guards";
 
 export {
   // Branded ID types
@@ -236,33 +328,9 @@ export {
 // STRUCTURE TYPES
 // =============================================================================
 
-export type {
-  BuildingPieceType,
-  SnapPoint,
-  PieceDimensions,
-  BuildingPiece,
-  PieceTransform,
-  PlacedPiece,
-  StructureBounds,
-  StructureDefinition,
-  GridSnapConfig,
-  TransformMode,
-  StructureEditorTool,
-  StructureEditorState,
-  BakeStatus,
-  BakeResult,
-  BakeRequest,
-  PieceCategory,
-  PieceLibrary,
-  StructureSpawnConfig,
-} from "./structures";
-
-export {
-  DEFAULT_GRID_CONFIG,
-  DEFAULT_PIECE_DIMENSIONS,
-  DEFAULT_TRANSFORM,
-  PIECE_TYPE_CONFIG,
-} from "./structures";
+// Note: Structure types are now defined in @/lib/world/tile-types.ts
+// The structures module was removed - use StructureSpawnConfig from tile-types
+export type { StructureSpawnConfig } from "@/lib/world/tile-types";
 
 // =============================================================================
 // LEGACY RE-EXPORTS (for backwards compatibility)

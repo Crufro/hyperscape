@@ -66,10 +66,9 @@ export function cdnAssetToAssetData(cdnAsset: CDNAssetInput): AssetData {
         ? "BASE"
         : "CDN";
 
-  return {
+  const baseFields = {
     id: asset.id,
     name: asset.name,
-    source,
     category: asset.category,
     description: asset.description,
     thumbnailUrl: getAssetThumbnailUrl(asset),
@@ -88,4 +87,33 @@ export function cdnAssetToAssetData(cdnAsset: CDNAssetInput): AssetData {
     // Hand rigging
     hasHandRigging: asset.hasHandRigging,
   };
+
+  // Return typed based on source
+  if (source === "CDN") {
+    return {
+      ...baseFields,
+      source: "CDN" as const,
+      modelPath: asset.modelPath || "",
+    };
+  } else if (source === "BASE") {
+    return {
+      ...baseFields,
+      source: "BASE" as const,
+      modelPath: asset.modelPath || "",
+    };
+  } else {
+    // LOCAL assets need status discriminant
+    return {
+      ...baseFields,
+      source: "LOCAL" as const,
+      status: "completed" as const,
+      hasModel: true,
+      metadata: {
+        prompt: "",
+        pipeline: "text-to-3d",
+        quality: "high",
+        generatedAt: new Date().toISOString(),
+      },
+    };
+  }
 }

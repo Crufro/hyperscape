@@ -21,6 +21,16 @@ import type {
 // =============================================================================
 
 /**
+ * Generation info for variant assets
+ */
+export interface VariantGenerationInfo {
+  prompt?: string;
+  pipeline?: string;
+  generatedAt?: string;
+  meshyTaskId?: string;
+}
+
+/**
  * Texture variant manifest entry for export
  */
 export interface ManifestVariant {
@@ -30,11 +40,13 @@ export interface ManifestVariant {
   materialId?: string;
   modelPath: string;
   thumbnailPath?: string;
-  metadata?: Record<string, unknown>;
+  /** Generation metadata - explicit structure instead of Record<string, unknown> */
+  generationInfo?: VariantGenerationInfo;
 }
 
 /**
  * Asset with variant support for export
+ * All fields are explicit - no index signature for type safety
  */
 export interface AssetWithVariants {
   id: string;
@@ -42,8 +54,15 @@ export interface AssetWithVariants {
   baseModelPath: string; // Untextured base mesh
   texturedModelPath?: string; // Default textured model
   variants?: ManifestVariant[];
-  // Standard asset fields
-  [key: string]: unknown;
+  // Explicit optional fields (instead of index signature)
+  description?: string;
+  rarity?: Rarity;
+  category?: AssetCategory;
+  type?: string;
+  thumbnailPath?: string;
+  iconPath?: string;
+  value?: number;
+  weight?: number;
 }
 
 // =============================================================================
@@ -252,6 +271,34 @@ export interface BiomeManifest {
 // =============================================================================
 
 /**
+ * Known default field types for category defaults
+ * Explicit types instead of Record<string, unknown>
+ */
+export interface CategoryDefaults {
+  // NPC/Mob defaults
+  category?: string;
+  level?: number;
+  health?: number;
+  combatLevel?: number;
+  scale?: number;
+  // Character defaults
+  isRigged?: boolean;
+  isVRM?: boolean;
+  // Resource defaults
+  baseCycleTicks?: number;
+  depleteChance?: number;
+  respawnTicks?: number;
+  depletedScale?: number;
+  // Weapon defaults
+  type?: string;
+  attackSpeed?: number;
+  attackRange?: number;
+  // Common defaults
+  tradeable?: boolean;
+  rarity?: Rarity;
+}
+
+/**
  * Category definition with metadata requirements
  */
 export interface CategoryDefinition {
@@ -269,7 +316,7 @@ export interface CategoryDefinition {
 export interface CategoryMetadataSchema {
   requiredFields: string[];
   optionalFields: string[];
-  defaults: Record<string, unknown>;
+  defaults: CategoryDefaults;
 }
 
 /**

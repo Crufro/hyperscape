@@ -4,8 +4,47 @@
  * Extended NPC types for game content generation.
  */
 
-import type { NPCCategory, Position3D, AttackType } from "../core";
+import type { NPCCategory, Position3D, AttackType, Rarity } from "../core";
 import type { DialogueTree } from "./dialogue-types";
+
+// =============================================================================
+// DROP TABLE TYPES
+// =============================================================================
+
+/**
+ * Individual drop item in a drop table
+ */
+export interface DropTableItem {
+  itemId: string;
+  minQuantity: number;
+  maxQuantity: number;
+  chance: number;
+  /** Optional rarity tier for display purposes */
+  rarity?: Rarity;
+}
+
+/**
+ * NPC drop table structure
+ * Organized by drop rarity tiers
+ */
+export interface NPCDropTable {
+  /** Default drop when nothing else drops */
+  defaultDrop?: {
+    enabled: boolean;
+    itemId: string;
+    quantity: number;
+  };
+  /** Always dropped items (100% chance) */
+  always?: DropTableItem[];
+  /** Common drops (~80% chance tier) */
+  common?: DropTableItem[];
+  /** Uncommon drops (~40% chance tier) */
+  uncommon?: DropTableItem[];
+  /** Rare drops (~10% chance tier) */
+  rare?: DropTableItem[];
+  /** Very rare drops (~1% chance tier) */
+  veryRare?: DropTableItem[];
+}
 
 // Re-export for convenience
 export type { NPCCategory } from "../core";
@@ -92,7 +131,7 @@ export interface NPCDataInput {
   position?: Position3D;
   spawnBiomes?: string[];
   dialogue?: DialogueTree;
-  drops?: Record<string, unknown>;
+  drops?: NPCDropTable;
 
   // Generation metadata
   personality?: string;

@@ -11,6 +11,7 @@ import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { ProgressTracker } from "./ProgressTracker";
 import type { GenerationConfig } from "./GenerationFormRouter";
 import { useGenerationStore } from "@/stores/generation-store";
+import type { BatchItemMetadata } from "@/types/metadata";
 
 interface BatchGeneratorProps {
   baseConfig: GenerationConfig;
@@ -22,7 +23,7 @@ interface GenerationResult {
   id: string;
   modelUrl: string;
   thumbnailUrl?: string;
-  metadata: Record<string, unknown>;
+  metadata: BatchItemMetadata;
 }
 
 export function BatchGenerator({

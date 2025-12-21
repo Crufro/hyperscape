@@ -68,9 +68,9 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
 
   // Material and game style state
   const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([]);
-  const [gameStyles, setGameStyles] = useState<
-    Record<string, GameStyleInfo>
-  >({});
+  const [gameStyles, setGameStyles] = useState<Map<string, GameStyleInfo>>(
+    new Map()
+  );
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
   const [selectedGameStyle, setSelectedGameStyle] = useState<string | null>(
     null,
@@ -107,15 +107,15 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
 
         if (stylesRes.ok) {
           const stylesData = await stylesRes.json();
-          const allStyles: Record<string, GameStyleInfo> = {};
+          const allStyles = new Map<string, GameStyleInfo>();
           if (stylesData.default) {
             Object.entries(stylesData.default).forEach(([id, style]) => {
-              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+              allStyles.set(id, { id, ...(style as Omit<GameStyleInfo, "id">) });
             });
           }
           if (stylesData.custom) {
             Object.entries(stylesData.custom).forEach(([id, style]) => {
-              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+              allStyles.set(id, { id, ...(style as Omit<GameStyleInfo, "id">) });
             });
           }
           setGameStyles(allStyles);
@@ -128,7 +128,7 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
             (genParams?.gameStyle as string) ||
             (genParams?.style as string) ||
             "runescape";
-          if (allStyles[assetStyle]) {
+          if (allStyles.has(assetStyle)) {
             setSelectedGameStyle(assetStyle);
           }
 
@@ -168,8 +168,8 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
         ? materialPresets.find((m) => m.id === selectedMaterial)
         : null;
       const gameStyle = selectedGameStyle
-        ? gameStyles[selectedGameStyle]
-        : null;
+        ? gameStyles.get(selectedGameStyle)
+        : undefined;
 
       // Build the prompt with material and style info
       let finalPrompt = prompt;
@@ -317,7 +317,7 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
                   Game Style
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {Object.values(gameStyles).map((style) => (
+                  {Array.from(gameStyles.values()).map((style) => (
                     <button
                       key={style.id}
                       type="button"
@@ -333,9 +333,9 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
                     </button>
                   ))}
                 </div>
-                {selectedGameStyle && gameStyles[selectedGameStyle]?.base && (
+                {selectedGameStyle && gameStyles.get(selectedGameStyle)?.base && (
                   <p className="text-xs text-muted-foreground italic">
-                    &quot;{gameStyles[selectedGameStyle].base}&quot;
+                    &quot;{gameStyles.get(selectedGameStyle)?.base}&quot;
                   </p>
                 )}
               </div>
@@ -463,7 +463,7 @@ export function RegenerateOptions({ asset }: RegenerateOptionsProps) {
               <>
                 Style:{" "}
                 <span className="text-amber-400">
-                  {gameStyles[selectedGameStyle]?.name || selectedGameStyle}
+                  {gameStyles.get(selectedGameStyle)?.name || selectedGameStyle}
                 </span>
               </>
             )}

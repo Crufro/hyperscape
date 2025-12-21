@@ -30,12 +30,12 @@ import {
 } from "@/components/modules";
 import { useAppStore, type ViewportPanelType } from "@/stores/app-store";
 import { useThumbnailOverrides } from "@/hooks/useThumbnailOverrides";
-import type { AssetData } from "@/types/asset";
+import type { BaseAsset, HyperForgeAsset } from "@/types/asset";
 
 const log = logger.child("Viewport3D");
 
 interface Viewport3DProps {
-  selectedAsset?: AssetData | null;
+  selectedAsset?: BaseAsset | null;
   onAssetDeleted?: (assetId: string) => void;
 }
 
@@ -241,7 +241,7 @@ export function Viewport3D({ selectedAsset, onAssetDeleted }: Viewport3DProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedAsset, toast]);
+  }, [selectedAsset, toast, setThumbnailOverride]);
 
   // Handle settings modal
   const handleSettings = useCallback(() => {
@@ -502,7 +502,7 @@ function ViewportPanelOverlay({
   modelInfo,
 }: {
   panelType: ViewportPanelType;
-  selectedAsset?: AssetData | null;
+  selectedAsset?: BaseAsset | null;
   onClose: () => void;
   onSwitchPanel: (panel: ViewportPanelType) => void;
   onAssetDeleted?: (assetId: string) => void;
@@ -590,7 +590,7 @@ function ViewportPanelOverlay({
 
         {panelType === "properties" && selectedAsset && (
           <PropertiesPanel
-            asset={selectedAsset}
+            asset={selectedAsset as HyperForgeAsset}
             isOpen={true}
             onClose={onClose}
             onAssetDeleted={onAssetDeleted}
@@ -601,26 +601,26 @@ function ViewportPanelOverlay({
 
         {panelType === "enhancement" && selectedAsset && (
           <EnhancementPanel
-            asset={selectedAsset}
+            asset={selectedAsset as HyperForgeAsset}
             onClose={onClose}
             hideHeader
           />
         )}
 
         {panelType === "character-equipment" && (
-          <CharacterEquipmentPanel selectedAsset={selectedAsset} />
+          <CharacterEquipmentPanel selectedAsset={selectedAsset as HyperForgeAsset | null} />
         )}
 
         {panelType === "armor-fitting" && (
-          <ArmorFittingPanel selectedAsset={selectedAsset} />
+          <ArmorFittingPanel selectedAsset={selectedAsset as HyperForgeAsset | null} />
         )}
 
         {panelType === "hand-rigging" && (
-          <HandRiggingPanel selectedAsset={selectedAsset} />
+          <HandRiggingPanel selectedAsset={selectedAsset as HyperForgeAsset | null} />
         )}
 
         {panelType === "retargeting" && (
-          <RetargetingPanel selectedAsset={selectedAsset} />
+          <RetargetingPanel selectedAsset={selectedAsset as HyperForgeAsset | null} />
         )}
 
         {panelType === "audio-studio" && <AudioStudioPanel />}

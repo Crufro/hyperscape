@@ -75,17 +75,21 @@ export function EntityPalette({ assets, onAssetDrag }: EntityPaletteProps) {
     });
   }, [assets, searchQuery, categoryFilter]);
 
-  // Group by category
+  // Group by category - dynamic grouping based on asset data
+  // Using Map with string keys since categories come from runtime asset data
+  type CategoryKey = string; // Runtime category strings from asset.category
   const groupedAssets = useMemo(() => {
-    const groups: Record<string, AssetData[]> = {};
+    const groups = new Map<CategoryKey, AssetData[]>();
 
     filteredAssets.forEach((asset) => {
       const category =
         asset.category?.toLowerCase() || asset.type?.toLowerCase() || "other";
-      if (!groups[category]) {
-        groups[category] = [];
+      const existing = groups.get(category);
+      if (existing) {
+        existing.push(asset);
+      } else {
+        groups.set(category, [asset]);
       }
-      groups[category].push(asset);
     });
 
     return groups;
@@ -180,12 +184,12 @@ export function EntityPalette({ assets, onAssetDrag }: EntityPaletteProps) {
 
       {/* Asset List */}
       <div className="flex-1 overflow-y-auto p-2">
-        {Object.keys(groupedAssets).length === 0 ? (
+        {groupedAssets.size === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
             No assets found
           </div>
         ) : (
-          Object.entries(groupedAssets).map(([category, categoryAssets]) => {
+          Array.from(groupedAssets.entries()).map(([category, categoryAssets]) => {
             const Icon = getCategoryIcon(category);
             const isExpanded = expandedCategories.has(category);
 

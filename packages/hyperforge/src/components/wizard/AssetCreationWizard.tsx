@@ -24,7 +24,6 @@ import {
   Music,
   Sparkles,
   Upload,
-  AlertCircle,
   CheckCircle2,
   Info,
 } from "lucide-react";
@@ -34,7 +33,7 @@ import {
   useAssetCompleteness,
   useAssetSchema,
 } from "@/hooks/useAssetCompleteness";
-import { getSchemaDefaults, type AssetTypeSchema } from "@/lib/assets/asset-completeness";
+import { getSchemaDefaults } from "@/lib/assets/asset-completeness";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -192,11 +191,11 @@ export function AssetCreationWizard({
   const [currentStep, setCurrentStep] = useState(initialType ? 1 : 0);
   const [selectedType, setSelectedType] = useState<string | null>(initialType || null);
   const [assetData, setAssetData] = useState<Record<string, unknown>>({});
-  const [generatedModel, setGeneratedModel] = useState<string | null>(null);
+  const [_generatedModel, _setGeneratedModel] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Get schema for selected type
-  const { schema, defaults } = useAssetSchema(selectedType || "");
+  const { schema, defaults: _defaults } = useAssetSchema(selectedType || "");
   const completeness = useAssetCompleteness({
     type: selectedType || "",
     asset: assetData,

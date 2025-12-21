@@ -15,20 +15,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils";
+import { VRMConvertSchema, validationErrorResponse } from "@/lib/api/schemas";
 
 const log = logger.child("API:vrm/convert");
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { modelUrl, glbData, avatarName, author } = body;
+    const body: unknown = await request.json();
+    const parsed = VRMConvertSchema.safeParse(body);
 
-    if (!modelUrl && !glbData) {
-      return NextResponse.json(
-        { error: "Either modelUrl or glbData (base64) required" },
-        { status: 400 },
-      );
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
     }
+
+    const { modelUrl, glbData, avatarName, author } = parsed.data;
 
     // Import the texture-preserving VRM converter
     const { convertGLBToVRMPreservingTextures } = await import(
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
         glbBuffer.byteOffset,
         glbBuffer.byteOffset + glbBuffer.byteLength,
       );
-    } else {
+    } else if (modelUrl) {
       // Download from URL
       log.info({ modelUrl }, "🎭 Loading GLB from URL");
       const response = await fetch(modelUrl);
@@ -53,6 +55,12 @@ export async function POST(request: NextRequest) {
         throw new Error(`Failed to fetch GLB: ${response.statusText}`);
       }
       glbArrayBuffer = await response.arrayBuffer();
+    } else {
+      // This should never happen due to schema validation
+      return NextResponse.json(
+        { error: "Either modelUrl or glbData (base64) required" },
+        { status: 400 },
+      );
     }
 
     log.info(

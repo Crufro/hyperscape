@@ -27,7 +27,7 @@ import {
   Gamepad2,
   Palette,
   Wand2,
-  Image,
+  Image as ImageIcon,
   Upload,
   Globe,
   Layers,
@@ -249,8 +249,8 @@ export function CommandPalette() {
   const [newPromptText, setNewPromptText] = useState("");
   const [newPromptCategory, setNewPromptCategory] = useState("mob");
   const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([]);
-  const [gameStyles, setGameStyles] = useState<Record<string, GameStyleInfo>>(
-    {},
+  const [gameStyles, setGameStyles] = useState<Map<string, GameStyleInfo>>(
+    new Map()
   );
   const [activeGameStyle, setActiveGameStyle] = useState<string>("runescape");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -305,15 +305,15 @@ export function CommandPalette() {
 
         if (stylesRes.ok) {
           const stylesData = await stylesRes.json();
-          const allStyles: Record<string, GameStyleInfo> = {};
+          const allStyles = new Map<string, GameStyleInfo>();
           if (stylesData.default) {
             Object.entries(stylesData.default).forEach(([id, style]) => {
-              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+              allStyles.set(id, { id, ...(style as Omit<GameStyleInfo, "id">) });
             });
           }
           if (stylesData.custom) {
             Object.entries(stylesData.custom).forEach(([id, style]) => {
-              allStyles[id] = { id, ...(style as Omit<GameStyleInfo, "id">) };
+              allStyles.set(id, { id, ...(style as Omit<GameStyleInfo, "id">) });
             });
           }
           setGameStyles(allStyles);
@@ -580,7 +580,7 @@ export function CommandPalette() {
       {
         id: "game-styles",
         title: "Game Styles",
-        description: `Active: ${gameStyles[activeGameStyle]?.name || activeGameStyle}`,
+        description: `Active: ${gameStyles.get(activeGameStyle)?.name || activeGameStyle}`,
         icon: <Sparkles className="w-4 h-4 text-amber-400" />,
         category: "action",
         action: () => setView("game-styles"),
@@ -685,7 +685,7 @@ export function CommandPalette() {
         id: "quick-sprites",
         title: "Generate Sprites for Asset",
         description: "Create 2D sprites from 3D model",
-        icon: <Image className="w-4 h-4 text-emerald-400" />,
+        icon: <ImageIcon className="w-4 h-4 text-emerald-400" />,
         category: "action",
         action: async () => {
           const urlParams = new URLSearchParams(window.location.search);
@@ -1159,7 +1159,7 @@ export function CommandPalette() {
           <span className="text-white font-medium">Game Styles</span>
         </div>
         <span className="text-xs text-zinc-500">
-          Active: {gameStyles[activeGameStyle]?.name || activeGameStyle}
+          Active: {gameStyles.get(activeGameStyle)?.name || activeGameStyle}
         </span>
       </div>
 
@@ -1171,7 +1171,7 @@ export function CommandPalette() {
         </p>
 
         <div className="grid grid-cols-2 gap-2">
-          {Object.values(gameStyles).map((style) => (
+          {Array.from(gameStyles.values()).map((style) => (
             <button
               key={style.id}
               onClick={() => {
@@ -1227,13 +1227,15 @@ export function CommandPalette() {
 
   // Render Materials View
   const renderMaterials = () => {
-    // Group materials by category
-    const materialsByCategory: Record<string, MaterialPreset[]> = {};
+    // Group materials by category using Map for honest undefined handling
+    const materialsByCategory = new Map<string, MaterialPreset[]>();
     materialPresets.forEach((mat) => {
-      if (!materialsByCategory[mat.category]) {
-        materialsByCategory[mat.category] = [];
+      const existing = materialsByCategory.get(mat.category);
+      if (existing) {
+        existing.push(mat);
+      } else {
+        materialsByCategory.set(mat.category, [mat]);
       }
-      materialsByCategory[mat.category].push(mat);
     });
 
     const categoryIcons: Record<string, React.ReactNode> = {
@@ -1269,7 +1271,7 @@ export function CommandPalette() {
             to create material variants.
           </p>
 
-          {Object.entries(materialsByCategory).map(([category, materials]) => (
+          {Array.from(materialsByCategory.entries()).map(([category, materials]) => (
             <div key={category}>
               <div className="flex items-center gap-2 mb-2">
                 {categoryIcons[category] || (
@@ -1366,7 +1368,7 @@ export function CommandPalette() {
       <div className="max-h-[50vh] overflow-y-auto custom-scrollbar p-2">
         {filteredCommands.length === 0 ? (
           <div className="py-8 text-center text-zinc-500 text-sm">
-            No results found for "{query}"
+            No results found for &quot;{query}&quot;
           </div>
         ) : (
           <>

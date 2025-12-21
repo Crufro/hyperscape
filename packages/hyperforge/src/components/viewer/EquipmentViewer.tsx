@@ -85,7 +85,7 @@ export interface EquipmentViewerRef {
 }
 
 // VRM bone name mapping from slot IDs
-const SLOT_TO_VRM_BONE: Record<string, VRMHumanBoneName> = {
+const SLOT_TO_VRM_BONE = {
   Hand_R: VRMHumanBoneName.RightHand,
   Hand_L: VRMHumanBoneName.LeftHand,
   Back: VRMHumanBoneName.Spine,
@@ -94,7 +94,15 @@ const SLOT_TO_VRM_BONE: Record<string, VRMHumanBoneName> = {
   Head: VRMHumanBoneName.Head,
   Spine2: VRMHumanBoneName.Chest,
   Hips: VRMHumanBoneName.Hips,
-};
+} as const;
+
+// VRM equipment slot types for bone mapping
+type EquipmentSlotId = keyof typeof SLOT_TO_VRM_BONE;
+
+// Type guard for valid equipment slot IDs
+function isEquipmentSlotId(slot: string): slot is EquipmentSlotId {
+  return slot in SLOT_TO_VRM_BONE;
+}
 
 // Default offsets for weapon types based on slot
 const getDefaultOffsets = (
@@ -389,6 +397,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       };
 
       loadAvatar();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- attachEquipmentToAvatar and updateSkeletonHelper are stable refs that don't need to trigger re-runs
     }, [isInitialized, avatarUrl]);
 
     // Load equipment
@@ -460,6 +469,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       };
 
       loadEquipment();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- attachEquipmentToAvatar is a stable callback; gripOffset components are intentionally split
     }, [
       isInitialized,
       equipmentUrl,
@@ -528,11 +538,11 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
       const equipment = equipmentRef.current;
 
       // Get target bone from VRM
-      const vrmBoneName = SLOT_TO_VRM_BONE[equipmentSlot];
-      if (!vrmBoneName) {
+      if (!isEquipmentSlotId(equipmentSlot)) {
         log.warn("Unknown equipment slot:", equipmentSlot);
         return;
       }
+      const vrmBoneName = SLOT_TO_VRM_BONE[equipmentSlot];
 
       const targetBone = vrm.humanoid.getNormalizedBoneNode(vrmBoneName);
       if (!targetBone) {
@@ -630,6 +640,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
         const defaults = getDefaultOffsets(equipmentSlot, isRightHand);
 
         // Get bone scale
+        if (!isEquipmentSlotId(equipmentSlot)) return;
         const vrmBoneName = SLOT_TO_VRM_BONE[equipmentSlot];
         const targetBone =
           vrmRef.current.humanoid.getNormalizedBoneNode(vrmBoneName);
@@ -990,7 +1001,9 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>(
         exportRoot.updateMatrix();
 
         // Add metadata for Hyperscape
-        const vrmBoneName = SLOT_TO_VRM_BONE[equipmentSlot] || "rightHand";
+        const vrmBoneName = isEquipmentSlotId(equipmentSlot)
+          ? SLOT_TO_VRM_BONE[equipmentSlot]
+          : VRMHumanBoneName.RightHand;
         exportRoot.userData.hyperscape = {
           vrmBoneName: vrmBoneName,
           originalSlot: equipmentSlot,

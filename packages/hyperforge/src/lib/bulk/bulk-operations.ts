@@ -15,17 +15,12 @@ import {
   MOB_TIERS,
   createItemFromTemplate,
   createMobFromTemplate,
-  generateItemId,
-  generateFilePath,
   type MaterialTierId,
   type MaterialTier,
   type MobTierId,
   type GeneratedItem,
   type GeneratedMob,
   type ItemTemplate,
-  type WeaponTemplate,
-  type ArmorTemplate,
-  type ToolTemplate,
 } from "@/lib/templates/asset-templates";
 import type { Rarity } from "@/types/core";
 

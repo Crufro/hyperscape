@@ -5,7 +5,7 @@
  * TensorFlow is dynamically imported to reduce initial bundle size.
  */
 
-import { Vector3, Vector4, Matrix4 } from "three";
+import { Vector4, Matrix4 } from "three";
 
 import { HAND_LANDMARKS, FINGER_JOINTS } from "@/constants";
 import { logger } from "@/lib/utils";

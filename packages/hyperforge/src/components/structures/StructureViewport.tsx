@@ -32,6 +32,7 @@ import {
   Clone,
 } from "@react-three/drei";
 import * as THREE from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { logger } from "@/lib/utils";
 import type {
   StructureDefinition,
@@ -45,9 +46,6 @@ import type {
 import type { Position3D } from "@/types/core";
 
 const log = logger.child("StructureViewport");
-
-// Type for OrbitControls ref
-type OrbitControlsType = THREE.EventDispatcher & { enabled: boolean };
 
 // =============================================================================
 // TYPES
@@ -498,7 +496,7 @@ function SceneContent({
   onDuplicatePiece,
   onDeletePiece,
 }: SceneContentProps) {
-  const orbitRef = useRef<OrbitControlsType>(null);
+  const orbitRef = useRef<OrbitControlsImpl>(null);
   const [hoveredPieceId, setHoveredPieceId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 

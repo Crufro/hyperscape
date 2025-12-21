@@ -18,7 +18,7 @@ import {
   Palette,
   Plus,
   X,
-  Image,
+  Image as ImageIcon,
   Hexagon,
   Paintbrush,
   ChevronRight,
@@ -191,7 +191,7 @@ export function ResultPreview() {
       stages.push({
         id: "concept-art",
         name: "Concept Art",
-        icon: <Image className="w-4 h-4" />,
+        icon: <ImageIcon className="w-4 h-4" />,
         status: conceptArtUrl
           ? "completed"
           : isActive

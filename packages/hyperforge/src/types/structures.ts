@@ -7,6 +7,9 @@
 
 import type { Position3D } from "./core";
 
+// Re-export Position3D for consumers of this module
+export type { Position3D } from "./core";
+
 // =============================================================================
 // BUILDING PIECE TYPES
 // =============================================================================

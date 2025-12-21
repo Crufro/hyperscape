@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { logger } from "@/lib/utils";
+import type { EntityMetadata } from "@/types/metadata";
 
 const log = logger.child("useLiveServer");
 
@@ -28,7 +29,7 @@ interface LiveEntity {
   scale?: { x: number; y: number; z: number };
   modelPath?: string;
   isActive: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: EntityMetadata;
 }
 
 interface ConnectionState {

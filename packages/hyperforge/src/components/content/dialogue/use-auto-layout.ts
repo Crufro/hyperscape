@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useReactFlow, type Node, type Edge } from "@xyflow/react";
 import dagre from "@dagrejs/dagre";
 
@@ -28,7 +28,12 @@ const DEFAULT_OPTIONS: Required<UseAutoLayoutOptions> = {
 export function useAutoLayout(options: UseAutoLayoutOptions = {}) {
   const { getNodes, getEdges, setNodes, fitView } = useReactFlow();
 
-  const config = { ...DEFAULT_OPTIONS, ...options };
+  // Memoize config to prevent recreating on every render
+  const config = useMemo(
+    () => ({ ...DEFAULT_OPTIONS, ...options }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally depend on specific properties to avoid object identity issues
+    [options.direction, options.nodeWidth, options.nodeHeight, options.nodeSpacing, options.rankSpacing]
+  );
 
   const applyLayout = useCallback(
     (

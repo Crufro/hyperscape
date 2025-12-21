@@ -1,4 +1,14 @@
 {
+  // ============================================
+  // HYPERFORGE TYPESCRIPT CONFIGURATION
+  // ============================================
+  // 
+  // STAGED STRICT FLAG ROLLOUT:
+  // - noUncheckedIndexedAccess: ~1057 new errors (requires getOrThrow/getOr migration)
+  // - exactOptionalPropertyTypes: ~221 new errors (distinguishes missing vs undefined)
+  // 
+  // See src/types/utils.ts for helper functions designed for strict mode.
+  // 
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -24,13 +34,27 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     
-    // Advanced strict flags
+    // ============================================
+    // ADVANCED STRICT FLAGS (Staged Rollout)
+    // ============================================
+    // These flags are recommended but require codebase updates.
+    
     "useUnknownInCatchVariables": true,
-    // Disabled: too strict for practical development
+    
+    // noUncheckedIndexedAccess: Makes arr[i] and obj[key] return T | undefined
+    // Requires migrating all index access to use getOrThrow()/getOr() from @/types/utils
+    // or adding explicit undefined checks. Enable after systematic audit.
+    // Estimated: ~1057 errors to fix
     // "noUncheckedIndexedAccess": true,
+    
+    // exactOptionalPropertyTypes: Distinguishes { prop?: T } from { prop: T | undefined }
+    // More granular but requires careful property definition review.
+    // Estimated: ~221 errors to fix
     // "exactOptionalPropertyTypes": true,
     
-    // Additional safety
+    // ============================================
+    // ADDITIONAL SAFETY
+    // ============================================
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,

@@ -448,6 +448,9 @@ export default function WorldEditorPage() {
       id: "__full_world__",
       name: "Full World",
       description: "Complete 10km x 10km world view with procedural terrain",
+      difficultyLevel: 0 as const,
+      biomeType: "mixed",
+      safeZone: false,
       bounds: {
         minX: -halfSize,
         maxX: halfSize,
@@ -456,9 +459,9 @@ export default function WorldEditorPage() {
       },
       tiles: allTiles,
       spawnCounts: {
-        mob: mobCount,
-        npc: npcCount,
-        resource: resourceCount,
+        mobs: mobCount,
+        npcs: npcCount,
+        resources: resourceCount,
       },
     };
   }, [areas]);

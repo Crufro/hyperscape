@@ -24,6 +24,7 @@ import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { Badge } from "@/components/ui/badge";
 import { NeonInput } from "@/components/ui/neon-input";
 import { cn, logger } from "@/lib/utils";
+import type { EntityMetadata } from "@/types/metadata";
 
 const log = logger.child("WorldView");
 
@@ -46,7 +47,7 @@ export interface WorldEntity {
   scale?: { x: number; y: number; z: number };
   modelPath?: string;
   spawnArea?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: EntityMetadata;
   isActive?: boolean;
   loadedAt?: string;
   thumbnailUrl?: string;

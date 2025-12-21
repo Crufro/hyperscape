@@ -19,22 +19,31 @@ import {
 import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 import type { SoundEffectAsset, SoundEffectCategory } from "@/types/audio";
+import { SFXGenerationSchema, validationErrorResponse } from "@/lib/api/schemas";
 
 const log = logger.child("API:audio/sfx/generate");
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: unknown = await request.json();
+    const parsed = SFXGenerationSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
+    }
+
     const {
       prompt,
-      presetId, // Use a preset instead of custom prompt
-      category = "custom" as SoundEffectCategory,
+      presetId,
+      category = "custom",
       name,
       durationSeconds,
       promptInfluence = 0.7,
       tags = [],
       saveToAsset = true,
-    } = body;
+    } = parsed.data;
 
     // Use preset prompt if provided
     let effectivePrompt = prompt;
@@ -44,6 +53,7 @@ export async function POST(request: NextRequest) {
       effectiveName = effectiveName || presetId;
     }
 
+    // effectivePrompt is guaranteed by schema refinement
     if (!effectivePrompt || typeof effectivePrompt !== "string") {
       return NextResponse.json(
         { error: "Prompt or presetId is required" },

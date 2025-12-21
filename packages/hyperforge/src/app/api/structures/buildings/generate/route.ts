@@ -9,8 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils";
 import {
   isSupabaseConfigured,
-  saveMeshyModel,
-  getMeshyModelUrl,
+  saveBakedBuilding,
 } from "@/lib/storage/supabase-storage";
 import type { StructureDefinition } from "@/types/structures";
 
@@ -197,35 +196,39 @@ export async function POST(request: NextRequest) {
     // Step 5: Upload to Supabase if configured
     if (isSupabaseConfigured()) {
       try {
-        // Download and re-upload model
-        const modelResponse = await fetch(meshyModelUrl);
-        if (modelResponse.ok) {
-          const modelBuffer = Buffer.from(await modelResponse.arrayBuffer());
-          await saveMeshyModel({
-            taskId: refineTaskId,
-            modelBuffer,
-            filename: `${buildingId}.glb`,
-          });
-          modelUrl = getMeshyModelUrl(refineTaskId, `${buildingId}.glb`);
-          log.info("Uploaded model to Supabase", { url: modelUrl });
-        }
-
-        // Download and re-upload thumbnail
+        // Download thumbnail if available
+        let thumbnailBuffer: Buffer | undefined;
         if (meshyThumbnailUrl) {
           const thumbResponse = await fetch(meshyThumbnailUrl);
           if (thumbResponse.ok) {
-            const thumbBuffer = Buffer.from(await thumbResponse.arrayBuffer());
-            await saveMeshyModel({
-              taskId: refineTaskId,
-              modelBuffer: thumbBuffer,
-              filename: `${buildingId}_thumb.png`,
-            });
-            thumbnailUrl = getMeshyModelUrl(
-              refineTaskId,
-              `${buildingId}_thumb.png`,
-            );
+            thumbnailBuffer = Buffer.from(await thumbResponse.arrayBuffer());
           }
         }
+
+        // Save building definition to Supabase
+        const savedFiles = await saveBakedBuilding({
+          buildingId,
+          definition: {
+            name: name || "Generated Building",
+            modelUrl: meshyModelUrl,
+            thumbnailUrl: meshyThumbnailUrl,
+            buildingType,
+            style,
+            prompt,
+            generatedAt: new Date().toISOString(),
+          },
+          thumbnailBuffer,
+        });
+
+        // Update URLs to use Supabase storage
+        modelUrl = meshyModelUrl; // Keep Meshy URL for model (no model upload in saveBakedBuilding)
+        if (savedFiles.thumbnailUrl) {
+          thumbnailUrl = savedFiles.thumbnailUrl;
+        }
+        log.info("Saved building to Supabase", {
+          definitionUrl: savedFiles.definitionUrl,
+          thumbnailUrl: savedFiles.thumbnailUrl,
+        });
       } catch (uploadError) {
         log.warn("Failed to upload to Supabase, using Meshy URLs", {
           error:

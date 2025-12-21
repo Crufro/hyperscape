@@ -1984,6 +1984,7 @@ export interface TownFiles {
 
 export interface SaveTownOptions {
   townId: string;
+  /** Town definition - any JSON-serializable object with id and name */
   definition: Record<string, unknown>;
   thumbnailBuffer?: Buffer | ArrayBuffer;
 }

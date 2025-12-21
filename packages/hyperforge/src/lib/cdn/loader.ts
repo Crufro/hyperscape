@@ -16,6 +16,13 @@ import type {
 import path from "path";
 import fs from "fs/promises";
 import { logger } from "@/lib/utils";
+import {
+  parseItemManifests,
+  parseNPCManifests,
+  parseResourceManifests,
+  parseMusicManifests,
+  parseBiomeManifests,
+} from "./schemas";
 
 const log = logger.child("CDNLoader");
 
@@ -42,37 +49,104 @@ const EMOTES_PATH = path.resolve(
 );
 
 /**
- * Load manifest from file system (development)
+ * Load and parse JSON from file system (development)
+ * Returns parsed JSON as unknown for caller validation
  */
-async function loadManifestFromFS<T>(filename: string): Promise<T[]> {
+async function loadJsonFromFS(filename: string): Promise<unknown> {
+  const filePath = path.join(MANIFESTS_PATH, filename);
+  const content = await fs.readFile(filePath, "utf-8");
+  return JSON.parse(content);
+}
+
+/**
+ * Load and parse JSON from CDN (production)
+ * Returns parsed JSON as unknown for caller validation
+ */
+async function loadJsonFromCDN(filename: string): Promise<unknown> {
+  const res = await fetch(`${CDN_URL}/manifests/${filename}`);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Load item manifests with validation
+ */
+async function loadItemManifests(): Promise<ItemManifest[]> {
   try {
-    const filePath = path.join(MANIFESTS_PATH, filename);
-    const content = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(content) as T[];
+    const data = IS_DEV
+      ? await loadJsonFromFS("items.json")
+      : await loadJsonFromCDN("items.json");
+    return parseItemManifests(data);
   } catch (error) {
-    log.warn(`Could not read ${filename}`, { error });
+    log.warn("Could not load items.json", { error });
     return [];
   }
 }
 
 /**
- * Load manifest from CDN (production)
+ * Load NPC manifests with validation
  */
-async function loadManifestFromCDN<T>(filename: string): Promise<T[]> {
+async function loadNPCManifests(): Promise<NPCManifest[]> {
   try {
-    const res = await fetch(`${CDN_URL}/manifests/${filename}`);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-    return res.json() as Promise<T[]>;
+    const data = IS_DEV
+      ? await loadJsonFromFS("npcs.json")
+      : await loadJsonFromCDN("npcs.json");
+    return parseNPCManifests(data);
   } catch (error) {
-    log.warn(`Could not fetch ${filename}`, { error });
+    log.warn("Could not load npcs.json", { error });
     return [];
   }
 }
 
 /**
- * Load all CDN manifests
+ * Load resource manifests with validation
+ */
+async function loadResourceManifests(): Promise<ResourceManifest[]> {
+  try {
+    const data = IS_DEV
+      ? await loadJsonFromFS("resources.json")
+      : await loadJsonFromCDN("resources.json");
+    return parseResourceManifests(data);
+  } catch (error) {
+    log.warn("Could not load resources.json", { error });
+    return [];
+  }
+}
+
+/**
+ * Load music manifests with validation
+ */
+async function loadMusicManifests(): Promise<MusicManifest[]> {
+  try {
+    const data = IS_DEV
+      ? await loadJsonFromFS("music.json")
+      : await loadJsonFromCDN("music.json");
+    return parseMusicManifests(data);
+  } catch (error) {
+    log.warn("Could not load music.json", { error });
+    return [];
+  }
+}
+
+/**
+ * Load biome manifests with validation
+ */
+async function loadBiomeManifests(): Promise<BiomeManifest[]> {
+  try {
+    const data = IS_DEV
+      ? await loadJsonFromFS("biomes.json")
+      : await loadJsonFromCDN("biomes.json");
+    return parseBiomeManifests(data);
+  } catch (error) {
+    log.warn("Could not load biomes.json", { error });
+    return [];
+  }
+}
+
+/**
+ * Load all CDN manifests with validation
  */
 export async function loadCDNManifests(): Promise<{
   items: ItemManifest[];
@@ -81,25 +155,13 @@ export async function loadCDNManifests(): Promise<{
   music: MusicManifest[];
   biomes: BiomeManifest[];
 }> {
-  if (IS_DEV) {
-    // Development: read from file system
-    const [items, npcs, resources, music, biomes] = await Promise.all([
-      loadManifestFromFS<ItemManifest>("items.json"),
-      loadManifestFromFS<NPCManifest>("npcs.json"),
-      loadManifestFromFS<ResourceManifest>("resources.json"),
-      loadManifestFromFS<MusicManifest>("music.json"),
-      loadManifestFromFS<BiomeManifest>("biomes.json"),
-    ]);
-    return { items, npcs, resources, music, biomes };
-  }
-
-  // Production: fetch from CDN
+  // All manifests now use validated loading
   const [items, npcs, resources, music, biomes] = await Promise.all([
-    loadManifestFromCDN<ItemManifest>("items.json"),
-    loadManifestFromCDN<NPCManifest>("npcs.json"),
-    loadManifestFromCDN<ResourceManifest>("resources.json"),
-    loadManifestFromCDN<MusicManifest>("music.json"),
-    loadManifestFromCDN<BiomeManifest>("biomes.json"),
+    loadItemManifests(),
+    loadNPCManifests(),
+    loadResourceManifests(),
+    loadMusicManifests(),
+    loadBiomeManifests(),
   ]);
   return { items, npcs, resources, music, biomes };
 }

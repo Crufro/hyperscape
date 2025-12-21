@@ -83,15 +83,16 @@ export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary" | "un
 
 /**
  * Color mapping for rarity display
+ * Uses `as const satisfies` for literal type inference while ensuring complete coverage
  */
-export const RARITY_COLORS: Record<Rarity, string> = {
+export const RARITY_COLORS = {
   common: "#9CA3AF", // gray
   uncommon: "#22C55E", // green
   rare: "#3B82F6", // blue
   epic: "#A855F7", // purple
   legendary: "#F59E0B", // orange
   unique: "#EF4444", // red
-};
+} as const satisfies Record<Rarity, string>;
 
 // =============================================================================
 // EQUIPMENT TYPES
@@ -133,11 +134,49 @@ export type WeaponType =
 export type AttackType = "melee" | "ranged" | "magic";
 
 // =============================================================================
+// SKILL TYPES
+// =============================================================================
+
+/**
+ * Known skill types in the game
+ */
+export type SkillType =
+  | "attack"
+  | "strength"
+  | "defense"
+  | "ranged"
+  | "prayer"
+  | "magic"
+  | "runecrafting"
+  | "hitpoints"
+  | "crafting"
+  | "mining"
+  | "smithing"
+  | "fishing"
+  | "cooking"
+  | "firemaking"
+  | "woodcutting"
+  | "agility"
+  | "herblore"
+  | "thieving"
+  | "fletching"
+  | "slayer"
+  | "farming"
+  | "construction"
+  | "hunter"
+  | "summoning";
+
+/**
+ * Skill requirements - explicit keys only
+ */
+export type SkillRequirements = Partial<Record<SkillType, number>>;
+
+// =============================================================================
 // COMBAT TYPES
 // =============================================================================
 
 /**
- * Combat stat bonuses for equipment
+ * Combat stat bonuses for equipment (all optional for partial updates)
  */
 export interface CombatBonuses {
   attack?: number;
@@ -149,11 +188,37 @@ export interface CombatBonuses {
 }
 
 /**
+ * Full combat bonuses with defaults (for display/calculation)
+ */
+export interface CombatBonusesFull {
+  attack: number;
+  strength: number;
+  defense: number;
+  ranged: number;
+  magic: number;
+  prayer: number;
+}
+
+/**
+ * Create full bonuses with defaults
+ */
+export function fillCombatBonuses(partial?: CombatBonuses): CombatBonusesFull {
+  return {
+    attack: partial?.attack ?? 0,
+    strength: partial?.strength ?? 0,
+    defense: partial?.defense ?? 0,
+    ranged: partial?.ranged ?? 0,
+    magic: partial?.magic ?? 0,
+    prayer: partial?.prayer ?? 0,
+  };
+}
+
+/**
  * Requirements for equipping/using items
  */
 export interface Requirements {
   level?: number;
-  skills?: Record<string, number>;
+  skills?: SkillRequirements;
 }
 
 // =============================================================================

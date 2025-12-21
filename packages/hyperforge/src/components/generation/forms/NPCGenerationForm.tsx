@@ -14,6 +14,13 @@ import {
   generateAssetId,
   getDefaultMetadata,
 } from "@/lib/generation/category-schemas";
+import {
+  getStringProperty,
+  getNumberProperty,
+  isObject,
+} from "@/types/guards";
+
+type NPCCategoryType = "mob" | "boss" | "neutral" | "quest";
 
 interface NPCGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
@@ -22,13 +29,40 @@ interface NPCGenerationFormProps {
   initialConfig?: Partial<GenerationConfig>;
 }
 
+/**
+ * Extract NPC form values from metadata using type-safe property access
+ */
+function extractNPCMetadata(metadata: unknown) {
+  if (!isObject(metadata)) {
+    return {
+      name: "",
+      description: "",
+      npcType: "mob" as NPCCategoryType,
+      level: 1,
+      health: 10,
+      combatLevel: 1,
+      scale: 1.0,
+    };
+  }
+
+  return {
+    name: getStringProperty(metadata, "name") ?? "",
+    description: getStringProperty(metadata, "description") ?? "",
+    npcType: (getStringProperty(metadata, "npcType") as NPCCategoryType) ?? "mob",
+    level: getNumberProperty(metadata, "level") ?? 1,
+    health: getNumberProperty(metadata, "health") ?? 10,
+    combatLevel: getNumberProperty(metadata, "combatLevel") ?? 1,
+    scale: getNumberProperty(metadata, "scale") ?? 1.0,
+  };
+}
+
 export function NPCGenerationForm({
   onGenerate,
   onCancel,
   initialConfig,
 }: NPCGenerationFormProps) {
-  // Extract metadata for initializing form fields
-  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+  // Extract metadata using type-safe helper
+  const initialMeta = extractNPCMetadata(initialConfig?.metadata);
 
   const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
@@ -38,35 +72,33 @@ export function NPCGenerationForm({
   const [quality, setQuality] = useState<"preview" | "medium" | "high">(
     initialConfig?.quality ?? "high"
   );
-  const [name, setName] = useState((meta?.name as string) ?? "");
-  const [description, setDescription] = useState((meta?.description as string) ?? "");
-  const [category, setCategory] = useState<
-    "mob" | "boss" | "neutral" | "quest"
-  >((meta?.npcType as "mob" | "boss" | "neutral" | "quest") ?? "mob");
-  const [level, setLevel] = useState((meta?.level as number) ?? 1);
-  const [health, setHealth] = useState((meta?.health as number) ?? 10);
-  const [combatLevel, setCombatLevel] = useState((meta?.combatLevel as number) ?? 1);
-  const [scale, setScale] = useState((meta?.scale as number) ?? 1.0);
+  const [name, setName] = useState(initialMeta.name);
+  const [description, setDescription] = useState(initialMeta.description);
+  const [category, setCategory] = useState<NPCCategoryType>(initialMeta.npcType);
+  const [level, setLevel] = useState(initialMeta.level);
+  const [health, setHealth] = useState(initialMeta.health);
+  const [combatLevel, setCombatLevel] = useState(initialMeta.combatLevel);
+  const [scale, setScale] = useState(initialMeta.scale);
   const [convertToVRM, setConvertToVRM] = useState(initialConfig?.convertToVRM ?? true);
   const [enableHandRigging, setEnableHandRigging] = useState(initialConfig?.enableHandRigging ?? false);
 
   // Update form when preset changes
   useEffect(() => {
     if (initialConfig) {
-      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      const meta = extractNPCMetadata(initialConfig.metadata);
       if (initialConfig.prompt) setPrompt(initialConfig.prompt);
       if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
       if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
       if (initialConfig.quality) setQuality(initialConfig.quality);
       if (initialConfig.convertToVRM !== undefined) setConvertToVRM(initialConfig.convertToVRM);
       if (initialConfig.enableHandRigging !== undefined) setEnableHandRigging(initialConfig.enableHandRigging);
-      if (m?.name) setName(m.name as string);
-      if (m?.description) setDescription(m.description as string);
-      if (m?.npcType) setCategory(m.npcType as "mob" | "boss" | "neutral" | "quest");
-      if (typeof m?.level === "number") setLevel(m.level);
-      if (typeof m?.health === "number") setHealth(m.health);
-      if (typeof m?.combatLevel === "number") setCombatLevel(m.combatLevel);
-      if (typeof m?.scale === "number") setScale(m.scale);
+      if (meta.name) setName(meta.name);
+      if (meta.description) setDescription(meta.description);
+      setCategory(meta.npcType);
+      setLevel(meta.level);
+      setHealth(meta.health);
+      setCombatLevel(meta.combatLevel);
+      setScale(meta.scale);
     }
   }, [initialConfig]);
 

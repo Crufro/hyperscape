@@ -14,6 +14,12 @@ import {
   getDefaultMetadata,
 } from "@/lib/generation/category-schemas";
 import type { WeaponType, AttackType } from "@/types/game/item-types";
+import {
+  getStringProperty,
+  getNumberProperty,
+  getObjectProperty,
+  isObject,
+} from "@/types/guards";
 
 interface WeaponGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
@@ -22,13 +28,47 @@ interface WeaponGenerationFormProps {
   initialConfig?: Partial<GenerationConfig>;
 }
 
+/**
+ * Extract weapon form values from metadata using type-safe property access
+ */
+function extractWeaponMetadata(metadata: unknown) {
+  if (!isObject(metadata)) {
+    return {
+      name: "",
+      description: "",
+      weaponType: "sword" as WeaponType,
+      attackType: "melee" as AttackType,
+      attackSpeed: 4,
+      attackRange: 1,
+      attackBonus: 4,
+      strengthBonus: 3,
+      levelRequired: 1,
+    };
+  }
+
+  const bonuses = getObjectProperty(metadata, "bonuses");
+  const requirements = getObjectProperty(metadata, "requirements");
+
+  return {
+    name: getStringProperty(metadata, "name") ?? "",
+    description: getStringProperty(metadata, "description") ?? "",
+    weaponType: (getStringProperty(metadata, "weaponType") as WeaponType) ?? "sword",
+    attackType: (getStringProperty(metadata, "attackType") as AttackType) ?? "melee",
+    attackSpeed: getNumberProperty(metadata, "attackSpeed") ?? 4,
+    attackRange: getNumberProperty(metadata, "attackRange") ?? 1,
+    attackBonus: bonuses ? (getNumberProperty(bonuses, "attack") ?? 4) : 4,
+    strengthBonus: bonuses ? (getNumberProperty(bonuses, "strength") ?? 3) : 3,
+    levelRequired: requirements ? (getNumberProperty(requirements, "level") ?? 1) : 1,
+  };
+}
+
 export function WeaponGenerationForm({
   onGenerate,
   onCancel,
   initialConfig,
 }: WeaponGenerationFormProps) {
-  // Extract metadata for initializing form fields
-  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+  // Extract metadata using type-safe helper
+  const initialMeta = extractWeaponMetadata(initialConfig?.metadata);
 
   const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
@@ -38,45 +78,33 @@ export function WeaponGenerationForm({
   const [quality, setQuality] = useState<"preview" | "medium" | "high">(
     initialConfig?.quality ?? "high"
   );
-  const [name, setName] = useState((meta?.name as string) ?? "");
-  const [description, setDescription] = useState((meta?.description as string) ?? "");
-  const [weaponType, setWeaponType] = useState<WeaponType>(
-    (meta?.weaponType as WeaponType) ?? "sword"
-  );
-  const [attackType, setAttackType] = useState<AttackType>(
-    (meta?.attackType as AttackType) ?? "melee"
-  );
-  const [attackSpeed, setAttackSpeed] = useState((meta?.attackSpeed as number) ?? 4);
-  const [attackRange, setAttackRange] = useState((meta?.attackRange as number) ?? 1);
-  const [attackBonus, setAttackBonus] = useState(
-    ((meta?.bonuses as Record<string, unknown>)?.attack as number) ?? 4
-  );
-  const [strengthBonus, setStrengthBonus] = useState(
-    ((meta?.bonuses as Record<string, unknown>)?.strength as number) ?? 3
-  );
-  const [levelRequired, setLevelRequired] = useState(
-    ((meta?.requirements as Record<string, unknown>)?.level as number) ?? 1
-  );
+  const [name, setName] = useState(initialMeta.name);
+  const [description, setDescription] = useState(initialMeta.description);
+  const [weaponType, setWeaponType] = useState<WeaponType>(initialMeta.weaponType);
+  const [attackType, setAttackType] = useState<AttackType>(initialMeta.attackType);
+  const [attackSpeed, setAttackSpeed] = useState(initialMeta.attackSpeed);
+  const [attackRange, setAttackRange] = useState(initialMeta.attackRange);
+  const [attackBonus, setAttackBonus] = useState(initialMeta.attackBonus);
+  const [strengthBonus, setStrengthBonus] = useState(initialMeta.strengthBonus);
+  const [levelRequired, setLevelRequired] = useState(initialMeta.levelRequired);
 
   // Update form when preset changes
   useEffect(() => {
     if (initialConfig) {
-      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      const meta = extractWeaponMetadata(initialConfig.metadata);
       if (initialConfig.prompt) setPrompt(initialConfig.prompt);
       if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
       if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
       if (initialConfig.quality) setQuality(initialConfig.quality);
-      if (m?.name) setName(m.name as string);
-      if (m?.description) setDescription(m.description as string);
-      if (m?.weaponType) setWeaponType(m.weaponType as WeaponType);
-      if (m?.attackType) setAttackType(m.attackType as AttackType);
-      if (typeof m?.attackSpeed === "number") setAttackSpeed(m.attackSpeed);
-      if (typeof m?.attackRange === "number") setAttackRange(m.attackRange);
-      const bonuses = m?.bonuses as Record<string, unknown> | undefined;
-      if (typeof bonuses?.attack === "number") setAttackBonus(bonuses.attack);
-      if (typeof bonuses?.strength === "number") setStrengthBonus(bonuses.strength);
-      const reqs = m?.requirements as Record<string, unknown> | undefined;
-      if (typeof reqs?.level === "number") setLevelRequired(reqs.level);
+      if (meta.name) setName(meta.name);
+      if (meta.description) setDescription(meta.description);
+      setWeaponType(meta.weaponType);
+      setAttackType(meta.attackType);
+      setAttackSpeed(meta.attackSpeed);
+      setAttackRange(meta.attackRange);
+      setAttackBonus(meta.attackBonus);
+      setStrengthBonus(meta.strengthBonus);
+      setLevelRequired(meta.levelRequired);
     }
   }, [initialConfig]);
 

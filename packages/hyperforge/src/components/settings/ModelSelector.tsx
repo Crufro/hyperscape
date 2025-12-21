@@ -32,13 +32,15 @@ function TaskModelSelector({ taskKey }: { taskKey: TaskType }) {
   const currentModelInfo = models.find((m) => m.id === currentModel);
 
   // Provider color mapping
-  const providerColors: Record<string, string> = {
+  const PROVIDER_COLORS = {
     openai: "text-green-400",
     anthropic: "text-orange-400",
     google: "text-blue-400",
     xai: "text-purple-400",
     meta: "text-cyan-400",
-  };
+  } as const;
+
+  type Provider = keyof typeof PROVIDER_COLORS;
 
   return (
     <div className="border-b border-glass-border/50 last:border-b-0 py-4 px-4">
@@ -108,7 +110,7 @@ function TaskModelSelector({ taskKey }: { taskKey: TaskType }) {
           <span
             className={cn(
               "font-medium",
-              providerColors[currentModelInfo.provider] || "text-foreground",
+              PROVIDER_COLORS[currentModelInfo.provider as Provider] ?? "text-foreground",
             )}
           >
             {currentModelInfo.provider}

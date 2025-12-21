@@ -16,7 +16,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { useVersionStore } from "@/stores/version-store";
-import type { AssetVersion, VersionDiff } from "@/lib/versioning/version-types";
+import type { AssetVersion, AssetVersionData, VersionDiff } from "@/lib/versioning/version-types";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("VersionHistory");
@@ -27,7 +27,7 @@ interface VersionHistoryProps {
   /** Callback when a version is selected for preview */
   onPreviewVersion?: (version: AssetVersion) => void;
   /** Callback when rollback is triggered */
-  onRollback?: (version: AssetVersion, restoredData: Record<string, unknown>) => void;
+  onRollback?: (version: AssetVersion, restoredData: AssetVersionData) => void;
   /** Callback when diff is requested */
   onShowDiff?: (diff: VersionDiff) => void;
   /** Maximum height for the panel */
@@ -100,7 +100,7 @@ export function VersionHistory({
       const restoredData = rollbackToVersion(version.id);
       if (restoredData) {
         log.info("Rolled back to version", { assetId, versionId: version.id });
-        onRollback?.(version, restoredData as Record<string, unknown>);
+        onRollback?.(version, restoredData as AssetVersionData);
       }
     } catch (error) {
       log.error("Rollback failed", { error, assetId, versionId: version.id });

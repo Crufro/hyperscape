@@ -8,7 +8,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { logger } from "@/lib/utils";
-import { calculateDiff, calculateSummary, hashObject, deepClone } from "./diff-utils";
+import { calculateDiff, hashObject, deepClone } from "./diff-utils";
 import type { ItemManifest, NPCManifest, ResourceManifest, MusicTrackManifest } from "@/types/manifest";
 import type { StoreDefinition } from "@/lib/game/manifests";
 import type { FieldChange, DiffSummary } from "./version-types";
@@ -144,7 +144,7 @@ async function readIndex(): Promise<SnapshotIndex> {
   try {
     const content = await fs.readFile(indexPath, "utf-8");
     return JSON.parse(content) as SnapshotIndex;
-  } catch (error) {
+  } catch (_error) {
     // Index doesn't exist, create empty one
     const now = new Date().toISOString();
     return {

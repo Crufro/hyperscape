@@ -16,7 +16,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils";
 import {
-  getAllRelationships,
   getRelationships,
   getRelationshipGraph,
   addRelationship,

@@ -3,6 +3,10 @@ import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@/lib/utils";
+import {
+  ContentGenerationSchema,
+  validationErrorResponse,
+} from "@/lib/api/schemas";
 
 const log = logger.child("API:content");
 import type {
@@ -322,7 +326,7 @@ interface StoreGenerationRequest {
 /**
  * Union type for all content generation request types
  */
-type ContentGenerationRequest =
+type _ContentGenerationRequest =
   | (QuestGenerationRequest & { saveToStorage?: boolean })
   | (AreaGenerationRequest & { saveToStorage?: boolean })
   | (ItemGenerationRequest & { saveToStorage?: boolean })
@@ -397,8 +401,16 @@ Rules:
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ContentGenerationRequest;
-    const { type, saveToStorage = true, ...params } = body;
+    const body: unknown = await request.json();
+    const parsed = ContentGenerationSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
+    }
+
+    const { type, saveToStorage = true, ...params } = parsed.data;
 
     let result: {
       quest?: Quest;

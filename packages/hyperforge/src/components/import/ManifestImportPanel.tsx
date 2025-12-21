@@ -127,9 +127,6 @@ export function ManifestImportPanel({
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diff, setDiff] = useState<FullDiff | null>(null);
-  const [expandedManifests, setExpandedManifests] = useState<Set<ManifestType>>(
-    new Set(),
-  );
   const [activeTab, setActiveTab] = useState<ManifestType>("items");
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
 
@@ -210,19 +207,6 @@ export function ManifestImportPanel({
     } finally {
       setSyncing(false);
     }
-  };
-
-  // Toggle manifest expansion
-  const toggleManifest = (manifestType: ManifestType) => {
-    setExpandedManifests((prev) => {
-      const next = new Set(prev);
-      if (next.has(manifestType)) {
-        next.delete(manifestType);
-      } else {
-        next.add(manifestType);
-      }
-      return next;
-    });
   };
 
   // Get current manifest diff

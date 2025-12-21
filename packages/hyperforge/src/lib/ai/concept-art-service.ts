@@ -68,7 +68,7 @@ export function buildConceptArtPrompt(
     assetType = "object",
   } = options;
 
-  const styleDescriptions: Record<string, string> = {
+  const STYLE_DESCRIPTIONS = {
     realistic:
       "photorealistic rendering with accurate lighting, materials, and textures",
     stylized:
@@ -76,24 +76,24 @@ export function buildConceptArtPrompt(
     pixel: "high-quality pixel art style with clean edges and retro aesthetic",
     painterly:
       "hand-painted digital art style with visible brushstrokes and rich colors",
-  };
+  } as const;
 
-  const viewDescriptions: Record<string, string> = {
+  const VIEW_DESCRIPTIONS = {
     front: "front-facing view, centered and symmetrical",
     side: "side profile view showing the full silhouette",
     isometric:
       "isometric 3/4 view from slightly above, typical for game assets",
     "three-quarter":
       "three-quarter view showing depth and multiple sides of the object",
-  };
+  } as const;
 
-  const backgroundDescriptions: Record<string, string> = {
+  const BACKGROUND_DESCRIPTIONS = {
     transparent: "on a transparent or solid neutral background",
     simple: "on a clean, simple gradient background that doesn't distract",
     contextual: "in an appropriate environmental context",
-  };
+  } as const;
 
-  const assetTypeHints: Record<string, string> = {
+  const ASSET_TYPE_HINTS = {
     weapon:
       "Ensure the weapon has clear grip/handle area, detailed blade/head, and visible materials (metal, wood, leather).",
     armor:
@@ -106,17 +106,17 @@ export function buildConceptArtPrompt(
       "Full body enemy character in a clear T-pose or A-pose with visible limbs. CRITICAL FOR 3D RIGGING: Empty hands (no weapons held), no bulky armor, no flowing capes or robes. Keep the silhouette clean and form-fitting for easy texturing and rigging.",
     item: "Show the item from a clear angle with visible details and materials.",
     prop: "Environmental prop with clear structure and material definition.",
-  };
+  } as const;
 
-  const typeHint = assetTypeHints[assetType] || "";
+  const typeHint = ASSET_TYPE_HINTS[assetType as keyof typeof ASSET_TYPE_HINTS] ?? "";
 
   return `Create a high-quality concept art image for a 3D game asset:
 
 "${assetDescription}"
 
-STYLE: ${styleDescriptions[style]}
-VIEW: ${viewDescriptions[viewAngle]}
-BACKGROUND: ${backgroundDescriptions[background]}
+STYLE: ${STYLE_DESCRIPTIONS[style]}
+VIEW: ${VIEW_DESCRIPTIONS[viewAngle]}
+BACKGROUND: ${BACKGROUND_DESCRIPTIONS[background]}
 
 REQUIREMENTS:
 - Clear, well-defined silhouette suitable for 3D modeling

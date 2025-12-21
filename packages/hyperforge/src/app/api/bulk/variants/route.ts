@@ -12,12 +12,10 @@ import path from "path";
 import {
   createMaterialVariants,
   createTierSet,
-  type BulkOperationResult,
   type BaseAsset,
 } from "@/lib/bulk/bulk-operations";
 import {
   MATERIAL_TIERS,
-  createItemFromTemplate,
   WEAPON_TEMPLATES,
   ARMOR_TEMPLATES,
   TOOL_TEMPLATES,

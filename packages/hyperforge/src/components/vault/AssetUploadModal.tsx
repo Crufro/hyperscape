@@ -22,6 +22,7 @@ import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { NeonInput } from "@/components/ui/neon-input";
 import { Label } from "@/components/ui/label";
 import { cn, logger } from "@/lib/utils";
+import type { AssetUploadFormMetadata } from "@/types/metadata";
 
 const log = logger.child("AssetUploadModal");
 
@@ -217,7 +218,7 @@ export function AssetUploadModal({
       }
 
       // Build metadata object
-      const metadata: Record<string, unknown> = {
+      const metadata: AssetUploadFormMetadata = {
         name: name.trim(),
         category,
         description: description.trim() || undefined,

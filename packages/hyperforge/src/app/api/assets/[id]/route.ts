@@ -25,9 +25,9 @@ const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:8080";
  */
 export const GET = withErrorHandling(async (
   request: NextRequest,
-  context?: { params: Record<string, string> },
+  context: { params: Promise<Record<string, string>> },
 ) => {
-  const { id } = await (context?.params as unknown as Promise<{ id: string }>) || { id: "" };
+  const { id } = await context.params;
   
   if (!id) {
     throw new ValidationError("Asset ID is required");
@@ -120,9 +120,9 @@ export const GET = withErrorHandling(async (
  */
 export const DELETE = withErrorHandling(async (
   request: NextRequest,
-  context?: { params: Record<string, string> },
+  context: { params: Promise<Record<string, string>> },
 ) => {
-  const { id } = await (context?.params as unknown as Promise<{ id: string }>) || { id: "" };
+  const { id } = await context.params;
   
   if (!id) {
     throw new ValidationError("Asset ID is required");
@@ -143,9 +143,9 @@ export const DELETE = withErrorHandling(async (
  */
 export const PATCH = withErrorHandling(async (
   request: NextRequest,
-  context?: { params: Record<string, string> },
+  context: { params: Promise<Record<string, string>> },
 ) => {
-  const { id } = await (context?.params as unknown as Promise<{ id: string }>) || { id: "" };
+  const { id } = await context.params;
   
   if (!id) {
     throw new ValidationError("Asset ID is required");

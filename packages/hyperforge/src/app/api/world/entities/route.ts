@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils";
 import { getWorldEntities } from "@/lib/game/manifests";
+import { CreateEntitySchema, validationErrorResponse } from "@/lib/api/schemas";
 
 const log = logger.child("API:world:entities");
 
@@ -33,7 +34,7 @@ interface FormattedEntity {
  * Request body for POST /api/world/entities
  * Creates a new entity in the world
  */
-interface CreateEntityRequest {
+interface _CreateEntityRequest {
   id: string;
   name: string;
   type?: string;
@@ -217,25 +218,16 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as CreateEntityRequest;
-    const {
-      id,
-      name,
-      type,
-      position,
-      rotation,
-      scale,
-      modelPath,
-      blueprint,
-      data,
-    } = body;
+    const body: unknown = await request.json();
+    const parsed = CreateEntitySchema.safeParse(body);
 
-    if (!id || !name) {
-      return NextResponse.json(
-        { error: "id and name are required" },
-        { status: 400 },
-      );
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
     }
+
+    const { id, name } = parsed.data;
 
     // Try to send to live server
     try {
@@ -249,7 +241,7 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(parsed.data),
       });
 
       clearTimeout(timeoutId);

@@ -34,14 +34,17 @@ export interface ApiSuccessResponse<T> {
   data: T;
 }
 
+// Next.js 15 route context type - params is a Promise
+type RouteContext = { params: Promise<Record<string, string>> };
+
 type ApiHandler = (
   request: NextRequest,
-  context?: { params: Record<string, string> }
+  context: RouteContext
 ) => Promise<NextResponse<unknown>>;
 
 type RawHandler<T> = (
   request: NextRequest,
-  context?: { params: Record<string, string> }
+  context: RouteContext
 ) => Promise<T>;
 
 // =============================================================================

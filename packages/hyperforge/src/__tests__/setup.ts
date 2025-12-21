@@ -36,7 +36,7 @@ afterAll(() => {
  */
 declare global {
   // Add any global test variables here
-
+  // eslint-disable-next-line no-var
   var TEST_ASSETS_PATH: string;
 }
 

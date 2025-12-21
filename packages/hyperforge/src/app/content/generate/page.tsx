@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { NPCContentGenerator } from "@/components/content/NPCContentGenerator";
 import { QuestGenerator } from "@/components/content/QuestGenerator";
@@ -18,7 +18,8 @@ import type {
 
 type ContentTab = "npc" | "quest" | "area" | "item";
 
-export default function ContentStudioPage() {
+// Wrapper component to handle useSearchParams with Suspense
+function ContentStudioPageContent() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ContentTab>("npc");
@@ -173,5 +174,14 @@ export default function ContentStudioPage() {
         </div>
       </div>
     </StudioPageLayout>
+  );
+}
+
+// Default export wraps with Suspense for useSearchParams
+export default function ContentStudioPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <ContentStudioPageContent />
+    </Suspense>
   );
 }

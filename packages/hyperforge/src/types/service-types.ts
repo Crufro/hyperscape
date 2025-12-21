@@ -119,11 +119,21 @@ export interface SingleHandResult {
 }
 
 /**
+ * Known finger names for hand rigging
+ */
+export type FingerName = "thumb" | "index" | "middle" | "ring" | "pinky";
+
+/**
+ * Bone counts per finger - explicit finger names
+ */
+export type FingerBoneCounts = Partial<Record<FingerName, number>>;
+
+/**
  * Bone statistics for hand rigging
  */
 export interface BoneStats {
-  /** Number of bones per finger */
-  fingerBoneCounts?: Record<string, number>;
+  /** Number of bones per finger - uses explicit FingerName keys */
+  fingerBoneCounts?: FingerBoneCounts;
   /** Total bones created */
   totalBones?: number;
   /** Bones successfully weighted */
@@ -203,9 +213,9 @@ export interface VertexSegmentationResult {
 }
 
 /**
- * Bone positions by finger name
+ * Bone positions by finger name - uses explicit finger names for type safety
  */
-export type BonePositionsMap = Record<string, Point3D[]>;
+export type BonePositionsMap = Partial<Record<FingerName | "palm", Point3D[]>>;
 
 /**
  * Hand rigging result with debug info
@@ -402,7 +412,10 @@ export interface GLTFAnimation {
 }
 
 /**
- * GLTF extension data (generic for extension-specific data)
+ * GLTF extension data - kept as Record<string, unknown> because
+ * extensions are defined by external GLTF specs and are truly dynamic.
+ * Each extension (KHR_*, EXT_*, etc.) has its own schema that we don't control.
+ * See: https://github.com/KhronosGroup/glTF/tree/main/extensions
  */
 export type GLTFExtensionData = Record<string, unknown>;
 

@@ -96,7 +96,7 @@ const levelConfig: Record<number, { name: string; color: string }> = {
  * This avoids pino-pretty's worker_threads dependency
  */
 function createPrettyStream(): NodeJS.WritableStream {
-  // eslint-disable-next-line no-undef
+  // eslint-disable-next-line no-undef, @typescript-eslint/no-require-imports
   const { Writable } = require("stream");
 
   return new Writable({
@@ -114,12 +114,12 @@ function createPrettyStream(): NodeJS.WritableStream {
           name: "???",
           color: colors.white,
         };
-        const module = log.module ? `[${log.module}]` : "";
+        const moduleName = log.module ? `[${log.module}]` : "";
 
         // Build the log line
         let line = `${colors.dim}${time}${colors.reset} ${levelInfo.color}${levelInfo.name}${colors.reset}`;
-        if (module) {
-          line += ` ${colors.cyan}${module}${colors.reset}`;
+        if (moduleName) {
+          line += ` ${colors.cyan}${moduleName}${colors.reset}`;
         }
         if (log.msg) {
           line += ` ${log.msg}`;

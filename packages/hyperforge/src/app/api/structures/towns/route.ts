@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       try {
         const savedFiles = await saveTown({
           townId: town.id,
-          definition: updatedTown,
+          definition: updatedTown as unknown as Record<string, unknown>,
         });
 
         log.info("Saved town to Supabase", {

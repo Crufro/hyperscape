@@ -24,12 +24,10 @@ import type { AssetCategory } from "@/types/core";
 import {
   type RelationshipType,
   type AssetRelationship,
-  type RelationshipMetadata,
   RELATIONSHIP_LABELS,
   RELATIONSHIP_COLORS,
   ASSET_CATEGORY_COLORS,
   getValidRelationshipTypes,
-  getValidTargetCategories,
   isValidRelationship,
 } from "@/lib/relationships/relationship-types";
 

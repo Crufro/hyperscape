@@ -8,8 +8,15 @@ import { devtools } from "zustand/middleware";
 import type { AssetCategory } from "@/types/categories";
 import type { GenerationConfig } from "@/components/generation/GenerationFormRouter";
 import type { GenerationProgress } from "@/types/generation";
+import type { GenerationMetadata } from "@/types/metadata";
 
 export type { GenerationProgress };
+
+/**
+ * Metadata for a generated asset.
+ * Uses Partial since fields are populated progressively during generation.
+ */
+export type GeneratedAssetMetadata = Partial<GenerationMetadata>;
 
 export interface GeneratedAsset {
   id: string;
@@ -17,7 +24,7 @@ export interface GeneratedAsset {
   config: GenerationConfig;
   modelUrl?: string;
   thumbnailUrl?: string;
-  metadata: Record<string, unknown>;
+  metadata: GeneratedAssetMetadata;
   createdAt: Date;
 }
 

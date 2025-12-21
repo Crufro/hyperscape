@@ -25,7 +25,6 @@ import type {
   MusicTrack,
 } from "@/lib/game/manifests";
 import type { RegistryAsset } from "@/lib/assets/registry";
-import type { AssetCategory } from "@/types/core";
 
 const log = logger.child("ManifestImporter");
 

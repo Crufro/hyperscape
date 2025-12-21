@@ -383,7 +383,7 @@ describe.sequential("Generation Store", () => {
         },
         modelUrl: "https://cdn.example.com/models/sword.glb",
         createdAt: new Date(),
-        metadata: { polyCount: 5000 },
+        metadata: { polycount: 5000 },
       };
 
       useGenerationStore.getState().addGeneratedAsset(asset);

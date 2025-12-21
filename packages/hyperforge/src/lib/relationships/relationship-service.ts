@@ -318,7 +318,7 @@ function extractHarvestRelationships(
  */
 function extractRequirementRelationships(
   items: ItemDefinition[],
-  allItems: Map<string, ItemDefinition>,
+  _allItems: Map<string, ItemDefinition>,
 ): AssetRelationship[] {
   const relationships: AssetRelationship[] = [];
 
@@ -376,7 +376,6 @@ function generateRelationshipId(
 /**
  * Cache for the relationship graph
  */
-let cachedGraph: RelationshipGraph | null = null;
 let cachedRelationships: AssetRelationship[] | null = null;
 
 /**
@@ -517,8 +516,6 @@ export async function addRelationship(
     } else {
       cachedRelationships.push(relationship);
     }
-    // Invalidate graph cache
-    cachedGraph = null;
   }
 
   log.info("Relationship added", { id: relationship.id });
@@ -537,7 +534,6 @@ export async function removeRelationship(relationshipId: string): Promise<boolea
     const index = cachedRelationships.findIndex((r) => r.id === relationshipId);
     if (index >= 0) {
       cachedRelationships.splice(index, 1);
-      cachedGraph = null; // Invalidate graph cache
       log.info("Relationship removed", { id: relationshipId });
       return true;
     }
@@ -629,7 +625,6 @@ export async function getRelationshipGraph(filters?: {
  */
 export function clearRelationshipCache(): void {
   cachedRelationships = null;
-  cachedGraph = null;
   log.debug("Relationship cache cleared");
 }
 

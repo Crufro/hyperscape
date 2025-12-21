@@ -4,6 +4,8 @@
  * Types for tracking asset changes before export to game manifests.
  */
 
+import type { AssetVersionMetadata } from "@/types/metadata";
+
 // =============================================================================
 // CHANGE TYPES
 // =============================================================================
@@ -58,9 +60,9 @@ export interface AssetVersionData {
   /** Thumbnail URL/path */
   thumbnailUrl?: string;
   /** Additional metadata (stats, bonuses, etc.) */
-  metadata: Record<string, unknown>;
-  /** Index signature for compatibility with diff utilities */
-  [key: string]: unknown;
+  metadata: AssetVersionMetadata;
+  /** Index signature for compatibility with diff and hashing utilities */
+  [key: string]: string | AssetVersionMetadata | undefined;
 }
 
 // =============================================================================

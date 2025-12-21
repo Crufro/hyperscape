@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { logger } from "@/lib/utils";
+import type { RegistryAssetMetadata } from "@/types/metadata";
 
 const log = logger.child("useAssetRegistry");
 
@@ -66,7 +67,7 @@ export interface RegistryAsset {
   hasModel?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: RegistryAssetMetadata;
 }
 
 export interface AssetQuery {

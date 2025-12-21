@@ -6,7 +6,8 @@
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
 import type { AssetCategory, AssetSource } from "@/types/core";
-import type { HyperForgeAsset } from "@/types/asset";
+import type { HyperForgeAsset, CDNAsset } from "@/types/asset";
+import { CDNAssetSchema } from "@/lib/api/schemas/common";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("AssetStore");
@@ -345,14 +346,26 @@ export const useAssetStore = create<AssetState>()(
             }
           }
           
-          // Process CDN/game data assets
+          // Process CDN/game data assets with validation
           if (cdnResponse.status === "fulfilled" && cdnResponse.value.ok) {
             const cdnData = await cdnResponse.value.json();
             if (cdnData.items && Array.isArray(cdnData.items)) {
-              assets.push(...cdnData.items.map((item: Record<string, unknown>) => ({
-                ...item,
-                source: "CDN" as const,
-              })));
+              // Validate each item with Zod schema
+              const validatedItems = (cdnData.items as unknown[])
+                .map((item) => {
+                  const result = CDNAssetSchema.safeParse(item);
+                  if (result.success) {
+                    return result.data as CDNAsset;
+                  }
+                  log.debug("Invalid CDN asset skipped", { 
+                    item,
+                    errors: result.error.flatten() 
+                  });
+                  return null;
+                })
+                .filter((item): item is CDNAsset => item !== null);
+              
+              assets.push(...validatedItems);
             }
           }
           

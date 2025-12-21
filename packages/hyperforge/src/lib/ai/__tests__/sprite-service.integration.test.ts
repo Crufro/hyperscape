@@ -26,6 +26,7 @@ const JPEG_BYTES = new Uint8Array([255, 216, 255, 224]);
 // Use globalThis to share state between test code and mock factory
 // This ensures the same object is referenced in both contexts
 declare global {
+  // eslint-disable-next-line no-var
   var __mockState: {
     responseQueue: Array<{
       text: string;

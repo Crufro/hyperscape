@@ -75,13 +75,15 @@ const STATE_BADGES: Record<SyncState, { label: string; variant: "success" | "war
   unknown: { label: "Unknown", variant: "secondary" },
 };
 
-const MANIFEST_LABELS: Record<string, string> = {
+const MANIFEST_LABELS = {
   items: "Items",
   npcs: "NPCs",
   resources: "Resources",
   stores: "Stores",
   music: "Music",
-};
+} as const;
+
+type ManifestType = keyof typeof MANIFEST_LABELS;
 
 // =============================================================================
 // COMPONENT
@@ -334,7 +336,7 @@ function ManifestStatusRow({ manifest, expanded, onToggle }: ManifestStatusRowPr
 
         {/* Manifest name */}
         <span className="font-medium flex-1">
-          {MANIFEST_LABELS[manifest.manifestType]}
+          {MANIFEST_LABELS[manifest.manifestType as ManifestType]}
         </span>
 
         {/* Counts */}

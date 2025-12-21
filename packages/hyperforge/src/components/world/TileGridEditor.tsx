@@ -104,6 +104,7 @@ export function TileGridEditor({
 }: TileGridEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<ViewportState>(DEFAULT_VIEWPORT);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(
     null,
@@ -116,6 +117,24 @@ export function TileGridEditor({
   } | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [hoveredTile, setHoveredTile] = useState<TileCoord | null>(null);
+
+  // Track container size with ResizeObserver for dependency-safe useMemo
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Debug: log area data
   useEffect(() => {
@@ -215,15 +234,15 @@ export function TileGridEditor({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [area?.id]); // Only re-center when area changes, not on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally only re-center when area.id changes
+  }, [area?.id]);
 
   // Calculate visible tile range based on viewport with culling
   const visibleRange = useMemo(() => {
-    if (!area || !containerRef.current) return null;
+    if (!area || containerSize.width === 0) return null;
 
     const { bounds } = area;
     const tilePixelSize = viewport.tileSize * viewport.zoom;
-    const containerRect = containerRef.current.getBoundingClientRect();
 
     // Calculate which tiles are actually visible in the viewport
     // Add 2 tile margin for smooth panning
@@ -232,12 +251,12 @@ export function TileGridEditor({
     // Convert screen coordinates to tile coordinates
     const screenMinX = -viewport.panX / tilePixelSize + bounds.minX - margin;
     const screenMaxX =
-      (containerRect.width - viewport.panX) / tilePixelSize +
+      (containerSize.width - viewport.panX) / tilePixelSize +
       bounds.minX +
       margin;
     const screenMinZ = -viewport.panZ / tilePixelSize + bounds.minZ - margin;
     const screenMaxZ =
-      (containerRect.height - viewport.panZ) / tilePixelSize +
+      (containerSize.height - viewport.panZ) / tilePixelSize +
       bounds.minZ +
       margin;
 
@@ -262,12 +281,7 @@ export function TileGridEditor({
       height: visMaxZ - visMinZ,
       tilePixelSize,
     };
-  }, [
-    area,
-    viewport,
-    containerRef.current?.getBoundingClientRect().width,
-    containerRef.current?.getBoundingClientRect().height,
-  ]);
+  }, [area, viewport, containerSize.width, containerSize.height]);
 
   // Convert tile coordinate to screen position
   const tileToScreen = useCallback(

@@ -1,13 +1,14 @@
 /**
  * Armor Export API Route
  * Exports fitted armor as GLB file
+ * 
+ * NOTE: Three.js imports are dynamic to avoid "document is not defined" 
+ * errors during Next.js build (Three.js requires DOM APIs)
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-// GLTFExporter used by ArmorFittingService internally
-import { getServiceFactory } from "@/lib/services";
+// Type-only imports don't cause runtime issues
+import type { SkinnedMesh, Skeleton, Mesh } from "three";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("API:armor:export");
@@ -42,6 +43,11 @@ export async function POST(request: NextRequest) {
 
     log.info({ avatarUrl, armorUrl }, "Starting armor export");
 
+    // Dynamic imports to avoid "document is not defined" during build
+    const THREE = await import("three");
+    const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+    const { getServiceFactory } = await import("@/lib/services");
+
     const loader = new GLTFLoader();
     const factory = getServiceFactory();
     const armorFittingService = factory.getArmorFittingService();
@@ -54,8 +60,8 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Find skinned mesh in avatar
-    let avatarMesh: THREE.SkinnedMesh | null = null;
-    let avatarSkeleton: THREE.Skeleton | null = null;
+    let avatarMesh: SkinnedMesh | null = null;
+    let avatarSkeleton: Skeleton | null = null;
     avatarGltf.scene.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && !avatarMesh) {
         avatarMesh = child;
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find mesh in armor
-    let armorMesh: THREE.Mesh | null = null;
+    let armorMesh: Mesh | null = null;
     armorGltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && !armorMesh) {
         armorMesh = child;
@@ -116,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform shrinkwrap fit
-    meshFittingService.fitArmorToBody(armorMesh, avatarMesh as THREE.Mesh, {
+    meshFittingService.fitArmorToBody(armorMesh, avatarMesh as Mesh, {
       iterations: fittingConfig.iterations,
       targetOffset: fittingConfig.targetOffset,
       rigidity: fittingConfig.rigidity,

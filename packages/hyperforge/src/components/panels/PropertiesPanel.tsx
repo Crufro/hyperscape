@@ -424,6 +424,7 @@ export function PropertiesPanel({
     };
 
     fetchGameData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally depend on specific asset properties, not the whole object
   }, [asset?.id, asset?.category, asset?.type]);
 
   // Update mesh statistics from modelInfo (from 3D viewer) or fetch from API
@@ -506,6 +507,7 @@ export function PropertiesPanel({
     };
 
     fetchMeshStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally depend on specific asset properties, not the whole object
   }, [asset?.modelUrl, asset?.id, modelInfo]);
 
   // Check sync status - is asset in game manifests?
@@ -532,6 +534,7 @@ export function PropertiesPanel({
     };
 
     checkSyncStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally depend on specific asset properties, not the whole object
   }, [asset?.id, asset?.source]);
 
   // Load material presets and game styles for item assets
@@ -588,6 +591,7 @@ export function PropertiesPanel({
     };
 
     loadPresets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally depend on specific asset properties; gameStyles check is inside effect
   }, [asset?.category, asset?.type]);
 
   if (!isOpen || !asset) return null;

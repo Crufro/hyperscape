@@ -2,9 +2,11 @@
 
 import { useRef, useState, useCallback } from "react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
+import { cn, logger } from "@/lib/utils";
 import type { WorldEntity } from "./WorldView";
 import type { AssetData } from "@/types/asset";
+
+const log = logger.child("WorldCanvas");
 
 interface WorldCanvasProps {
   entities: WorldEntity[];
@@ -264,7 +266,7 @@ export function WorldCanvas({
   };
 
   // Debug: log entity count
-  console.log("[WorldCanvas] Rendering with", entities.length, "entities");
+  log.debug("Rendering", { entityCount: entities.length });
 
   return (
     <div

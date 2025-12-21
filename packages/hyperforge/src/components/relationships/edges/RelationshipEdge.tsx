@@ -96,7 +96,7 @@ export const RelationshipEdge = memo(function RelationshipEdge({
 
 function formatMetadata(
   metadata: RelationshipMetadata | undefined,
-  type: RelationshipType,
+  _type: RelationshipType,
 ): string {
   if (!metadata) return "";
 

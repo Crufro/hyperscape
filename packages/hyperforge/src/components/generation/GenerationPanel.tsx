@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
 import { ErrorBoundary, type RecoveryAction } from "@/components/ui/error-boundary";
@@ -48,7 +48,7 @@ export function GenerationPanel() {
     setShowCategorySelector(false);
   };
 
-  const handleGenerate = async (config: GenerationConfig) => {
+  const handleGenerate = useCallback(async (config: GenerationConfig) => {
     setCurrentGeneration(config);
     setProgress({
       status: "generating",
@@ -81,6 +81,8 @@ export function GenerationPanel() {
       });
 
       // Add the generated asset with all metadata from the result
+      // Extract known metadata fields, omitting category which is set separately
+      const { category: _metaCategory, ...restMetadata } = config.metadata || {};
       addGeneratedAsset({
         id: result.taskId || crypto.randomUUID(),
         category: config.category,
@@ -88,7 +90,7 @@ export function GenerationPanel() {
         modelUrl: result.localModelUrl || result.modelUrl,
         thumbnailUrl: result.localThumbnailUrl || result.thumbnailUrl,
         metadata: {
-          ...config.metadata,
+          ...restMetadata,
           assetId: result.metadata?.assetId,
           hasVRM: result.hasVRM,
           hasHandRigging: result.hasHandRigging,
@@ -121,12 +123,18 @@ export function GenerationPanel() {
         duration: 5000,
       });
     }
-  };
+  }, [setCurrentGeneration, setProgress, addGeneratedAsset, toast]);
+
+  // Use ref for stable reference in callbacks
+  const handleGenerateRef = useRef(handleGenerate);
+  useEffect(() => {
+    handleGenerateRef.current = handleGenerate;
+  });
 
   // Quick generate with preset (one-click)
   const handleQuickGenerate = useCallback(() => {
     if (!presetConfig) return;
-    handleGenerate(presetConfig);
+    handleGenerateRef.current(presetConfig);
   }, [presetConfig]);
 
   const handleCancel = () => {

@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { logger } from "@/lib/utils";
+import type { SkillRequirements } from "@/types/core";
 
 const log = logger.child("useGameManifests");
 
@@ -27,7 +28,7 @@ export interface ItemBonuses {
 
 export interface ItemRequirements {
   level: number;
-  skills: Record<string, number>;
+  skills: SkillRequirements;
 }
 
 export interface ItemDefinition {
@@ -55,18 +56,81 @@ export interface ItemDefinition {
   requirements?: ItemRequirements;
 }
 
+/**
+ * NPC combat stats
+ */
+export interface NpcStats {
+  level?: number;
+  health?: number;
+  attack?: number;
+  strength?: number;
+  defense?: number;
+  ranged?: number;
+  magic?: number;
+}
+
+/**
+ * NPC combat settings
+ */
+export interface NpcCombat {
+  attackable?: boolean;
+  aggressive?: boolean;
+  retaliates?: boolean;
+  aggroRange?: number;
+  combatRange?: number;
+  attackSpeedTicks?: number;
+  respawnTicks?: number;
+}
+
+/**
+ * NPC movement settings
+ */
+export interface NpcMovement {
+  type?: "wander" | "stationary" | "patrol";
+  speed?: number;
+  wanderRadius?: number;
+}
+
+/**
+ * NPC services (shopkeeper, banker, etc.)
+ */
+export interface NpcServices {
+  enabled?: boolean;
+  types?: string[];
+  storeId?: string;
+}
+
+/**
+ * NPC dialogue options
+ */
+export interface NpcDialogue {
+  greeting?: string;
+  options?: Array<{ text: string; response: string }>;
+}
+
+/**
+ * NPC drop table
+ */
+export interface NpcDropTable {
+  always?: Array<{ itemId: string; quantity: number }>;
+  common?: Array<{ itemId: string; quantity: number; chance: number }>;
+  uncommon?: Array<{ itemId: string; quantity: number; chance: number }>;
+  rare?: Array<{ itemId: string; quantity: number; chance: number }>;
+  veryRare?: Array<{ itemId: string; quantity: number; chance: number }>;
+}
+
 export interface NpcDefinition {
   id: string;
   name: string;
   description: string;
   category: "mob" | "neutral";
   faction: string;
-  stats?: Record<string, unknown>;
-  combat?: Record<string, unknown>;
-  movement?: Record<string, unknown>;
-  services?: Record<string, unknown>;
-  dialogue?: Record<string, unknown>;
-  drops?: Record<string, unknown>;
+  stats?: NpcStats;
+  combat?: NpcCombat;
+  movement?: NpcMovement;
+  services?: NpcServices;
+  dialogue?: NpcDialogue;
+  drops?: NpcDropTable;
   appearance?: {
     modelPath: string;
     iconPath: string;

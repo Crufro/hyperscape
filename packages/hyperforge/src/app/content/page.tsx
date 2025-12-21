@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -22,12 +22,15 @@ import {
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SpectacularButton } from "@/components/ui/spectacular-button";
+import { logger } from "@/lib/utils";
 import type { GeneratedNPCContent } from "@/types/game/dialogue-types";
 import type {
   GeneratedQuestContent,
   GeneratedAreaContent,
   GeneratedItemContent,
 } from "@/types/game/content-types";
+
+const log = logger.child("Page:content");
 
 // Dynamic import for Sparkles to avoid hydration mismatch
 const Sparkles = dynamic(
@@ -78,7 +81,7 @@ type GeneratedContent = {
     | GeneratedItemContent;
 };
 
-export default function ContentGenerationPage() {
+function ContentGenerationPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
@@ -185,7 +188,7 @@ export default function ContentGenerationPage() {
           }
         }
       } catch (error) {
-        console.error("Failed to fetch content from API:", error);
+        log.error("Failed to fetch content from API", { error });
       }
 
       // Convert map to array and sort by timestamp
@@ -702,5 +705,14 @@ export default function ContentGenerationPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Default export wraps with Suspense for useSearchParams
+export default function ContentGenerationPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <ContentGenerationPageContent />
+    </Suspense>
   );
 }

@@ -341,7 +341,7 @@ export function FullBuildingGenerationModal({
           {/* Info Box */}
           <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
             <p className="text-xs text-purple-300">
-              💡 Full buildings are solid, non-enterable structures. They're
+              💡 Full buildings are solid, non-enterable structures. They&apos;re
               perfect for background buildings, landmarks, and town scenery.
             </p>
           </div>

@@ -5,7 +5,7 @@
  * Provides real-time feedback on what's missing before export.
  */
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import {
   calculateCompleteness,
   getSchema,
@@ -15,6 +15,7 @@ import {
   type AssetTypeSchema,
   type FieldDefinition,
 } from "@/lib/assets/asset-completeness";
+// ManifestType is available from @/types/core if needed
 
 // =============================================================================
 // TYPES
@@ -176,21 +177,27 @@ export function useAssetSchema(type: string): {
 }
 
 /**
+ * Manifest file types used by asset schemas
+ */
+type ManifestFileType = "items" | "npcs" | "resources" | "stores" | "music" | "buildings";
+
+/**
  * Hook to get all available asset schemas
  */
 export function useAssetSchemas(): {
   schemas: AssetTypeSchema[];
-  schemasByManifest: Record<string, AssetTypeSchema[]>;
+  schemasByManifest: Partial<Record<ManifestFileType, AssetTypeSchema[]>>;
 } {
   return useMemo(() => {
     const schemas = getAllSchemas();
-    const schemasByManifest: Record<string, AssetTypeSchema[]> = {};
+    const schemasByManifest: Partial<Record<ManifestFileType, AssetTypeSchema[]>> = {};
 
     for (const schema of schemas) {
-      if (!schemasByManifest[schema.manifestFile]) {
-        schemasByManifest[schema.manifestFile] = [];
+      const manifestFile = schema.manifestFile as ManifestFileType;
+      if (!schemasByManifest[manifestFile]) {
+        schemasByManifest[manifestFile] = [];
       }
-      schemasByManifest[schema.manifestFile].push(schema);
+      schemasByManifest[manifestFile]!.push(schema);
     }
 
     return { schemas, schemasByManifest };
@@ -201,6 +208,14 @@ export function useAssetSchemas(): {
 // BATCH VALIDATION
 // =============================================================================
 
+/**
+ * Readiness count for a batch of assets
+ */
+export interface ReadinessCount {
+  ready: number;
+  notReady: number;
+}
+
 export interface BatchValidationResult {
   total: number;
   ready: number;
@@ -210,16 +225,27 @@ export interface BatchValidationResult {
     ready: string[];
     incomplete: string[];
   };
-  byType: Record<string, { ready: number; notReady: number }>;
+  /** Map of asset type to readiness counts */
+  byType: Map<string, ReadinessCount>;
+}
+
+/**
+ * Base asset interface for validation (minimum required fields)
+ */
+interface ValidatableAsset {
+  id: string;
+  type: string;
+  data: { id?: string; name?: string; [key: string]: unknown };
 }
 
 /**
  * Hook to validate multiple assets at once
  */
 export function useBatchValidation(
-  assets: Array<{ id: string; type: string; data: Record<string, unknown> }>
+  assets: ValidatableAsset[]
 ): BatchValidationResult {
   return useMemo(() => {
+    const byType = new Map<string, ReadinessCount>();
     const result: BatchValidationResult = {
       total: assets.length,
       ready: 0,
@@ -229,20 +255,21 @@ export function useBatchValidation(
         ready: [],
         incomplete: [],
       },
-      byType: {},
+      byType,
     };
 
     for (const asset of assets) {
       const report = calculateCompleteness(asset.data, asset.type);
 
       // Track by type
-      if (!result.byType[asset.type]) {
-        result.byType[asset.type] = { ready: 0, notReady: 0 };
+      if (!byType.has(asset.type)) {
+        byType.set(asset.type, { ready: 0, notReady: 0 });
       }
+      const typeCount = byType.get(asset.type)!;
 
       if (report.exportReady) {
         result.ready++;
-        result.byType[asset.type].ready++;
+        typeCount.ready++;
 
         if (report.completeness === 100) {
           result.byStatus.complete.push(asset.id);
@@ -251,7 +278,7 @@ export function useBatchValidation(
         }
       } else {
         result.notReady++;
-        result.byType[asset.type].notReady++;
+        typeCount.notReady++;
         result.byStatus.incomplete.push(asset.id);
       }
     }
@@ -268,7 +295,7 @@ export function useBatchValidation(
  * Hook to check if assets are ready for export
  */
 export function useExportValidation(
-  assets: Array<{ id: string; type: string; data: Record<string, unknown> }>
+  assets: ValidatableAsset[]
 ): {
   canExport: boolean;
   readyAssets: string[];

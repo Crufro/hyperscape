@@ -6,6 +6,10 @@ import {
 import { generateConceptArt } from "@/lib/ai/concept-art-service";
 import type { GenerationConfig } from "@/components/generation/GenerationFormRouter";
 import { logger } from "@/lib/utils";
+import {
+  GenerationRequestSchema,
+  validationErrorResponse,
+} from "@/lib/api/schemas";
 
 const log = logger.child("API:generation");
 
@@ -14,21 +18,24 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, config, count, stream } = body;
+    const body: unknown = await request.json();
+    const parsed = GenerationRequestSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
+    }
+
+    const { action } = parsed.data;
 
     // Generate concept art preview (before 3D generation)
     if (action === "generate-concept-art") {
-      if (!config?.prompt) {
-        return NextResponse.json(
-          { error: "Prompt required for concept art generation" },
-          { status: 400 },
-        );
-      }
+      const { config } = parsed.data;
 
       const result = await generateConceptArt(config.prompt, {
-        style: config.style || "stylized",
-        viewAngle: config.viewAngle || "isometric",
+        style: (config.style as "realistic" | "stylized" | "pixel" | "painterly") || "stylized",
+        viewAngle: (config.viewAngle as "side" | "isometric" | "front" | "three-quarter") || "isometric",
         background: "simple",
         assetType: config.assetType || "item",
       });
@@ -48,12 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "generate") {
-      if (!config) {
-        return NextResponse.json(
-          { error: "Generation config required" },
-          { status: 400 },
-        );
-      }
+      const { config, stream } = parsed.data;
 
       // If streaming requested, use SSE
       if (stream) {
@@ -107,29 +109,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "batch") {
-      if (!config || !count) {
-        return NextResponse.json(
-          { error: "Config and count required for batch generation" },
-          { status: 400 },
-        );
-      }
+      const { config, count } = parsed.data;
 
       const results = await generateBatch(
         config as GenerationConfig,
-        count as number,
+        count,
       );
       return NextResponse.json({ results });
     }
 
     if (action === "status") {
-      const { taskId, taskType } = body;
-
-      if (!taskId) {
-        return NextResponse.json(
-          { error: "taskId required for status check" },
-          { status: 400 },
-        );
-      }
+      const { taskId, taskType } = parsed.data;
 
       log.debug({ taskId, taskType }, "Checking generation status");
 
@@ -173,6 +163,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // This should never be reached due to discriminated union validation
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     log.error({ error }, "Generation failed");

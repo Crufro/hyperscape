@@ -28,14 +28,16 @@ interface QuestGeneratorProps {
   onContentGenerated?: (content: GeneratedQuestContent) => void;
 }
 
-const difficultyColors: Record<string, string> = {
+const DIFFICULTY_COLORS = {
   easy: "text-green-400 bg-green-500/10",
   medium: "text-yellow-400 bg-yellow-500/10",
   hard: "text-orange-400 bg-orange-500/10",
   legendary: "text-purple-400 bg-purple-500/10",
-};
+} as const;
 
-const objectiveTypeIcons: Record<string, string> = {
+type QuestDifficulty = keyof typeof DIFFICULTY_COLORS;
+
+const OBJECTIVE_TYPE_ICONS = {
   kill: "⚔️",
   collect: "📦",
   deliver: "📬",
@@ -44,7 +46,9 @@ const objectiveTypeIcons: Record<string, string> = {
   craft: "🔨",
   skill: "📊",
   interact: "👆",
-};
+} as const;
+
+type ObjectiveType = keyof typeof OBJECTIVE_TYPE_ICONS;
 
 export function QuestGenerator({ onContentGenerated }: QuestGeneratorProps) {
   const { toast } = useToast();
@@ -331,7 +335,7 @@ export function QuestGenerator({ onContentGenerated }: QuestGeneratorProps) {
                 <Badge
                   className={cn(
                     "text-xs",
-                    difficultyColors[generatedContent.quest.difficulty],
+                    DIFFICULTY_COLORS[generatedContent.quest.difficulty as QuestDifficulty],
                   )}
                 >
                   {generatedContent.quest.difficulty}
@@ -385,7 +389,7 @@ export function QuestGenerator({ onContentGenerated }: QuestGeneratorProps) {
                     className="flex items-start gap-3 p-2 rounded bg-glass-bg/50"
                   >
                     <span className="text-lg">
-                      {objectiveTypeIcons[obj.type] || "📋"}
+                      {OBJECTIVE_TYPE_ICONS[obj.type as ObjectiveType] ?? "📋"}
                     </span>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{obj.description}</p>

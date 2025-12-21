@@ -1,12 +1,14 @@
 /**
  * Armor Fitting API Route
  * Performs hull-based or shrinkwrap armor fitting to avatar body
+ * 
+ * NOTE: Three.js imports are dynamic to avoid "document is not defined" 
+ * errors during Next.js build (Three.js requires DOM APIs)
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { getServiceFactory } from "@/lib/services";
+// Type-only imports don't cause runtime issues
+import type { SkinnedMesh, Skeleton, Mesh, BufferGeometry } from "three";
 import { logger } from "@/lib/utils";
 
 const log = logger.child("API:armor-fit");
@@ -23,6 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Dynamic imports to avoid "document is not defined" during build
+    const THREE = await import("three");
+    const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+    const { getServiceFactory } = await import("@/lib/services");
+
     const loader = new GLTFLoader();
     const factory = getServiceFactory();
     const armorFittingService = factory.getArmorFittingService();
@@ -37,8 +44,8 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Find skinned mesh in avatar
-    let foundAvatarMesh: THREE.SkinnedMesh | null = null;
-    let foundAvatarSkeleton: THREE.Skeleton | null = null;
+    let foundAvatarMesh: SkinnedMesh | null = null;
+    let foundAvatarSkeleton: Skeleton | null = null;
     avatarGltf.scene.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh && !foundAvatarMesh) {
         foundAvatarMesh = child;
@@ -58,7 +65,7 @@ export async function POST(request: NextRequest) {
     const avatarSkeleton = foundAvatarSkeleton;
 
     // Find mesh in armor
-    let foundArmorMesh: THREE.Mesh | null = null;
+    let foundArmorMesh: Mesh | null = null;
     armorGltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && !foundArmorMesh) {
         foundArmorMesh = child;
@@ -110,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     // Perform shrinkwrap fit using MeshFittingService
     // Note: fitArmorToBody modifies the armor mesh in place, returns void
-    meshFittingService.fitArmorToBody(armorMesh, avatarMesh as THREE.Mesh, {
+    meshFittingService.fitArmorToBody(armorMesh, avatarMesh as Mesh, {
       iterations: fittingConfig.iterations,
       targetOffset: fittingConfig.targetOffset,
       rigidity: fittingConfig.rigidity,
@@ -121,8 +128,8 @@ export async function POST(request: NextRequest) {
 
     // Get vertex count from the modified armor mesh
     // Use the geometry from the mesh we already have reference to
-    const geom = (foundArmorMesh as THREE.Mesh)
-      .geometry as THREE.BufferGeometry;
+    const geom = (foundArmorMesh as Mesh)
+      .geometry as BufferGeometry;
     const vertexCount = geom?.attributes?.position?.count || 0;
 
     return NextResponse.json({

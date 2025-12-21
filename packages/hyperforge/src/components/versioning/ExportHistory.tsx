@@ -18,20 +18,17 @@ import {
   Check,
   X,
   AlertCircle,
-  FileJson,
   Plus,
   Minus,
   Edit,
 } from "lucide-react";
 import {
   getExportHistory,
-  getExportRecord,
   markExportRolledBack,
   rollback,
 } from "@/lib/versioning/version-service";
 import type {
   ExportRecord,
-  ExportedAsset,
   ExportStatus,
   ChangeType,
 } from "@/lib/versioning/version-types";

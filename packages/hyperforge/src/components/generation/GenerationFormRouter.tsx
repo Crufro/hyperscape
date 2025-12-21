@@ -1,6 +1,7 @@
 "use client";
 
 import type { AssetCategory } from "@/types/categories";
+import type { GenerationFormMetadata } from "@/types/metadata";
 import { NPCGenerationForm } from "./forms/NPCGenerationForm";
 import { ResourceGenerationForm } from "./forms/ResourceGenerationForm";
 import { WeaponGenerationForm } from "./forms/WeaponGenerationForm";
@@ -55,7 +56,7 @@ export interface GenerationConfig {
   pipeline: "text-to-3d" | "image-to-3d";
   imageUrl?: string;
   quality: "preview" | "medium" | "high"; // Maps to Meshy AI models: meshy-4, meshy-5, latest
-  metadata: Record<string, unknown>;
+  metadata: GenerationFormMetadata;
   convertToVRM?: boolean; // Automatically convert to VRM format after generation
   enableHandRigging?: boolean; // Add hand bones for proper finger animation (requires VRM)
   useGPT4Enhancement?: boolean; // Enhance prompt with GPT-4 via Vercel AI Gateway

@@ -9,7 +9,6 @@ import {
   Ban,
   Clock,
   Users,
-  Move,
   ChevronDown,
   ChevronRight,
   Edit2,
@@ -18,17 +17,13 @@ import {
   Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { logger } from "@/lib/utils";
 import type {
   TileCoord,
-  Tile,
   TileSpawn,
-  TileContents,
   MobSpawnConfig,
   NpcSpawnConfig,
   ResourceSpawnConfig,
   WorldAreaDefinition,
-  PlaceableItem,
 } from "@/lib/world/tile-types";
 import {
   getTileAtPosition,
@@ -37,8 +32,6 @@ import {
   setTileProperties,
   clearTile,
 } from "@/lib/world/tile-service";
-
-const log = logger.child("TileInspector");
 
 // ============================================================================
 // TYPES
@@ -628,13 +621,18 @@ function SpawnDetails({ spawn, onUpdate }: SpawnDetailsProps) {
     </div>
   );
 
+  // Get the entity/structure ID based on spawn type
+  const entityId = spawn.type === "structure" 
+    ? spawn.structureId 
+    : spawn.entityId;
+
   return (
     <div className="space-y-4">
       {/* Common info */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <span className="text-muted-foreground">Entity ID</span>
-          <p className="font-mono text-[10px] truncate">{spawn.entityId}</p>
+          <span className="text-muted-foreground">{spawn.type === "structure" ? "Structure ID" : "Entity ID"}</span>
+          <p className="font-mono text-[10px] truncate">{entityId}</p>
         </div>
         <div>
           <span className="text-muted-foreground">Position</span>

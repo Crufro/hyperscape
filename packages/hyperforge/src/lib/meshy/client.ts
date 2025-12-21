@@ -19,7 +19,6 @@ import type {
   RetextureOptions,
   RiggingOptions,
   RiggingTaskResult,
-  MeshyTaskResponse,
 } from "./types";
 import {
   MESHY_API_V1,
@@ -28,6 +27,11 @@ import {
   DEFAULT_TOPOLOGY,
   DEFAULT_TEXTURE_RESOLUTION,
 } from "./constants";
+import {
+  parseMeshyTaskCreation,
+  parseMeshyTaskStatus,
+  parseMeshyRiggingTask,
+} from "@/lib/api/schemas/meshy";
 
 // Re-export MeshyTask for use by other modules
 export type { MeshyTask } from "./types";
@@ -41,10 +45,14 @@ function getApiKey(): string {
   return key;
 }
 
-async function meshyRequest<T>(
+/**
+ * Make a raw request to Meshy API and return the JSON response as unknown
+ * Callers are responsible for validating the response with Zod schemas
+ */
+async function meshyRequestRaw(
   endpoint: string,
   options: globalThis.RequestInit & { baseUrl?: string } = {},
-): Promise<T> {
+): Promise<unknown> {
   const baseUrl = options.baseUrl || MESHY_API_V1;
   const { baseUrl: _, ...fetchOptions } = options;
 
@@ -58,7 +66,7 @@ async function meshyRequest<T>(
   });
 
   if (!response.ok) {
-    const error = await response
+    const error: unknown = await response
       .json()
       .catch(() => ({ error: "Unknown error" }));
     throw new Error(
@@ -106,14 +114,14 @@ export async function createImageTo3DTask(
     body.should_remesh = options.should_remesh;
   }
 
-  const response = await meshyRequest<MeshyTaskResponse>("/image-to-3d", {
+  const response = await meshyRequestRaw("/image-to-3d", {
     method: "POST",
     baseUrl: MESHY_API_V1,
     body: JSON.stringify(body),
   });
 
-  // Extract task ID from response
-  return response.result || response.task_id || response.id || "";
+  // Validate and extract task ID using Zod schema
+  return parseMeshyTaskCreation(response);
 }
 
 /**
@@ -151,13 +159,14 @@ export async function createTextTo3DPreviewTask(
     body.moderation = options.moderation;
   }
 
-  const response = await meshyRequest<MeshyTaskResponse>("/text-to-3d", {
+  const response = await meshyRequestRaw("/text-to-3d", {
     method: "POST",
     baseUrl: MESHY_API_V2,
     body: JSON.stringify(body),
   });
 
-  return response.result || response.task_id || response.id || "";
+  // Validate and extract task ID using Zod schema
+  return parseMeshyTaskCreation(response);
 }
 
 /**
@@ -205,13 +214,14 @@ export async function createTextTo3DRefineTask(
     body.moderation = options.moderation;
   }
 
-  const response = await meshyRequest<MeshyTaskResponse>("/text-to-3d", {
+  const response = await meshyRequestRaw("/text-to-3d", {
     method: "POST",
     baseUrl: MESHY_API_V2,
     body: JSON.stringify(body),
   });
 
-  return response.result || response.task_id || response.id || "";
+  // Validate and extract task ID using Zod schema
+  return parseMeshyTaskCreation(response);
 }
 
 /**
@@ -222,10 +232,12 @@ export async function getTaskStatusV1(
   taskId: string,
   endpoint: "image-to-3d" | "retexture" | "rigging",
 ): Promise<MeshyTask> {
-  return meshyRequest<MeshyTask>(`/${endpoint}/${taskId}`, {
+  const response = await meshyRequestRaw(`/${endpoint}/${taskId}`, {
     method: "GET",
     baseUrl: MESHY_API_V1,
   });
+  // Validate with Zod schema and return typed result
+  return parseMeshyTaskStatus(response);
 }
 
 /**
@@ -235,10 +247,12 @@ export async function getTaskStatusV1(
 export async function getRiggingTaskStatus(
   taskId: string,
 ): Promise<RiggingTaskResult> {
-  return meshyRequest<RiggingTaskResult>(`/rigging/${taskId}`, {
+  const response = await meshyRequestRaw(`/rigging/${taskId}`, {
     method: "GET",
     baseUrl: MESHY_API_V1,
   });
+  // Validate with Zod schema and return typed result
+  return parseMeshyRiggingTask(response);
 }
 
 /**
@@ -246,10 +260,12 @@ export async function getRiggingTaskStatus(
  * For text-to-3d tasks using unified tasks endpoint
  */
 export async function getTaskStatusV2(taskId: string): Promise<MeshyTask> {
-  return meshyRequest<MeshyTask>(`/tasks/${taskId}`, {
+  const response = await meshyRequestRaw(`/tasks/${taskId}`, {
     method: "GET",
     baseUrl: MESHY_API_V2,
   });
+  // Validate with Zod schema and return typed result
+  return parseMeshyTaskStatus(response);
 }
 
 /**
@@ -328,13 +344,14 @@ export async function createRetextureTask(
     );
   }
 
-  const response = await meshyRequest<MeshyTaskResponse>("/retexture", {
+  const response = await meshyRequestRaw("/retexture", {
     method: "POST",
     baseUrl: MESHY_API_V1,
     body: JSON.stringify(body),
   });
 
-  return response.result || response.task_id || response.id || "";
+  // Validate and extract task ID using Zod schema
+  return parseMeshyTaskCreation(response);
 }
 
 /**
@@ -371,11 +388,12 @@ export async function createRiggingTask(
     throw new Error("Either input_task_id or model_url must be provided");
   }
 
-  const response = await meshyRequest<MeshyTaskResponse>("/rigging", {
+  const response = await meshyRequestRaw("/rigging", {
     method: "POST",
     baseUrl: MESHY_API_V1,
     body: JSON.stringify(body),
   });
 
-  return response.result || response.task_id || response.id || "";
+  // Validate and extract task ID using Zod schema
+  return parseMeshyTaskCreation(response);
 }

@@ -18,17 +18,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils";
+import { AgentRequestSchema, validationErrorResponse } from "@/lib/api/schemas";
 
 const log = logger.child("API:agent");
 
 // Game server URL for world operations
 const GAME_SERVER_URL =
   process.env.HYPERSCAPE_SERVER_URL || "http://localhost:5555";
-
-interface AgentRequest {
-  action: string;
-  params?: Record<string, unknown>;
-}
 
 interface AgentResponse {
   success: boolean;
@@ -46,16 +42,19 @@ interface AgentResponse {
  */
 export async function POST(request: NextRequest): Promise<NextResponse<AgentResponse>> {
   try {
-    const body: AgentRequest = await request.json();
-    const { action, params = {} } = body;
+    const body: unknown = await request.json();
+    const parsed = AgentRequestSchema.safeParse(body);
 
-    if (!action) {
+    if (!parsed.success) {
       return NextResponse.json({
         success: false,
         action: "unknown",
-        error: "Missing required field: action",
+        error: "Invalid request",
+        data: validationErrorResponse(parsed.error),
       }, { status: 400 });
     }
+
+    const { action, params = {} } = parsed.data;
 
     log.info({ action, params: Object.keys(params) }, "Agent request");
 
@@ -2641,6 +2640,544 @@ export async function POST(request: NextRequest): Promise<NextResponse<AgentResp
       }
 
       // ============================================================
+      // VERSION CONTROL
+      // ============================================================
+
+      case "list-versions":
+      case "list-snapshots": {
+        /**
+         * List all manifest snapshots for version control.
+         */
+        const versionsRes = await fetch(`${getBaseUrl(request)}/api/versions`);
+        const versionsData = await versionsRes.json();
+
+        return NextResponse.json({
+          success: true,
+          action: "list-versions",
+          data: versionsData,
+        });
+      }
+
+      case "create-snapshot": {
+        /**
+         * Create a new manifest snapshot.
+         *
+         * Params:
+         * - description: string (optional) - Description for the snapshot
+         */
+        const { description } = params as { description?: string };
+
+        const snapshotRes = await fetch(`${getBaseUrl(request)}/api/versions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description }),
+        });
+        const snapshotData = await snapshotRes.json();
+
+        return NextResponse.json({
+          success: snapshotData.success !== false,
+          action: "create-snapshot",
+          data: snapshotData,
+          error: snapshotData.error,
+        });
+      }
+
+      case "compare-versions":
+      case "compare-snapshots": {
+        /**
+         * Compare two snapshots to see differences.
+         *
+         * Params:
+         * - from: string (required) - First snapshot ID
+         * - to: string (required) - Second snapshot ID
+         */
+        const { from, to } = params as { from?: string; to?: string };
+
+        if (!from || !to) {
+          return NextResponse.json({
+            success: false,
+            action: "compare-versions",
+            error: "Missing required: from, to (snapshot IDs)",
+          }, { status: 400 });
+        }
+
+        const compareRes = await fetch(`${getBaseUrl(request)}/api/versions?compare=${from}&to=${to}`);
+        const compareData = await compareRes.json();
+
+        return NextResponse.json({
+          success: compareData.success !== false,
+          action: "compare-versions",
+          data: compareData,
+          error: compareData.error,
+        });
+      }
+
+      case "restore-version":
+      case "restore-snapshot": {
+        /**
+         * Restore a specific snapshot.
+         *
+         * Params:
+         * - snapshotId: string (required) - Snapshot ID to restore
+         */
+        const { snapshotId } = params as { snapshotId?: string };
+
+        if (!snapshotId) {
+          return NextResponse.json({
+            success: false,
+            action: "restore-version",
+            error: "Missing required: snapshotId",
+          }, { status: 400 });
+        }
+
+        const restoreRes = await fetch(`${getBaseUrl(request)}/api/versions`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ snapshotId }),
+        });
+        const restoreData = await restoreRes.json();
+
+        return NextResponse.json({
+          success: restoreData.success !== false,
+          action: "restore-version",
+          data: restoreData,
+          error: restoreData.error,
+        });
+      }
+
+      // ============================================================
+      // TEMPLATES
+      // ============================================================
+
+      case "list-templates": {
+        /**
+         * List available asset templates (tier sets, mob packs, bundles).
+         */
+        const templatesRes = await fetch(`${getBaseUrl(request)}/api/templates/create`);
+        const templatesData = await templatesRes.json();
+
+        return NextResponse.json({
+          success: true,
+          action: "list-templates",
+          data: templatesData,
+        });
+      }
+
+      case "create-from-template": {
+        /**
+         * Create assets from a template.
+         *
+         * Params:
+         * - templateId: string (required) - Template ID
+         * - templateType: "tier_set" | "mob_pack" | "asset_bundle" (required)
+         * - materials: string[] (required for tier_set) - Material tiers
+         */
+        const { templateId, templateType, materials } = params as {
+          templateId?: string;
+          templateType?: string;
+          materials?: string[];
+        };
+
+        if (!templateId || !templateType) {
+          return NextResponse.json({
+            success: false,
+            action: "create-from-template",
+            error: "Missing required: templateId, templateType",
+          }, { status: 400 });
+        }
+
+        const createRes = await fetch(`${getBaseUrl(request)}/api/templates/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateId, templateType, materials }),
+        });
+        const createData = await createRes.json();
+
+        return NextResponse.json({
+          success: createData.success !== false,
+          action: "create-from-template",
+          data: createData,
+          error: createData.error,
+        });
+      }
+
+      // ============================================================
+      // BULK OPERATIONS
+      // ============================================================
+
+      case "list-materials": {
+        /**
+         * List available material tiers and templates for bulk operations.
+         */
+        const materialsRes = await fetch(`${getBaseUrl(request)}/api/bulk/variants`);
+        const materialsData = await materialsRes.json();
+
+        return NextResponse.json({
+          success: true,
+          action: "list-materials",
+          data: materialsData,
+        });
+      }
+
+      case "create-bulk-variants": {
+        /**
+         * Create multiple material variants of an asset at once.
+         *
+         * Params:
+         * - action: "create_variants" | "create_tier_set" | "preview"
+         * - baseAsset: object (for create_variants) - Base asset data
+         * - templateId: string (optional) - Template ID
+         * - materials: string[] (required) - Material tier IDs
+         * - categories: string[] (optional) - Categories for tier_set
+         * - updateManifest: boolean (default: true)
+         */
+        const bulkParams = params as {
+          action?: string;
+          baseAsset?: unknown;
+          templateId?: string;
+          materials?: string[];
+          categories?: string[];
+          updateManifest?: boolean;
+        };
+
+        if (!bulkParams.materials || bulkParams.materials.length === 0) {
+          return NextResponse.json({
+            success: false,
+            action: "create-bulk-variants",
+            error: "Missing required: materials array",
+          }, { status: 400 });
+        }
+
+        const bulkRes = await fetch(`${getBaseUrl(request)}/api/bulk/variants`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bulkParams),
+        });
+        const bulkData = await bulkRes.json();
+
+        return NextResponse.json({
+          success: bulkData.success !== false,
+          action: "create-bulk-variants",
+          data: bulkData,
+          error: bulkData.error,
+        });
+      }
+
+      // ============================================================
+      // SYNC
+      // ============================================================
+
+      case "get-sync-status": {
+        /**
+         * Get sync status between HyperForge and game manifests.
+         */
+        const syncStatusRes = await fetch(`${getBaseUrl(request)}/api/sync`);
+        const syncStatusData = await syncStatusRes.json();
+
+        return NextResponse.json({
+          success: syncStatusData.success !== false,
+          action: "get-sync-status",
+          data: syncStatusData,
+          error: syncStatusData.error,
+        });
+      }
+
+      case "sync": {
+        /**
+         * Sync changes between HyperForge and game manifests.
+         *
+         * Params:
+         * - direction: "from_game" | "to_game" | "bidirectional" (required)
+         * - assetIds: string[] (optional) - Only sync specific assets
+         */
+        const { direction, assetIds } = params as {
+          direction?: string;
+          assetIds?: string[];
+        };
+
+        if (!direction) {
+          return NextResponse.json({
+            success: false,
+            action: "sync",
+            error: "Missing required: direction (from_game, to_game, or bidirectional)",
+          }, { status: 400 });
+        }
+
+        const syncRes = await fetch(`${getBaseUrl(request)}/api/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ direction, assetIds }),
+        });
+        const syncData = await syncRes.json();
+
+        return NextResponse.json({
+          success: syncData.success !== false,
+          action: "sync",
+          data: syncData,
+          error: syncData.error,
+        });
+      }
+
+      // ============================================================
+      // RELATIONSHIPS
+      // ============================================================
+
+      case "get-relationships": {
+        /**
+         * Get asset relationship graph.
+         *
+         * Params:
+         * - assetId: string (optional) - Get relationships for specific asset
+         * - assetTypes: string[] (optional) - Filter by asset categories
+         * - relationshipTypes: string[] (optional) - Filter by relationship types
+         * - stats: boolean (optional) - Return stats only
+         */
+        const { assetId, assetTypes, relationshipTypes, stats } = params as {
+          assetId?: string;
+          assetTypes?: string[];
+          relationshipTypes?: string[];
+          stats?: boolean;
+        };
+
+        const queryParams = new URLSearchParams();
+        if (assetId) queryParams.set("assetId", assetId);
+        if (assetTypes) queryParams.set("assetTypes", assetTypes.join(","));
+        if (relationshipTypes) queryParams.set("relationshipTypes", relationshipTypes.join(","));
+        if (stats) queryParams.set("stats", "true");
+
+        const relRes = await fetch(`${getBaseUrl(request)}/api/relationships?${queryParams}`);
+        const relData = await relRes.json();
+
+        return NextResponse.json({
+          success: relData.success !== false,
+          action: "get-relationships",
+          data: relData,
+          error: relData.error,
+        });
+      }
+
+      case "add-relationship": {
+        /**
+         * Add a relationship between two assets.
+         *
+         * Params:
+         * - sourceId: string (required)
+         * - sourceType: string (required) - item, npc, resource, etc.
+         * - sourceName: string (required)
+         * - targetId: string (required)
+         * - targetType: string (required)
+         * - targetName: string (required)
+         * - relationshipType: string (required) - drops, yields, sells, spawns, etc.
+         * - metadata: object (optional)
+         */
+        const relParams = params as {
+          sourceId?: string;
+          sourceType?: string;
+          sourceName?: string;
+          targetId?: string;
+          targetType?: string;
+          targetName?: string;
+          relationshipType?: string;
+          metadata?: unknown;
+        };
+
+        if (!relParams.sourceId || !relParams.targetId || !relParams.relationshipType) {
+          return NextResponse.json({
+            success: false,
+            action: "add-relationship",
+            error: "Missing required: sourceId, sourceType, sourceName, targetId, targetType, targetName, relationshipType",
+          }, { status: 400 });
+        }
+
+        const addRelRes = await fetch(`${getBaseUrl(request)}/api/relationships`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(relParams),
+        });
+        const addRelData = await addRelRes.json();
+
+        return NextResponse.json({
+          success: addRelData.success !== false,
+          action: "add-relationship",
+          data: addRelData,
+          error: addRelData.error,
+        });
+      }
+
+      case "remove-relationship": {
+        /**
+         * Remove a relationship by ID.
+         *
+         * Params:
+         * - relationshipId: string (required)
+         */
+        const { relationshipId } = params as { relationshipId?: string };
+
+        if (!relationshipId) {
+          return NextResponse.json({
+            success: false,
+            action: "remove-relationship",
+            error: "Missing required: relationshipId",
+          }, { status: 400 });
+        }
+
+        const removeRelRes = await fetch(`${getBaseUrl(request)}/api/relationships?id=${relationshipId}`, {
+          method: "DELETE",
+        });
+        const removeRelData = await removeRelRes.json();
+
+        return NextResponse.json({
+          success: removeRelData.success !== false,
+          action: "remove-relationship",
+          data: removeRelData,
+          error: removeRelData.error,
+        });
+      }
+
+      // ============================================================
+      // IMPORT
+      // ============================================================
+
+      case "get-game-manifests": {
+        /**
+         * Get all assets from game manifests for import.
+         */
+        const importRes = await fetch(`${getBaseUrl(request)}/api/import`);
+        const importData = await importRes.json();
+
+        return NextResponse.json({
+          success: importData.success !== false,
+          action: "get-game-manifests",
+          data: importData,
+          error: importData.error,
+        });
+      }
+
+      case "import-assets": {
+        /**
+         * Import assets from game manifests into HyperForge.
+         *
+         * Params:
+         * - assetIds: string[] (required) - Asset IDs to import
+         */
+        const { assetIds: importAssetIds } = params as { assetIds?: string[] };
+
+        if (!importAssetIds || importAssetIds.length === 0) {
+          return NextResponse.json({
+            success: false,
+            action: "import-assets",
+            error: "Missing required: assetIds array",
+          }, { status: 400 });
+        }
+
+        const doImportRes = await fetch(`${getBaseUrl(request)}/api/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assetIds: importAssetIds }),
+        });
+        const doImportData = await doImportRes.json();
+
+        return NextResponse.json({
+          success: doImportData.success !== false,
+          action: "import-assets",
+          data: doImportData,
+          error: doImportData.error,
+        });
+      }
+
+      // ============================================================
+      // SERVER CONTROL
+      // ============================================================
+
+      case "server-status": {
+        /**
+         * Check if the game server is running.
+         */
+        const serverStatusRes = await fetch(`${getBaseUrl(request)}/api/server/reload`);
+        const serverStatusData = await serverStatusRes.json();
+
+        return NextResponse.json({
+          success: true,
+          action: "server-status",
+          data: serverStatusData,
+        });
+      }
+
+      case "reload-server": {
+        /**
+         * Trigger hot reload of the game server.
+         *
+         * Params:
+         * - force: boolean (optional) - Force restart instead of hot reload
+         */
+        const { force } = params as { force?: boolean };
+
+        const reloadRes = await fetch(`${getBaseUrl(request)}/api/server/reload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force }),
+        });
+        const reloadData = await reloadRes.json();
+
+        return NextResponse.json({
+          success: reloadData.success !== false,
+          action: "reload-server",
+          data: reloadData,
+          error: reloadData.error,
+        });
+      }
+
+      // ============================================================
+      // WORLD CONFIG
+      // ============================================================
+
+      case "get-world-config": {
+        /**
+         * Get world areas configuration for tile editor.
+         */
+        const worldConfigRes = await fetch(`${getBaseUrl(request)}/api/world/config`);
+        const worldConfigData = await worldConfigRes.json();
+
+        return NextResponse.json({
+          success: true,
+          action: "get-world-config",
+          data: worldConfigData,
+        });
+      }
+
+      case "save-world-config": {
+        /**
+         * Save world areas configuration.
+         *
+         * Params:
+         * - config: object (required) - World areas configuration
+         */
+        const { config } = params as { config?: unknown };
+
+        if (!config) {
+          return NextResponse.json({
+            success: false,
+            action: "save-world-config",
+            error: "Missing required: config object",
+          }, { status: 400 });
+        }
+
+        const saveConfigRes = await fetch(`${getBaseUrl(request)}/api/world/config`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config),
+        });
+        const saveConfigData = await saveConfigRes.json();
+
+        return NextResponse.json({
+          success: saveConfigData.success !== false,
+          action: "save-world-config",
+          data: saveConfigData,
+          error: saveConfigData.error,
+        });
+      }
+
+      // ============================================================
       // MANIFEST EXPORT
       // ============================================================
 
@@ -2752,6 +3289,35 @@ export async function POST(request: NextRequest): Promise<NextResponse<AgentResp
                 { action: "get-ai-models", description: "List available AI models", params: [] },
                 { action: "get-balance", description: "Get API credit balance", params: [] },
               ],
+              "Version Control": [
+                { action: "list-versions", description: "List all manifest snapshots", params: [] },
+                { action: "create-snapshot", description: "Create a new snapshot", params: ["description"] },
+                { action: "compare-versions", description: "Compare two snapshots", params: ["from", "to"] },
+                { action: "restore-version", description: "Restore a snapshot", params: ["snapshotId"] },
+              ],
+              "Templates & Bulk": [
+                { action: "list-templates", description: "List available templates", params: [] },
+                { action: "create-from-template", description: "Create assets from template", params: ["templateId", "templateType", "materials"] },
+                { action: "list-materials", description: "List material tiers", params: [] },
+                { action: "create-bulk-variants", description: "Create material variants", params: ["materials", "baseAsset", "action"] },
+              ],
+              "Sync & Import": [
+                { action: "get-sync-status", description: "Get sync status", params: [] },
+                { action: "sync", description: "Sync with game manifests", params: ["direction", "assetIds"] },
+                { action: "get-game-manifests", description: "Get game manifest assets", params: [] },
+                { action: "import-assets", description: "Import from game", params: ["assetIds"] },
+              ],
+              "Relationships": [
+                { action: "get-relationships", description: "Get asset relationships", params: ["assetId", "assetTypes"] },
+                { action: "add-relationship", description: "Add asset relationship", params: ["sourceId", "targetId", "relationshipType"] },
+                { action: "remove-relationship", description: "Remove relationship", params: ["relationshipId"] },
+              ],
+              "Server Control": [
+                { action: "server-status", description: "Check game server status", params: [] },
+                { action: "reload-server", description: "Hot reload game server", params: ["force"] },
+                { action: "get-world-config", description: "Get world areas config", params: [] },
+                { action: "save-world-config", description: "Save world areas config", params: ["config"] },
+              ],
               "Utility": [
                 { action: "status", description: "Check async task status", params: ["taskId"] },
                 { action: "batch-status", description: "Check multiple task statuses", params: ["taskIds"] },
@@ -2809,6 +3375,11 @@ export async function GET(): Promise<NextResponse<AgentResponse>> {
         "Game Data": ["get-game-data", "list-game-content", "list-stores", "update-store"],
         "World Editing": ["get-world", "get-entity", "get-players", "find-nearby", "find-entity", "update-entity", "place-entity", "remove-entity", "bulk-place-entities", "bulk-remove-entities"],
         "Settings & Configuration": ["get-settings", "get-preferences", "set-preferences", "get-ai-models", "get-balance"],
+        "Version Control": ["list-versions", "create-snapshot", "compare-versions", "restore-version"],
+        "Templates & Bulk": ["list-templates", "create-from-template", "list-materials", "create-bulk-variants"],
+        "Sync & Import": ["get-sync-status", "sync", "get-game-manifests", "import-assets"],
+        "Relationships": ["get-relationships", "add-relationship", "remove-relationship"],
+        "Server Control": ["server-status", "reload-server", "get-world-config", "save-world-config"],
         "Utility": ["status", "batch-status", "describe", "validate", "estimate", "search", "recent", "help"],
       },
       examples: [

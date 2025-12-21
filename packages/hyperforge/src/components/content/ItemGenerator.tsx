@@ -28,14 +28,16 @@ interface ItemGeneratorProps {
   onContentGenerated?: (content: GeneratedItemContent) => void;
 }
 
-const rarityColors: Record<string, string> = {
+const RARITY_COLORS = {
   common: "text-gray-400 bg-gray-500/10",
   uncommon: "text-green-400 bg-green-500/10",
   rare: "text-blue-400 bg-blue-500/10",
   epic: "text-purple-400 bg-purple-500/10",
   legendary: "text-orange-400 bg-orange-500/10",
   unique: "text-red-400 bg-red-500/10",
-};
+} as const;
+
+type ItemRarity = keyof typeof RARITY_COLORS;
 
 export function ItemGenerator({ onContentGenerated }: ItemGeneratorProps) {
   const { toast } = useToast();
@@ -283,7 +285,7 @@ export function ItemGenerator({ onContentGenerated }: ItemGeneratorProps) {
                 <Badge
                   className={cn(
                     "text-xs",
-                    rarityColors[generatedContent.item.rarity],
+                    RARITY_COLORS[generatedContent.item.rarity as ItemRarity],
                   )}
                 >
                   <Sparkles className="w-3 h-3 mr-1" />

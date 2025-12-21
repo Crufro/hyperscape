@@ -346,6 +346,9 @@ export function validateSpawn(
       return validateNpcSpawn(spawn, availableNpcs);
     case "resource":
       return validateResourceSpawn(spawn, availableResources);
+    case "structure":
+      // Structures don't need validation against entity lists
+      return { valid: true, errors: [], warnings: [] };
   }
 }
 
@@ -834,6 +837,16 @@ export function createSpawnFromItem(
       return createNpcSpawn(item, coord);
     case "resource":
       return createResourceSpawn(item, coord);
+    case "structure":
+      // Structure spawn - use structureId from entityId
+      return {
+        id: `structure_${item.entityId}_${coord.x}_${coord.z}_${Date.now().toString(36).slice(-4)}`,
+        type: "structure" as const,
+        structureId: item.entityId,
+        name: item.name,
+        position: { x: coord.x + 0.5, y: 0, z: coord.z + 0.5 },
+        rotation: 0,
+      };
   }
 }
 
@@ -1115,7 +1128,11 @@ export function duplicateSpawn(
 
   // Create new spawn with unique ID
   const timestamp = Date.now().toString(36).slice(-4);
-  const newSpawnId = `${sourceSpawn.type}_${sourceSpawn.entityId}_${targetCoord.x}_${targetCoord.z}_${timestamp}`;
+  // For structures, use structureId; for other spawn types, use entityId
+  const spawnRefId = sourceSpawn.type === "structure" 
+    ? sourceSpawn.structureId 
+    : sourceSpawn.entityId;
+  const newSpawnId = `${sourceSpawn.type}_${spawnRefId}_${targetCoord.x}_${targetCoord.z}_${timestamp}`;
 
   const newSpawn: TileSpawn = {
     ...sourceSpawn,

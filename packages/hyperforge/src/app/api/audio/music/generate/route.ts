@@ -16,23 +16,32 @@ import {
 import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 import type { MusicAsset, MusicCategory } from "@/types/audio";
+import { MusicGenerationSchema, validationErrorResponse } from "@/lib/api/schemas";
 
 const log = logger.child("API:audio/music/generate");
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: unknown = await request.json();
+    const parsed = MusicGenerationSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
+    }
+
     const {
       prompt,
-      presetId, // Use a preset instead of custom prompt
-      category = "custom" as MusicCategory,
+      presetId,
+      category = "custom",
       name,
-      durationMs = 30000, // Default 30 seconds
-      forceInstrumental = true, // Default to instrumental for game music
+      durationMs = 30000,
+      forceInstrumental = true,
       loopable = true,
       zones = [],
       saveToAsset = true,
-    } = body;
+    } = parsed.data;
 
     // Use preset prompt if provided
     let effectivePrompt = prompt;
@@ -42,6 +51,7 @@ export async function POST(request: NextRequest) {
       effectiveName = effectiveName || presetId;
     }
 
+    // effectivePrompt is guaranteed by schema refinement
     if (!effectivePrompt || typeof effectivePrompt !== "string") {
       return NextResponse.json(
         { error: "Prompt or presetId is required" },

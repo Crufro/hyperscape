@@ -63,4 +63,7 @@ export type {
   NPCAppearanceConfig,
   NPCDataInput,
   GeneratedNPCContent,
+  // Drop table types
+  DropTableItem,
+  NPCDropTable,
 } from "./npc-types";

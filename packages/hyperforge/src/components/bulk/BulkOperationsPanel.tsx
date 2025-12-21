@@ -18,12 +18,9 @@ import {
   getAvailableMobTiers,
   estimateItemCount,
   estimateMobCount,
-  generateStatPreviews,
-  getStatComparisonTable,
   type BulkOperationResult,
   type BulkProgressCallback,
   type BaseAsset,
-  type StatPreview,
 } from "@/lib/bulk/bulk-operations";
 import {
   MATERIAL_TIERS,
@@ -88,11 +85,6 @@ export function BulkOperationsPanel({
   const materials = getAvailableMaterials();
   const mobTiers = getAvailableMobTiers();
   const mobTemplates = Object.entries(MOB_TEMPLATES);
-  const allTemplates = {
-    ...WEAPON_TEMPLATES,
-    ...ARMOR_TEMPLATES,
-    ...TOOL_TEMPLATES,
-  };
 
   /**
    * Toggle material selection

@@ -21,12 +21,21 @@ import {
 import { invalidateRegistryCache } from "@/lib/assets/registry";
 import { logger } from "@/lib/utils";
 import type { VoiceAsset } from "@/types/audio";
+import { VoiceGenerationSchema, validationErrorResponse } from "@/lib/api/schemas";
 
 const log = logger.child("API:audio/voice/generate");
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: unknown = await request.json();
+    const parsed = VoiceGenerationSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(validationErrorResponse(parsed.error), {
+        status: 400,
+      });
+    }
+
     const {
       text,
       voiceId,
@@ -35,11 +44,7 @@ export async function POST(request: NextRequest) {
       dialogueNodeId,
       withTimestamps = false,
       saveToAsset = true,
-    } = body;
-
-    if (!text || typeof text !== "string") {
-      return NextResponse.json({ error: "Text is required" }, { status: 400 });
-    }
+    } = parsed.data;
 
     // Determine voice ID and settings from preset or direct ID
     let effectiveVoiceId = voiceId;
@@ -58,6 +63,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // effectiveVoiceId is guaranteed by schema refinement
     if (!effectiveVoiceId) {
       return NextResponse.json(
         { error: "Either voiceId or voicePreset is required" },

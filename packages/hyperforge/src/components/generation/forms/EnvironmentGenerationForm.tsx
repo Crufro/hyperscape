@@ -13,6 +13,11 @@ import {
   generateAssetId,
   getDefaultMetadata,
 } from "@/lib/generation/category-schemas";
+import {
+  getStringProperty,
+  getNumberProperty,
+  isObject,
+} from "@/types/guards";
 
 interface EnvironmentGenerationFormProps {
   onGenerate: (config: GenerationConfig) => void;
@@ -21,13 +26,32 @@ interface EnvironmentGenerationFormProps {
   initialConfig?: Partial<GenerationConfig>;
 }
 
+/**
+ * Extract environment form values from metadata using type-safe property access
+ */
+function extractEnvironmentMetadata(metadata: unknown) {
+  if (!isObject(metadata)) {
+    return {
+      name: "",
+      environmentType: "tree",
+      scale: 1.0,
+    };
+  }
+
+  return {
+    name: getStringProperty(metadata, "name") ?? "",
+    environmentType: getStringProperty(metadata, "environmentType") ?? "tree",
+    scale: getNumberProperty(metadata, "scale") ?? 1.0,
+  };
+}
+
 export function EnvironmentGenerationForm({
   onGenerate,
   onCancel,
   initialConfig,
 }: EnvironmentGenerationFormProps) {
-  // Extract metadata for initializing form fields
-  const meta = initialConfig?.metadata as Record<string, unknown> | undefined;
+  // Extract metadata using type-safe helper
+  const initialMeta = extractEnvironmentMetadata(initialConfig?.metadata);
 
   const [prompt, setPrompt] = useState(initialConfig?.prompt ?? "");
   const [pipeline, setPipeline] = useState<"text-to-3d" | "image-to-3d">(
@@ -37,21 +61,21 @@ export function EnvironmentGenerationForm({
   const [quality, setQuality] = useState<"preview" | "medium" | "high">(
     initialConfig?.quality ?? "high"
   );
-  const [name, setName] = useState((meta?.name as string) ?? "");
-  const [type, setType] = useState((meta?.environmentType as string) ?? "tree");
-  const [scale, setScale] = useState((meta?.scale as number) ?? 1.0);
+  const [name, setName] = useState(initialMeta.name);
+  const [type, setType] = useState(initialMeta.environmentType);
+  const [scale, setScale] = useState(initialMeta.scale);
 
   // Update form when preset changes
   useEffect(() => {
     if (initialConfig) {
-      const m = initialConfig.metadata as Record<string, unknown> | undefined;
+      const meta = extractEnvironmentMetadata(initialConfig.metadata);
       if (initialConfig.prompt) setPrompt(initialConfig.prompt);
       if (initialConfig.pipeline) setPipeline(initialConfig.pipeline);
       if (initialConfig.imageUrl) setImageUrl(initialConfig.imageUrl);
       if (initialConfig.quality) setQuality(initialConfig.quality);
-      if (m?.name) setName(m.name as string);
-      if (m?.environmentType) setType(m.environmentType as string);
-      if (typeof m?.scale === "number") setScale(m.scale);
+      if (meta.name) setName(meta.name);
+      if (meta.environmentType) setType(meta.environmentType);
+      setScale(meta.scale);
     }
   }, [initialConfig]);
 

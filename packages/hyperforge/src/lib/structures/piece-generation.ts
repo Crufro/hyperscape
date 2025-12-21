@@ -10,7 +10,7 @@ import {
   startTextTo3DPreview,
   startTextTo3DRefine,
 } from "@/lib/meshy/text-to-3d";
-import { pollTaskUntilComplete } from "@/lib/meshy/poll-task";
+import { pollTaskStatus } from "@/lib/meshy/poll-task";
 import type {
   BuildingPiece,
   BuildingPieceType,
@@ -137,9 +137,9 @@ export async function generatePiece(
   log.info("Preview task started", { taskId: previewTaskId });
 
   // Wait for preview to complete
-  const previewResult = await pollTaskUntilComplete(previewTaskId, {
-    maxAttempts: 60, // 5 minutes
-    delayMs: 5000,
+  const previewResult = await pollTaskStatus(previewTaskId, {
+    timeoutMs: 300000, // 5 minutes
+    pollIntervalMs: 5000,
   });
 
   if (previewResult.status !== "SUCCEEDED") {
@@ -155,9 +155,9 @@ export async function generatePiece(
   log.info("Refine task started", { taskId: refineTaskId });
 
   // Wait for refine to complete
-  const refineResult = await pollTaskUntilComplete(refineTaskId, {
-    maxAttempts: 60,
-    delayMs: 5000,
+  const refineResult = await pollTaskStatus(refineTaskId, {
+    timeoutMs: 300000, // 5 minutes
+    pollIntervalMs: 5000,
   });
 
   if (refineResult.status !== "SUCCEEDED") {
@@ -170,8 +170,8 @@ export async function generatePiece(
     id: pieceId,
     name: `${options.style || "Default"} ${options.type.charAt(0).toUpperCase() + options.type.slice(1)}`,
     type: options.type,
-    modelUrl: refineResult.model_urls?.glb || "",
-    thumbnailUrl: refineResult.thumbnail_url || "",
+    modelUrl: refineResult.modelUrl,
+    thumbnailUrl: refineResult.thumbnailUrl || "",
     dimensions,
     snapPoints: [],
     generatedAt: new Date().toISOString(),

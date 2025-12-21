@@ -84,6 +84,32 @@ export type MusicCategory =
   | "custom";
 
 // ============================================================================
+// Zone Types
+// ============================================================================
+
+/**
+ * Known game zone identifiers for music mapping
+ */
+export type ZoneId =
+  | "lumbridge"
+  | "varrock"
+  | "falador"
+  | "wilderness"
+  | "dungeon"
+  | "boss"
+  | "menu"
+  | "combat"
+  | "tavern"
+  | "forest"
+  | "desert"
+  | "mountain"
+  | "swamp"
+  | "castle"
+  | "cave"
+  | "beach"
+  | "underground";
+
+// ============================================================================
 // Audio Manifest Types
 // ============================================================================
 
@@ -116,7 +142,7 @@ export interface SoundEffectManifest {
 export interface MusicManifest {
   assets: MusicAsset[]; // All music tracks
   byCategory: Record<MusicCategory, string[]>; // Asset IDs by category
-  byZone?: Record<string, string[]>; // Asset IDs by game zone
+  byZone?: Partial<Record<ZoneId, string[]>>; // Asset IDs by game zone - explicit zone keys
 }
 
 // ============================================================================

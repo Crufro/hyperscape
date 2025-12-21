@@ -18,7 +18,14 @@ import { cn } from "@/lib/utils";
 import { logger } from "@/lib/utils";
 import type { PlaceableItem } from "@/lib/world/tile-types";
 import type { NpcDefinition, ResourceDefinition } from "@/lib/game/manifests";
-import type { StructureDefinition } from "@/types/structures";
+
+// Structure definition for spawn palette (minimal fields needed)
+interface StructureDefinition {
+  id: string;
+  name: string;
+  bakedModelUrl?: string;
+  enterable?: boolean;
+}
 
 const log = logger.child("SpawnPalette");
 
@@ -122,6 +129,7 @@ export function SpawnPalette({
         setResources(resourcesData);
 
         // Load structures (baked only)
+        let structuresCount = 0;
         try {
           const structuresRes = await fetch("/api/structures");
           if (structuresRes.ok) {
@@ -131,6 +139,7 @@ export function SpawnPalette({
               (s: StructureDefinition) => s.bakedModelUrl,
             );
             setStructures(bakedStructures);
+            structuresCount = bakedStructures.length;
           }
         } catch {
           // Structures API may not be available yet
@@ -141,7 +150,7 @@ export function SpawnPalette({
           mobs: npcsData.filter((n) => n.category === "mob").length,
           npcs: npcsData.filter((n) => n.category !== "mob").length,
           resources: resourcesData.length,
-          structures: structures.length,
+          structures: structuresCount,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { logger } from "@/lib/utils";
@@ -61,6 +61,24 @@ interface ImageItemProps {
   isSelected?: boolean;
 }
 
+const TYPE_COLORS = {
+  "concept-art": "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  sprite: "bg-green-500/20 text-green-400 border-green-500/30",
+  texture: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  icon: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  other: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+} as const;
+
+type ImageAssetType = keyof typeof TYPE_COLORS;
+
+const SOURCE_COLORS = {
+  CDN: "bg-blue-500/20 text-blue-400",
+  FORGE: "bg-purple-500/20 text-purple-400",
+  LOCAL: "bg-green-500/20 text-green-400",
+} as const;
+
+type ImageSource = keyof typeof SOURCE_COLORS;
+
 function ImageItem({
   asset,
   onDownload,
@@ -68,19 +86,6 @@ function ImageItem({
   onSelect,
   isSelected,
 }: ImageItemProps) {
-  const typeColors: Record<string, string> = {
-    "concept-art": "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    sprite: "bg-green-500/20 text-green-400 border-green-500/30",
-    texture: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    icon: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-    other: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-  };
-
-  const sourceColors: Record<string, string> = {
-    CDN: "bg-blue-500/20 text-blue-400",
-    FORGE: "bg-purple-500/20 text-purple-400",
-    LOCAL: "bg-green-500/20 text-green-400",
-  };
 
   return (
     <div
@@ -148,11 +153,11 @@ function ImageItem({
         <div className="flex items-center gap-1 mt-1 flex-wrap">
           <Badge
             variant="outline"
-            className={cn("text-[10px]", typeColors[asset.type] || typeColors.other)}
+            className={cn("text-[10px]", TYPE_COLORS[asset.type as ImageAssetType] ?? TYPE_COLORS.other)}
           >
             {asset.type}
           </Badge>
-          <Badge variant="outline" className={cn("text-[10px]", sourceColors[asset.source])}>
+          <Badge variant="outline" className={cn("text-[10px]", SOURCE_COLORS[asset.source as ImageSource])}>
             {asset.source}
           </Badge>
         </div>
@@ -241,13 +246,15 @@ export function ImageAssetsViewer() {
     return true;
   });
 
-  // Count by type
-  const counts: Record<string, number> = {
-    all: assets.length,
-  };
-  assets.forEach((a) => {
-    counts[a.type] = (counts[a.type] || 0) + 1;
-  });
+  // Count by type - using Map for dynamic type counting
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    map.set("all", assets.length);
+    assets.forEach((a) => {
+      map.set(a.type, (map.get(a.type) ?? 0) + 1);
+    });
+    return map;
+  }, [assets]);
 
   if (!mounted) {
     return (
@@ -303,7 +310,7 @@ export function ImageAssetsViewer() {
         <TabsList className="flex flex-wrap gap-1 h-auto p-1">
           {types.map((type) => (
             <TabsTrigger key={type} value={type} className="text-xs capitalize">
-              {type === "all" ? "All" : type.replace("-", " ")} ({counts[type] || 0})
+              {type === "all" ? "All" : type.replace("-", " ")} ({counts.get(type) ?? 0})
             </TabsTrigger>
           ))}
         </TabsList>
