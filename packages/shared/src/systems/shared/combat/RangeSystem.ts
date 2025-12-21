@@ -1,8 +1,6 @@
 /**
- * RangeSystem - Range calculations for NPC aggro and combat
- *
- * Three range types: Hunt, Attack, and Max range.
- * Large NPCs check from all occupied tiles.
+ * Range calculations for NPC aggro and combat.
+ * Three range types: Hunt (SW tile), Attack (all tiles), Max (leash).
  */
 
 import type { TileCoord } from "../movement/TileSystem";
@@ -15,29 +13,20 @@ import { AttackType } from "../../../types/core/core";
 import type { Position3D } from "../../../types";
 import { TILE_SIZE } from "../movement/TileSystem";
 
-/**
- * NPC size configuration
- */
 export interface NPCSize {
-  width: number; // tiles in X direction
-  depth: number; // tiles in Z direction
+  width: number;
+  depth: number;
 }
 
-/**
- * NPC data required for range calculations
- */
 export interface NPCRangeData {
   position: Position3D;
   size: NPCSize;
-  huntRange: number; // tiles
-  attackRange: number; // tiles
-  maxRange: number; // tiles from spawn
+  huntRange: number;
+  attackRange: number;
+  maxRange: number;
   attackType: AttackType;
 }
 
-/**
- * Default NPC sizes for common mob types
- */
 export const NPC_SIZES: Record<string, NPCSize> = {
   // 1x1 (default)
   goblin: { width: 1, depth: 1 },
@@ -69,72 +58,37 @@ export const NPC_SIZES: Record<string, NPCSize> = {
   olm_head: { width: 5, depth: 5 },
 };
 
-/**
- * Get NPC size by mob type, defaulting to 1x1
- */
 export function getNPCSize(mobType: string): NPCSize {
   return NPC_SIZES[mobType.toLowerCase()] ?? { width: 1, depth: 1 };
 }
 
-/**
- * RangeSystem - OSRS-accurate range calculations
- *
- * Provides methods for all three OSRS range types with zero allocations
- * in the hot path (uses pre-allocated buffers).
- */
+/** Pre-allocates tile buffers for zero-GC range checks */
 export class RangeSystem {
-  // Pre-allocated for zero-GC range checks
   private readonly _tileBuffer: TileCoord = { x: 0, z: 0 };
   private readonly _occupiedTiles: TileCoord[] = [];
 
-  // Pre-allocate occupied tiles buffer for largest expected NPC (5x5 = 25 tiles)
   constructor() {
     for (let i = 0; i < 25; i++) {
       this._occupiedTiles.push({ x: 0, z: 0 });
     }
   }
 
-  /**
-   * Check if player is within hunt range (NPC initiates aggro)
-   *
-   * OSRS: Hunt range is measured from the NPC's SW tile only.
-   * This is the tile with the smallest X and Z coordinates.
-   *
-   * @param npc - NPC data including position and size
-   * @param playerPos - Player's world position
-   * @returns true if player is within hunt range
-   */
+  /** Hunt range: measured from SW tile only */
   isInHuntRange(npc: NPCRangeData, playerPos: Position3D): boolean {
-    // Hunt range originates from SW tile only
     const npcSWTile = this.getSWTile(npc.position);
     const playerTile = worldToTile(playerPos.x, playerPos.z);
-    const distance = tileChebyshevDistance(npcSWTile, playerTile);
-    return distance <= npc.huntRange;
+    return tileChebyshevDistance(npcSWTile, playerTile) <= npc.huntRange;
   }
 
-  /**
-   * Check if player is within attack range (NPC can attack)
-   *
-   * OSRS: Attack range is measured from ALL tiles the NPC occupies.
-   * For a 2x2 NPC, the player can be attacked if they're within range
-   * of ANY of the 4 tiles the NPC stands on.
-   *
-   * @param npc - NPC data including position and size
-   * @param playerPos - Player's world position
-   * @returns true if player is within attack range
-   */
+  /** Attack range: measured from ALL occupied tiles */
   isInAttackRange(npc: NPCRangeData, playerPos: Position3D): boolean {
     const playerTile = worldToTile(playerPos.x, playerPos.z);
-
-    // Get all tiles NPC occupies
     const occupiedCount = this.getOccupiedTiles(npc.position, npc.size);
 
-    // Player must be in range of ANY occupied tile
     for (let i = 0; i < occupiedCount; i++) {
-      const npcTile = this._occupiedTiles[i];
       if (
         this.checkAttackRange(
-          npcTile,
+          this._occupiedTiles[i],
           playerTile,
           npc.attackType,
           npc.attackRange,
@@ -146,59 +100,25 @@ export class RangeSystem {
     return false;
   }
 
-  /**
-   * Check if NPC is within max range from spawn
-   *
-   * Used for leashing - NPC should return to spawn if too far.
-   * Measured from SW tile to spawn point.
-   *
-   * @param npc - NPC data including position
-   * @param spawnPoint - Spawn tile coordinates
-   * @returns true if within max range
-   */
+  /** Max range: for leashing (SW tile to spawn) */
   isWithinMaxRange(npc: NPCRangeData, spawnPoint: TileCoord): boolean {
     const npcSWTile = this.getSWTile(npc.position);
-    const distance = tileChebyshevDistance(npcSWTile, spawnPoint);
-    return distance <= npc.maxRange;
+    return tileChebyshevDistance(npcSWTile, spawnPoint) <= npc.maxRange;
   }
 
-  /**
-   * Get distance from NPC to target (for pathfinding priority)
-   *
-   * Uses SW tile as origin for consistency with hunt range.
-   *
-   * @param npcPos - NPC's world position
-   * @param targetPos - Target's world position
-   * @returns Distance in tiles (Chebyshev)
-   */
   getDistanceToTarget(npcPos: Position3D, targetPos: Position3D): number {
     const npcTile = worldToTile(npcPos.x, npcPos.z);
     const targetTile = worldToTile(targetPos.x, targetPos.z);
     return tileChebyshevDistance(npcTile, targetTile);
   }
 
-  /**
-   * Get SW tile for NPC (true position for hunt range calculations)
-   *
-   * The SW tile is the tile containing the NPC's position,
-   * which is typically the SW corner of large NPCs.
-   */
   getSWTile(npcPos: Position3D): TileCoord {
     this._tileBuffer.x = Math.floor(npcPos.x / TILE_SIZE);
     this._tileBuffer.z = Math.floor(npcPos.z / TILE_SIZE);
     return this._tileBuffer;
   }
 
-  /**
-   * Get all tiles occupied by NPC
-   *
-   * Size 1 = 1 tile, Size 2 = 4 tiles (2x2), etc.
-   * Returns the count of tiles filled into the buffer.
-   *
-   * @param npcPos - NPC's world position (SW corner)
-   * @param size - NPC's size in tiles
-   * @returns Number of tiles filled
-   */
+  /** Returns count of tiles filled into buffer */
   getOccupiedTiles(npcPos: Position3D, size: NPCSize): number {
     const swTile = this.getSWTile(npcPos);
     const width = size.width || 1;
@@ -218,23 +138,10 @@ export class RangeSystem {
     return index;
   }
 
-  /**
-   * Get the occupied tiles buffer (read-only)
-   *
-   * Use the count returned by getOccupiedTiles() to know how many are valid.
-   */
   getOccupiedTilesBuffer(): readonly TileCoord[] {
     return this._occupiedTiles;
   }
 
-  /**
-   * Check if a tile is occupied by a large NPC
-   *
-   * @param tile - Tile to check
-   * @param npcPos - NPC's world position (SW corner)
-   * @param size - NPC's size
-   * @returns true if tile is occupied
-   */
   isTileOccupied(tile: TileCoord, npcPos: Position3D, size: NPCSize): boolean {
     const swTile = this.getSWTile(npcPos);
     return (
@@ -245,19 +152,7 @@ export class RangeSystem {
     );
   }
 
-  /**
-   * Check attack range from a single tile
-   *
-   * Uses OSRS-accurate melee rules:
-   * - Range 1: Cardinal only (N/S/E/W)
-   * - Range 2+: Includes diagonals
-   *
-   * @param attackerTile - Attacker's tile
-   * @param targetTile - Target's tile
-   * @param attackType - Melee or ranged
-   * @param range - Attack range in tiles
-   * @returns true if in range
-   */
+  /** Melee range 1 = cardinal only; range 2+ includes diagonals */
   private checkAttackRange(
     attackerTile: TileCoord,
     targetTile: TileCoord,
@@ -267,19 +162,13 @@ export class RangeSystem {
     if (attackType === AttackType.MELEE) {
       return tilesWithinMeleeRange(attackerTile, targetTile, range);
     }
-
-    // Ranged/magic uses Chebyshev distance
     const distance = tileChebyshevDistance(attackerTile, targetTile);
     return distance <= range && distance > 0;
   }
 }
 
-// Singleton instance for convenience (no state except pre-allocated buffers)
 let _rangeSystemInstance: RangeSystem | null = null;
 
-/**
- * Get the shared RangeSystem instance
- */
 export function getRangeSystem(): RangeSystem {
   if (!_rangeSystemInstance) {
     _rangeSystemInstance = new RangeSystem();
