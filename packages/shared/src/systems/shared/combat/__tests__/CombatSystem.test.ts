@@ -210,7 +210,7 @@ describe("CombatSystem", () => {
     });
 
     it("initializes anti-cheat system", () => {
-      const stats = combatSystem.getAntiCheatStats();
+      const stats = combatSystem.antiCheat.getStats();
       expect(stats.trackedPlayers).toBe(0);
     });
 
@@ -375,7 +375,7 @@ describe("CombatSystem", () => {
 
     it("cleans up anti-cheat tracking on disconnect", () => {
       // Record a violation first
-      const antiCheatStats = combatSystem.getAntiCheatStats();
+      const antiCheatStats = combatSystem.antiCheat.getStats();
       // The cleanup should work even with no violations
       expect(() => {
         combatSystem.cleanupPlayerDisconnect("player1");
@@ -384,8 +384,8 @@ describe("CombatSystem", () => {
   });
 
   describe("anti-cheat integration", () => {
-    it("getAntiCheatStats returns stats", () => {
-      const stats = combatSystem.getAntiCheatStats();
+    it("antiCheat.getStats returns stats", () => {
+      const stats = combatSystem.antiCheat.getStats();
 
       expect(stats).toHaveProperty("trackedPlayers");
       expect(stats).toHaveProperty("playersAboveWarning");
@@ -393,16 +393,16 @@ describe("CombatSystem", () => {
       expect(stats).toHaveProperty("totalViolationsLast5Min");
     });
 
-    it("getAntiCheatPlayerReport returns report", () => {
-      const report = combatSystem.getAntiCheatPlayerReport("player1");
+    it("antiCheat.getPlayerReport returns report", () => {
+      const report = combatSystem.antiCheat.getPlayerReport("player1");
 
       expect(report).toHaveProperty("score");
       expect(report).toHaveProperty("recentViolations");
       expect(report).toHaveProperty("attacksThisTick");
     });
 
-    it("getPlayersRequiringReview returns array", () => {
-      const players = combatSystem.getPlayersRequiringReview();
+    it("antiCheat.getPlayersRequiringReview returns array", () => {
+      const players = combatSystem.antiCheat.getPlayersRequiringReview();
       expect(Array.isArray(players)).toBe(true);
     });
 
@@ -412,8 +412,8 @@ describe("CombatSystem", () => {
       }).not.toThrow();
     });
 
-    it("getAntiCheatConfig returns configuration", () => {
-      const config = combatSystem.getAntiCheatConfig();
+    it("antiCheat.getConfig returns configuration", () => {
+      const config = combatSystem.antiCheat.getConfig();
 
       expect(config).toHaveProperty("warningThreshold");
       expect(config).toHaveProperty("alertThreshold");

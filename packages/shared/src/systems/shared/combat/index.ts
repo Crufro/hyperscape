@@ -9,6 +9,8 @@ export * from "./PlayerDeathSystem";
 export * from "./MobDeathSystem";
 
 export * from "./CombatStateService";
+export * from "./CombatEntityResolver";
+export * from "./DamageCalculator";
 export * from "./CombatAnimationManager";
 export * from "./CombatRotationManager";
 export * from "./CombatAnimationSync";

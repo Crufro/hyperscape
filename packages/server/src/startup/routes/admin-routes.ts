@@ -57,8 +57,16 @@ export function registerAdminRoutes(
         return reply.code(500).send({ error: "CombatSystem not found" });
       }
 
-      const stats = combatSystem.getEventStoreStats();
-      const antiCheatStats = combatSystem.getAntiCheatStats();
+      // Access event store stats directly via public eventStore
+      const eventStore = combatSystem.eventStore;
+      const stats = {
+        eventCount: eventStore.getEventCount(),
+        snapshotCount: eventStore.getSnapshotCount(),
+        oldestTick: eventStore.getOldestEventTick(),
+        newestTick: eventStore.getNewestEventTick(),
+      };
+      // Access anti-cheat stats directly via public antiCheat
+      const antiCheatStats = combatSystem.antiCheat.getStats();
 
       return reply.send({
         eventStore: stats,
@@ -96,7 +104,8 @@ export function registerAdminRoutes(
         return reply.code(500).send({ error: "CombatSystem not found" });
       }
 
-      const events = combatSystem.getCombatEventHistory(
+      // Access event store directly via public eventStore
+      const events = combatSystem.eventStore.getEntityEvents(
         playerId,
         startTick,
         endTick,
@@ -147,9 +156,8 @@ export function registerAdminRoutes(
         return reply.code(500).send({ error: "CombatSystem not found" });
       }
 
-      // Create a replay service using the combat system's event store
-      // Note: We need to access the internal event store
-      const events = combatSystem.getCombatEventHistory(
+      // Access event store directly via public eventStore
+      const events = combatSystem.eventStore.getEntityEvents(
         playerId,
         startTick,
         endTick,
