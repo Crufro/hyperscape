@@ -139,11 +139,13 @@ export const AGGRO_CONSTANTS = {
 
   // Mob behavior configurations - loaded dynamically from mobs.json manifest
   // Access via getMobById(mobId).behavior from data/mobs.ts
+  // OSRS-accurate defaults: detectionRange=4 (hunt), leashRange=7 (max range)
+  // @see https://oldschool.runescape.wiki/w/Aggressiveness
   MOB_BEHAVIORS: {
     default: {
       behavior: "passive" as const,
-      detectionRange: 5,
-      leashRange: 10,
+      detectionRange: 4,
+      leashRange: 7,
       levelIgnoreThreshold: 0,
     },
   } as const,

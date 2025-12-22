@@ -28,6 +28,7 @@ import {
   tileToWorld,
   tilesEqual,
   tilesWithinMeleeRange,
+  tileChebyshevDistance,
   chaseStep,
   getChasePathfinder,
   MobEntity,
@@ -298,12 +299,30 @@ export class MobTileMovementManager {
     const chasePath: TileCoord[] = [];
     let currentPos = { ...state.currentTile };
 
+    // OSRS-ACCURATE LEASH RANGE CAP: Get spawn point and leash range
+    // Mobs cannot move beyond leashRange from their spawn point
+    const mobEntity = entity instanceof MobEntity ? entity : null;
+    const spawnPoint = mobEntity?.getSpawnPoint();
+    const leashRange = mobEntity?.getLeashRange() ?? 10;
+    const spawnTile = spawnPoint
+      ? worldToTile(spawnPoint.x, spawnPoint.z)
+      : null;
+
     for (let step = 0; step < tilesPerTick; step++) {
       const nextTile = chaseStep(currentPos, targetTile, (tile) =>
         this.isTileWalkable(tile),
       );
 
       if (!nextTile) break; // Blocked
+
+      // OSRS-ACCURATE: Check if this step would exceed leash range from spawn
+      // If so, stop at current position (mob lingers at edge)
+      if (spawnTile) {
+        const nextDistFromSpawn = tileChebyshevDistance(nextTile, spawnTile);
+        if (nextDistFromSpawn > leashRange) {
+          break; // Would exceed leash range - stop at edge
+        }
+      }
 
       chasePath.push(nextTile);
       currentPos = nextTile;
@@ -537,6 +556,15 @@ export class MobTileMovementManager {
           this._currentPosTile.x = state.currentTile.x;
           this._currentPosTile.z = state.currentTile.z;
 
+          // OSRS-ACCURATE LEASH RANGE CAP: Get spawn point and leash range
+          // Mobs cannot move beyond leashRange from their spawn point
+          const mobEntity = entity instanceof MobEntity ? entity : null;
+          const spawnPoint = mobEntity?.getSpawnPoint();
+          const leashRange = mobEntity?.getLeashRange() ?? 10;
+          const spawnTile = spawnPoint
+            ? worldToTile(spawnPoint.x, spawnPoint.z)
+            : null;
+
           for (let step = 0; step < state.tilesPerTick; step++) {
             // Check if this step would put us in combat range (path toward destination tile, not player)
             // Zero-allocation: use pre-allocated ChasePathfinder
@@ -549,6 +577,18 @@ export class MobTileMovementManager {
             if (!nextTile) {
               // Blocked - stop here (safespotting!)
               break;
+            }
+
+            // OSRS-ACCURATE: Check if this step would exceed leash range from spawn
+            // If so, stop at current position (mob lingers at edge)
+            if (spawnTile) {
+              const nextDistFromSpawn = tileChebyshevDistance(
+                nextTile,
+                spawnTile,
+              );
+              if (nextDistFromSpawn > leashRange) {
+                break; // Would exceed leash range - stop at edge
+              }
             }
 
             // Zero-allocation: copy to pre-allocated path buffer
@@ -897,12 +937,33 @@ export class MobTileMovementManager {
         const newPath: TileCoord[] = [];
         let currentPos = { ...state.currentTile };
 
+        // OSRS-ACCURATE LEASH RANGE CAP: Get spawn point and leash range
+        // Mobs cannot move beyond leashRange from their spawn point
+        const mobEntity = entity instanceof MobEntity ? entity : null;
+        const spawnPoint = mobEntity?.getSpawnPoint();
+        const leashRange = mobEntity?.getLeashRange() ?? 10;
+        const spawnTile = spawnPoint
+          ? worldToTile(spawnPoint.x, spawnPoint.z)
+          : null;
+
         for (let step = 0; step < state.tilesPerTick; step++) {
           const nextTile = chaseStep(currentPos, destinationTile, (tile) =>
             this.isTileWalkable(tile),
           );
 
           if (!nextTile) break;
+
+          // OSRS-ACCURATE: Check if this step would exceed leash range from spawn
+          // If so, stop at current position (mob lingers at edge)
+          if (spawnTile) {
+            const nextDistFromSpawn = tileChebyshevDistance(
+              nextTile,
+              spawnTile,
+            );
+            if (nextDistFromSpawn > leashRange) {
+              break; // Would exceed leash range - stop at edge
+            }
+          }
 
           newPath.push(nextTile);
           currentPos = nextTile;

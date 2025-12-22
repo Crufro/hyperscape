@@ -1300,7 +1300,7 @@ export class MobEntity extends CombatantEntity {
       getSpawnPoint: () => this._currentSpawnPoint,
       getDistanceFromSpawn: () => this.getSpawnDistanceTiles(), // OSRS Chebyshev tiles
       getWanderRadius: () => this.respawnManager.getSpawnAreaRadius(),
-      getLeashRange: () => this.config.leashRange ?? 10, // OSRS two-tier range: leash > wander
+      getLeashRange: () => this.config.leashRange ?? 7, // OSRS-accurate: 7 tiles max range from spawn
       getCombatRange: () => this.config.combatRange,
 
       // Wander
@@ -2034,6 +2034,23 @@ export class MobEntity extends CombatantEntity {
     return tileChebyshevDistance(currentTile, spawnTile);
   }
 
+  /**
+   * Get the mob's current spawn point (public accessor for movement capping)
+   * Used by MobTileMovementManager to enforce OSRS-accurate leash range
+   */
+  getSpawnPoint(): Position3D {
+    return this._currentSpawnPoint;
+  }
+
+  /**
+   * Get the mob's leash range (max tiles from spawn during chase)
+   * OSRS-accurate default: 7 tiles max range from spawn
+   * @see https://oldschool.runescape.wiki/w/Aggressiveness
+   */
+  getLeashRange(): number {
+    return this.config.leashRange ?? 7;
+  }
+
   takeDamage(damage: number, attackerId?: string): boolean {
     // Already dead - ignore damage
     if (this.deathManager.isCurrentlyDead()) {
@@ -2296,7 +2313,22 @@ export class MobEntity extends CombatantEntity {
 
     const currentPos = this.getPosition();
     const players = this.world.getPlayers();
-    return this.aggroManager.findNearbyPlayer(currentPos, players);
+
+    // OSRS-Accurate Aggression Range:
+    // The aggression range origin is the static spawn point of the NPC.
+    // Aggression range = max range (leash) + attack range (combat range)
+    // Players must be within this distance of SPAWN to be attacked.
+    // @see https://oldschool.runescape.wiki/w/Aggressiveness
+    const leashRange = this.config.leashRange ?? 7;
+    const attackRange = Math.max(1, this.config.combatRange);
+    const aggressionRange = leashRange + attackRange;
+
+    return this.aggroManager.findNearbyPlayer(
+      currentPos,
+      players,
+      this._currentSpawnPoint, // Spawn point for OSRS-accurate aggression check
+      aggressionRange, // Max attack distance from spawn
+    );
   }
 
   /**

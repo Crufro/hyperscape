@@ -1,5 +1,11 @@
 /**
  * Manages mob target acquisition. Random selection from players in range.
+ *
+ * OSRS-Accurate Aggro Mechanics:
+ * - Hunt Range: Area where NPC detects players (from NPC's CURRENT position)
+ * - Aggression Range: Area where NPC can attack players (from NPC's SPAWN point)
+ * - Both checks must pass for aggro to occur
+ *
  * @see https://oldschool.runescape.wiki/w/Aggressiveness
  */
 
@@ -8,6 +14,7 @@ import {
   worldToTile,
   tilesWithinRange,
   tileChebyshevDistance,
+  type TileCoord,
 } from "../../systems/shared/movement/TileSystem";
 
 export interface AggroConfig {
@@ -30,7 +37,18 @@ export class AggroManager {
     this.config = config;
   }
 
-  /** Random selection from valid candidates in range */
+  /**
+   * Random selection from valid candidates in range.
+   *
+   * OSRS-Accurate: Two checks must pass for aggro:
+   * 1. Hunt Range: Player within aggroRange of mob's CURRENT position
+   * 2. Aggression Range: Player within aggressionRange of mob's SPAWN point
+   *
+   * @param currentPos - Mob's current world position
+   * @param players - Array of potential targets
+   * @param spawnPoint - Mob's spawn point (for OSRS-accurate aggression range check)
+   * @param aggressionRange - Max distance from spawn where players can be attacked (leashRange + attackRange)
+   */
   findNearbyPlayer(
     currentPos: Position3D,
     players: Array<{
@@ -38,13 +56,22 @@ export class AggroManager {
       position?: Position3D;
       node?: { position?: Position3D };
     }>,
+    spawnPoint?: Position3D,
+    aggressionRange?: number,
   ): PlayerTarget | null {
     if (players.length === 0) return null;
-    this.findValidTargets(currentPos, players);
+    this.findValidTargets(currentPos, players, spawnPoint, aggressionRange);
     return this.selectRandomTarget();
   }
 
-  /** Populates _validTargetsBuffer with players in aggro range */
+  /**
+   * Populates _validTargetsBuffer with players that pass both range checks.
+   *
+   * @param currentPos - Mob's current world position
+   * @param players - Array of potential targets
+   * @param spawnPoint - Mob's spawn point (optional, for aggression range check)
+   * @param aggressionRange - Max distance from spawn (optional, requires spawnPoint)
+   */
   findValidTargets(
     currentPos: Position3D,
     players: Array<{
@@ -52,9 +79,16 @@ export class AggroManager {
       position?: Position3D;
       node?: { position?: Position3D };
     }>,
+    spawnPoint?: Position3D,
+    aggressionRange?: number,
   ): void {
     this._validTargetsBuffer.length = 0;
     const mobTile = worldToTile(currentPos.x, currentPos.z);
+
+    // Compute spawn tile if spawn point provided (for OSRS-accurate aggression range)
+    const spawnTile: TileCoord | null = spawnPoint
+      ? worldToTile(spawnPoint.x, spawnPoint.z)
+      : null;
 
     for (const player of players) {
       const playerPos = player.position || player.node?.position;
@@ -62,14 +96,25 @@ export class AggroManager {
       if (!this.isValidTarget(player)) continue;
 
       const playerTile = worldToTile(playerPos.x, playerPos.z);
-      const tileDistance = tileChebyshevDistance(mobTile, playerTile);
 
-      if (tileDistance <= this.config.aggroRange) {
-        this._validTargetsBuffer.push({
-          id: player.id,
-          position: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
-        });
+      // Check 1: Hunt Range - player within aggroRange of mob's CURRENT position
+      const huntDistance = tileChebyshevDistance(mobTile, playerTile);
+      if (huntDistance > this.config.aggroRange) continue;
+
+      // Check 2: Aggression Range - player within aggressionRange of mob's SPAWN point
+      // This is OSRS-accurate: "The origin of the aggression range is the static spawn point"
+      if (spawnTile !== null && aggressionRange !== undefined) {
+        const playerSpawnDistance = tileChebyshevDistance(
+          spawnTile,
+          playerTile,
+        );
+        if (playerSpawnDistance > aggressionRange) continue;
       }
+
+      this._validTargetsBuffer.push({
+        id: player.id,
+        position: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
+      });
     }
   }
 

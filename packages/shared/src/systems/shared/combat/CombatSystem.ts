@@ -534,6 +534,7 @@ export class CombatSystem extends SystemBase {
           currentTick,
         );
       }
+
       this.emitTypedEvent(EventType.COMBAT_ATTACK_FAILED, {
         attackerId: data.attackerId,
         targetId: data.targetId,
