@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { COLORS } from "../../constants";
-import { EventType } from "@hyperscape/shared";
+import { EventType, getAvailableStyles, WeaponType } from "@hyperscape/shared";
 import type {
   ClientWorld,
   PlayerStats,
@@ -279,13 +279,22 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
     actions.actionMethods.setAutoRetaliate(playerId, newValue);
   };
 
-  // Melee-only MVP: Always show melee attack styles
-  const styles: Array<{ id: string; label: string; xp: string }> = [
+  // All possible combat styles with their XP training info
+  const allStyles: Array<{ id: string; label: string; xp: string }> = [
     { id: "accurate", label: "Accurate", xp: "Attack" },
     { id: "aggressive", label: "Aggressive", xp: "Strength" },
     { id: "defensive", label: "Defensive", xp: "Defense" },
     { id: "controlled", label: "Controlled", xp: "All" },
   ];
+
+  // Filter styles based on equipped weapon (OSRS-accurate restrictions)
+  const styles = useMemo(() => {
+    const weaponType = equipment?.weapon?.weaponType
+      ? (equipment.weapon.weaponType.toLowerCase() as WeaponType)
+      : WeaponType.NONE;
+    const availableStyleIds = getAvailableStyles(weaponType);
+    return allStyles.filter((s) => availableStyleIds.includes(s.id as never));
+  }, [equipment?.weapon?.weaponType]);
 
   const healthPercent = Math.round((health.current / health.max) * 100);
   const targetHealthPercent = targetHealth
@@ -414,7 +423,9 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       >
         Attack style
       </div>
-      <div className="grid grid-cols-2 gap-1">
+      <div
+        className={`grid gap-1 ${styles.length === 4 ? "grid-cols-2" : "grid-cols-3"}`}
+      >
         {styles.map((s) => (
           <button
             key={s.id}
@@ -445,8 +456,11 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       </div>
       {/* Show which skill is being trained */}
       <div className="text-[9px] text-gray-400 italic">
-        Training: {styles.find((s) => s.id === style)?.xp ?? "Attack"} +
-        Hitpoints
+        Training:{" "}
+        {styles.find((s) => s.id === style)?.xp ??
+          allStyles.find((s) => s.id === style)?.xp ??
+          "Attack"}{" "}
+        + Hitpoints
       </div>
       {cooldown > 0 && (
         <div

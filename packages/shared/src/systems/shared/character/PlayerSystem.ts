@@ -47,6 +47,12 @@ import {
   PlayerSpawnData,
   Skills,
 } from "../../../types/core/core";
+import { WeaponType } from "../../../types/game/item-types";
+import {
+  isStyleValidForWeapon,
+  getAvailableStyles,
+} from "../../../constants/WeaponStyleConfig";
+import type { CombatStyle } from "../../../utils/game/CombatCalculations";
 import type {
   HealthUpdateEvent,
   PlayerDeathEvent,
@@ -1488,6 +1494,33 @@ export class PlayerSystem extends SystemBase {
         playerId,
         message: `Invalid attack style: ${newStyle}`,
         type: "error",
+      });
+      return;
+    }
+
+    // Validate style is allowed for equipped weapon (OSRS-accurate)
+    const equipmentSystem = this.world.getSystem("equipment") as {
+      getPlayerEquipment?: (id: string) => {
+        weapon?: { item?: { weaponType?: string } };
+      } | null;
+    } | null;
+
+    let weaponType: WeaponType = WeaponType.NONE;
+    if (equipmentSystem?.getPlayerEquipment) {
+      const equipment = equipmentSystem.getPlayerEquipment(playerId);
+      if (equipment?.weapon?.item?.weaponType) {
+        weaponType =
+          (equipment.weapon.item.weaponType.toLowerCase() as WeaponType) ||
+          WeaponType.NONE;
+      }
+    }
+
+    if (!isStyleValidForWeapon(weaponType, newStyle as CombatStyle)) {
+      const availableStyles = getAvailableStyles(weaponType);
+      this.emitTypedEvent(EventType.UI_MESSAGE, {
+        playerId,
+        message: `${style.name} style is not available for this weapon. Available: ${availableStyles.join(", ")}`,
+        type: "warning",
       });
       return;
     }
