@@ -659,7 +659,7 @@ export class SkillsSystem extends SystemBase {
     const totalDamage =
       damageDealt > 0 ? damageDealt : (targetStats.health?.max ?? 10);
     const combatSkillXP = totalDamage * 4; // 4 XP per damage (OSRS standard)
-    const hitpointsXP = Math.floor(totalDamage * 1.33); // 1.33 XP per damage (OSRS standard)
+    const hitpointsXP = totalDamage * 1.33; // 1.33 XP per damage (OSRS: accumulates fractionally)
 
     // Grant combat skill XP based on attack style
     // Each style trains ONE skill exclusively (except controlled)
@@ -692,8 +692,9 @@ export class SkillsSystem extends SystemBase {
         break;
 
       case "controlled": {
-        // Train all three combat skills equally - split the 4 XP per damage
-        const controlledXP = Math.floor(combatSkillXP / 3);
+        // OSRS: Controlled gives 1.33 XP per damage to each of 4 skills
+        // Total: 5.32 XP per damage (vs 5.33 for focused styles)
+        const controlledXP = totalDamage * 1.33; // No floor - OSRS accumulates fractionally
         this.emitTypedEvent(EventType.SKILLS_XP_GAINED, {
           playerId: attackerId,
           skill: Skill.ATTACK,
@@ -709,7 +710,13 @@ export class SkillsSystem extends SystemBase {
           skill: Skill.DEFENSE,
           amount: controlledXP,
         });
-        break;
+        this.emitTypedEvent(EventType.SKILLS_XP_GAINED, {
+          playerId: attackerId,
+          skill: Skill.CONSTITUTION,
+          amount: controlledXP,
+        });
+        // Return early - HP already included above, skip separate HP addition
+        return;
       }
 
       case "ranged":
