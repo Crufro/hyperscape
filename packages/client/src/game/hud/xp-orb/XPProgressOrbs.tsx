@@ -195,12 +195,14 @@ export function XPProgressOrbs({
                   </TooltipRow>
                   <TooltipRow>
                     <TooltipLabel>Current XP:</TooltipLabel>
-                    <TooltipValue>{skill.xp.toLocaleString()}</TooltipValue>
+                    <TooltipValue>
+                      {Math.floor(skill.xp).toLocaleString()}
+                    </TooltipValue>
                   </TooltipRow>
                   <TooltipRow>
                     <TooltipLabel>XP to level:</TooltipLabel>
                     <TooltipValue>
-                      {skill.xpToLevel.toLocaleString()}
+                      {Math.floor(skill.xpToLevel).toLocaleString()}
                     </TooltipValue>
                   </TooltipRow>
                   <TooltipRow>

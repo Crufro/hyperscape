@@ -8,3 +8,4 @@ export * from "./CombatConstants";
 export * from "./EquipmentConstants";
 export * from "./GameConstants";
 export * from "./interaction";
+export * from "./WeaponStyleConfig";

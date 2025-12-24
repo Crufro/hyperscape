@@ -1,12 +1,73 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { COLORS } from "../../constants";
-import { EventType } from "@hyperscape/shared";
+import {
+  EventType,
+  getAvailableStyles,
+  WeaponType,
+  type CombatStyle,
+} from "@hyperscape/shared";
 import type {
   ClientWorld,
   PlayerStats,
   PlayerEquipmentItems,
   PlayerHealth,
 } from "../../types";
+
+// Event data interfaces for type-safe event handling
+interface StyleUpdateEvent {
+  playerId: string;
+  currentStyle: { id: string };
+}
+
+interface TargetChangedEvent {
+  targetId: string | null;
+  targetName?: string;
+  targetHealth?: PlayerHealth;
+}
+
+interface TargetHealthEvent {
+  targetId: string;
+  health: PlayerHealth;
+}
+
+interface AutoRetaliateEvent {
+  playerId: string;
+  enabled: boolean;
+}
+
+// Type guards for runtime validation
+function isStyleUpdateEvent(data: unknown): data is StyleUpdateEvent {
+  if (typeof data !== "object" || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.playerId === "string" &&
+    typeof d.currentStyle === "object" &&
+    d.currentStyle !== null &&
+    typeof (d.currentStyle as Record<string, unknown>).id === "string"
+  );
+}
+
+function isTargetChangedEvent(data: unknown): data is TargetChangedEvent {
+  if (typeof data !== "object" || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return d.targetId === null || typeof d.targetId === "string";
+}
+
+function isTargetHealthEvent(data: unknown): data is TargetHealthEvent {
+  if (typeof data !== "object" || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.targetId === "string" &&
+    typeof d.health === "object" &&
+    d.health !== null
+  );
+}
+
+function isAutoRetaliateEvent(data: unknown): data is AutoRetaliateEvent {
+  if (typeof data !== "object" || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.playerId === "string" && typeof d.enabled === "boolean";
+}
 
 interface CombatPanelProps {
   world: ClientWorld;
@@ -48,11 +109,6 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
     return true; // OSRS default: ON
   });
 
-  // Debug logging for style changes
-  useEffect(() => {
-    console.log(`[CombatPanel] Current style state: ${style}`);
-  }, [style]);
-
   // Calculate combat level using OSRS formula (melee-only MVP)
   const combatLevel = stats?.skills
     ? (() => {
@@ -89,12 +145,7 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
     actions?.actionMethods?.getAttackStyleInfo?.(
       playerId,
       (info: { style: string; cooldown?: number }) => {
-        console.log(
-          "[CombatPanel] getAttackStyleInfo callback received:",
-          info,
-        );
         if (info) {
-          console.log(`[CombatPanel] Setting initial style to: ${info.style}`);
           // Update cache for instant display on panel reopen
           combatStyleCache.set(playerId, info.style);
           setStyle(info.style);
@@ -105,7 +156,6 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
 
     // Initialize auto-retaliate state from server
     actions?.actionMethods?.getAutoRetaliate?.(playerId, (enabled: boolean) => {
-      console.log("[CombatPanel] getAutoRetaliate callback received:", enabled);
       autoRetaliateCache.set(playerId, enabled);
       setAutoRetaliate(enabled);
     });
@@ -123,44 +173,26 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
     }
 
     const onUpdate = (data: unknown) => {
-      console.log("[CombatPanel] onUpdate event received:", data);
-      const d = data as { playerId: string; currentStyle: { id: string } };
-      if (d.playerId !== playerId) {
-        console.log(
-          `[CombatPanel] Ignoring update for different player: ${d.playerId} vs ${playerId}`,
-        );
-        return;
-      }
-      console.log("[CombatPanel] Setting style to:", d.currentStyle.id);
+      if (!isStyleUpdateEvent(data)) return;
+      if (data.playerId !== playerId) return;
       // Update cache for instant display on panel reopen
-      combatStyleCache.set(playerId, d.currentStyle.id);
-      setStyle(d.currentStyle.id);
+      combatStyleCache.set(playerId, data.currentStyle.id);
+      setStyle(data.currentStyle.id);
     };
     const onChanged = (data: unknown) => {
-      console.log("[CombatPanel] onChanged event received:", data);
-      const d = data as { playerId: string; currentStyle: { id: string } };
-      if (d.playerId !== playerId) {
-        console.log(
-          `[CombatPanel] Ignoring change for different player: ${d.playerId} vs ${playerId}`,
-        );
-        return;
-      }
-      console.log("[CombatPanel] Setting style to:", d.currentStyle.id);
+      if (!isStyleUpdateEvent(data)) return;
+      if (data.playerId !== playerId) return;
       // Update cache for instant display on panel reopen
-      combatStyleCache.set(playerId, d.currentStyle.id);
-      setStyle(d.currentStyle.id);
+      combatStyleCache.set(playerId, data.currentStyle.id);
+      setStyle(data.currentStyle.id);
     };
 
     // Listen for combat target updates
     const onTargetChanged = (data: unknown) => {
-      const d = data as {
-        targetId: string | null;
-        targetName?: string;
-        targetHealth?: PlayerHealth;
-      };
-      if (d.targetId) {
-        setTargetName(d.targetName || d.targetId);
-        setTargetHealth(d.targetHealth || null);
+      if (!isTargetChangedEvent(data)) return;
+      if (data.targetId) {
+        setTargetName(data.targetName || data.targetId);
+        setTargetHealth(data.targetHealth || null);
       } else {
         setTargetName(null);
         setTargetHealth(null);
@@ -168,19 +200,18 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
     };
 
     const onTargetHealthUpdate = (data: unknown) => {
-      const d = data as { targetId: string; health: PlayerHealth };
-      if (d.targetId && targetName) {
-        setTargetHealth(d.health);
+      if (!isTargetHealthEvent(data)) return;
+      if (data.targetId && targetName) {
+        setTargetHealth(data.health);
       }
     };
 
     // Listen for auto-retaliate changes from server
     const onAutoRetaliateChanged = (data: unknown) => {
-      const d = data as { playerId: string; enabled: boolean };
-      if (d.playerId !== playerId) return;
-      console.log("[CombatPanel] Auto-retaliate changed:", d.enabled);
-      autoRetaliateCache.set(playerId, d.enabled);
-      setAutoRetaliate(d.enabled);
+      if (!isAutoRetaliateEvent(data)) return;
+      if (data.playerId !== playerId) return;
+      autoRetaliateCache.set(playerId, data.enabled);
+      setAutoRetaliate(data.enabled);
     };
 
     world.on(EventType.UI_ATTACK_STYLE_UPDATE, onUpdate, undefined);
@@ -233,14 +264,7 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
 
   const changeStyle = (next: string) => {
     const playerId = world.entities?.player?.id;
-    console.log(
-      `[CombatPanel] changeStyle called: ${next}, playerId: ${playerId}, current: ${style}`,
-    );
-
-    if (!playerId) {
-      console.error("[CombatPanel] No playerId found!");
-      return;
-    }
+    if (!playerId) return;
 
     const actions = world.getSystem("actions") as {
       actionMethods?: {
@@ -248,14 +272,8 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       };
     } | null;
 
-    if (!actions?.actionMethods?.changeAttackStyle) {
-      console.error("[CombatPanel] changeAttackStyle action method not found!");
-      return;
-    }
+    if (!actions?.actionMethods?.changeAttackStyle) return;
 
-    console.log(
-      `[CombatPanel] Calling changeAttackStyle(${playerId}, ${next})`,
-    );
     actions.actionMethods.changeAttackStyle(playerId, next);
   };
 
@@ -269,22 +287,29 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       };
     } | null;
 
-    if (!actions?.actionMethods?.setAutoRetaliate) {
-      console.error("[CombatPanel] setAutoRetaliate action method not found!");
-      return;
-    }
+    if (!actions?.actionMethods?.setAutoRetaliate) return;
 
-    const newValue = !autoRetaliate;
-    console.log(`[CombatPanel] Toggling auto-retaliate to: ${newValue}`);
-    actions.actionMethods.setAutoRetaliate(playerId, newValue);
+    actions.actionMethods.setAutoRetaliate(playerId, !autoRetaliate);
   };
 
-  // Melee-only MVP: Always show melee attack styles
-  const styles: Array<{ id: string; label: string }> = [
-    { id: "accurate", label: "Accurate" },
-    { id: "aggressive", label: "Aggressive" },
-    { id: "defensive", label: "Defensive" },
+  // All possible combat styles with their XP training info
+  const allStyles: Array<{ id: string; label: string; xp: string }> = [
+    { id: "accurate", label: "Accurate", xp: "Attack" },
+    { id: "aggressive", label: "Aggressive", xp: "Strength" },
+    { id: "defensive", label: "Defensive", xp: "Defense" },
+    { id: "controlled", label: "Controlled", xp: "All" },
   ];
+
+  // Filter styles based on equipped weapon (OSRS-accurate restrictions)
+  const styles = useMemo(() => {
+    const weaponType = equipment?.weapon?.weaponType
+      ? (equipment.weapon.weaponType.toLowerCase() as WeaponType)
+      : WeaponType.NONE;
+    const availableStyleIds = getAvailableStyles(weaponType);
+    return allStyles.filter((s) =>
+      (availableStyleIds as readonly string[]).includes(s.id),
+    );
+  }, [equipment?.weapon?.weaponType]);
 
   const healthPercent = Math.round((health.current / health.max) * 100);
   const targetHealthPercent = targetHealth
@@ -413,14 +438,13 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       >
         Attack style
       </div>
-      <div className="grid grid-cols-3 gap-1">
+      <div
+        className={`grid gap-1 ${styles.length === 4 ? "grid-cols-2" : "grid-cols-3"}`}
+      >
         {styles.map((s) => (
           <button
             key={s.id}
-            onClick={() => {
-              console.log(`[CombatPanel] Changing attack style to: ${s.id}`);
-              changeStyle(s.id);
-            }}
+            onClick={() => changeStyle(s.id)}
             disabled={cooldown > 0}
             className="rounded-md py-1 px-1 cursor-pointer transition-all text-[10px] hover:brightness-110"
             style={{
@@ -444,9 +468,11 @@ export function CombatPanel({ world, stats, equipment }: CombatPanelProps) {
       </div>
       {/* Show which skill is being trained */}
       <div className="text-[9px] text-gray-400 italic">
-        {style === "accurate" && "Training: Attack + Hitpoints"}
-        {style === "aggressive" && "Training: Strength + Hitpoints"}
-        {style === "defensive" && "Training: Defense + Hitpoints"}
+        Training:{" "}
+        {styles.find((s) => s.id === style)?.xp ??
+          allStyles.find((s) => s.id === style)?.xp ??
+          "Attack"}{" "}
+        + Hitpoints
       </div>
       {cooldown > 0 && (
         <div

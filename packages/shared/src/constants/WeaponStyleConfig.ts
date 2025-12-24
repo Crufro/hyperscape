@@ -1,0 +1,86 @@
+/**
+ * WeaponStyleConfig - OSRS-accurate combat style availability per weapon type
+ *
+ * In OSRS, different weapon types have different available combat styles.
+ * This configuration maps weapon types to their allowed combat styles.
+ *
+ * @see https://oldschool.runescape.wiki/w/Combat_Options
+ */
+
+import { WeaponType } from "../types/game/item-types";
+import type { CombatStyle } from "../utils/game/CombatCalculations";
+
+/**
+ * Combat styles available for each weapon type.
+ * OSRS-accurate: Not all weapons have all 4 styles.
+ */
+export const WEAPON_STYLE_CONFIG: Record<WeaponType, CombatStyle[]> = {
+  // Swords - full style selection (slash/stab versatility)
+  [WeaponType.SWORD]: ["accurate", "aggressive", "defensive", "controlled"],
+
+  // Scimitars - full style selection (curved blade versatility)
+  [WeaponType.SCIMITAR]: ["accurate", "aggressive", "defensive", "controlled"],
+
+  // Maces - full style selection (crush weapon with defensive option)
+  [WeaponType.MACE]: ["accurate", "aggressive", "defensive", "controlled"],
+
+  // Spears - full style selection (reach weapon)
+  [WeaponType.SPEAR]: ["accurate", "aggressive", "defensive", "controlled"],
+
+  // Halberds - full style selection (2H reach weapon)
+  [WeaponType.HALBERD]: ["accurate", "aggressive", "defensive", "controlled"],
+
+  // Axes - no controlled (pure damage weapons in OSRS)
+  [WeaponType.AXE]: ["accurate", "aggressive", "defensive"],
+
+  // Daggers - no controlled (quick stabbing weapons)
+  [WeaponType.DAGGER]: ["accurate", "aggressive", "defensive"],
+
+  // Unarmed - no controlled (punching)
+  [WeaponType.NONE]: ["accurate", "aggressive", "defensive"],
+
+  // Ranged weapons - MVP: melee only, default to accurate
+  [WeaponType.BOW]: ["accurate"],
+  [WeaponType.CROSSBOW]: ["accurate"],
+
+  // Magic weapons - MVP: melee only, default to accurate
+  [WeaponType.STAFF]: ["accurate"],
+  [WeaponType.WAND]: ["accurate"],
+
+  // Shield - not a weapon, but if somehow selected, default to defensive
+  [WeaponType.SHIELD]: ["defensive"],
+};
+
+/**
+ * Get available combat styles for a weapon type
+ * @param weaponType - The type of weapon equipped
+ * @returns Array of available combat styles
+ */
+export function getAvailableStyles(weaponType: WeaponType): CombatStyle[] {
+  return WEAPON_STYLE_CONFIG[weaponType] ?? ["accurate"];
+}
+
+/**
+ * Check if a combat style is valid for the given weapon type
+ * @param weaponType - The type of weapon equipped
+ * @param style - The combat style to check
+ * @returns true if the style is valid for this weapon
+ */
+export function isStyleValidForWeapon(
+  weaponType: WeaponType,
+  style: CombatStyle,
+): boolean {
+  const availableStyles = getAvailableStyles(weaponType);
+  return availableStyles.includes(style);
+}
+
+/**
+ * Get the default combat style for a weapon type
+ * Falls back to "accurate" if the weapon's first style is not available
+ * @param weaponType - The type of weapon equipped
+ * @returns The default combat style for this weapon
+ */
+export function getDefaultStyleForWeapon(weaponType: WeaponType): CombatStyle {
+  const availableStyles = getAvailableStyles(weaponType);
+  return availableStyles[0] ?? "accurate";
+}

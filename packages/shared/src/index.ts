@@ -745,6 +745,14 @@ export {
 // Combat constants (tick-based timing, ranges, etc.)
 export { COMBAT_CONSTANTS } from "./constants/CombatConstants";
 
+// Weapon style configuration (OSRS-accurate style restrictions per weapon)
+export {
+  WEAPON_STYLE_CONFIG,
+  getAvailableStyles,
+  isStyleValidForWeapon,
+  getDefaultStyleForWeapon,
+} from "./constants/WeaponStyleConfig";
+
 // Hit delay calculator (OSRS-accurate projectile delays)
 export {
   calculateHitDelay,

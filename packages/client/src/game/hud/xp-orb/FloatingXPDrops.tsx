@@ -84,7 +84,7 @@ export function FloatingXPDrops({ drops }: FloatingXPDropsProps) {
               return <span key={`${drop.id}-${s.skill}-${i}`}>{dropIcon}</span>;
             })}
           </FloatingXPIcons>
-          <FloatingXPAmount>+{drop.totalAmount}</FloatingXPAmount>
+          <FloatingXPAmount>+{Math.floor(drop.totalAmount)}</FloatingXPAmount>
         </FloatingXP>
       ))}
     </>

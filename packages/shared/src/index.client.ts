@@ -65,6 +65,14 @@ export { PlayerMigration } from "./types/core/core";
 // Export enums (these are values, not types)
 export { WeaponType, EquipmentSlotName } from "./types/core/core";
 
+// Weapon style configuration (OSRS-accurate style restrictions per weapon)
+export {
+  WEAPON_STYLE_CONFIG,
+  getAvailableStyles,
+  isStyleValidForWeapon,
+  getDefaultStyleForWeapon,
+} from "./constants/WeaponStyleConfig";
+
 // Export db helpers and type guards for server usage
 export { dbHelpers, isDatabaseInstance } from "./types/network/database";
 
