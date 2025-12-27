@@ -120,7 +120,10 @@ import { NPCSystem } from "..";
 import { DialogueSystem } from "..";
 
 // Client-only visual systems
-import { DamageSplatSystem } from "../../client";
+import { DamageSplatSystem, ZoneVisualsSystem } from "../../client";
+
+// Zone systems
+import { ZoneDetectionSystem } from "../death/ZoneDetectionSystem";
 
 import type { CameraSystem as CameraSystemInterface } from "../../../types/systems/physics";
 import { ActionRegistry } from "..";
@@ -365,6 +368,21 @@ export async function registerSystems(world: World): Promise<void> {
   // DYNAMIC WORLD CONTENT SYSTEMS - FULL THREE.JS ACCESS, NO SANDBOX
   world.register("mob-npc-spawner", MobNPCSpawnerSystem);
   world.register("item-spawner", ItemSpawnerSystem);
+
+  // Zone Detection System - Single source of truth for zone type detection
+  world.register("zone-detection", ZoneDetectionSystem);
+
+  // Client-only zone visuals (PvP zone indicators, zone warnings)
+  if (world.isClient) {
+    try {
+      world.register("zone-visuals", ZoneVisualsSystem);
+    } catch (err) {
+      console.error(
+        "[SystemLoader] Failed to register ZoneVisualsSystem:",
+        err,
+      );
+    }
+  }
 
   // Get system instances after world initialization
   // Systems are directly available as properties on the world object after registration

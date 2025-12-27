@@ -106,7 +106,7 @@ export class ZoneDetectionSystem extends SystemBase {
         ) {
           // Found matching area
           const isSafe = area.safeZone === true;
-          const isPvP = (area as any).pvpEnabled === true;
+          const isPvP = area.pvpEnabled === true;
           const isWild = !isSafe || isPvP;
 
           let type: ZoneType;
