@@ -658,6 +658,17 @@ export class PlayerRemote extends Entity implements HotReloadable {
 
       // Update animation if changed
       if (desiredUrl !== this.lastEmote) {
+        // DEBUG: Log death emote application
+        if (serverEmote === "death" || desiredUrl === Emotes.DEATH) {
+          console.log(`[PlayerRemote] update() applying death emote:`, {
+            id: this.id,
+            serverEmote,
+            desiredUrl,
+            lastEmote: this.lastEmote,
+            hasEmoteProperty: "emote" in this.avatar,
+            hasSetEmoteMethod: "setEmote" in this.avatar,
+          });
+        }
         if ("emote" in this.avatar) {
           (this.avatar as unknown as { emote: string | null }).emote =
             desiredUrl;
@@ -666,6 +677,12 @@ export class PlayerRemote extends Entity implements HotReloadable {
         }
         this.lastEmote = desiredUrl;
       }
+    } else if (this.data.emote === "death") {
+      // DEBUG: Avatar not available when death emote is set
+      console.warn(`[PlayerRemote] update() death emote but NO AVATAR:`, {
+        id: this.id,
+        emote: this.data.emote,
+      });
     }
 
     // Update prev position at end of frame
@@ -765,6 +782,16 @@ export class PlayerRemote extends Entity implements HotReloadable {
       }
     }
     if (data.e !== undefined) {
+      // DEBUG: Log emote changes for death animation tracking
+      if (data.e === "death") {
+        console.log(`[PlayerRemote] Setting death emote:`, {
+          id: this.id,
+          oldEmote: this.data.emote,
+          newEmote: data.e,
+          hasAvatar: !!this.avatar,
+          lastEmote: this.lastEmote,
+        });
+      }
       this.data.emote = data.e;
     }
     if (data.ef !== undefined) {

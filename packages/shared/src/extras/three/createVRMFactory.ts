@@ -379,7 +379,9 @@ export function createVRMFactory(
     let rateCheckedAt = 999;
     let rateCheck = true;
     let updateCallCount = 0;
-    const hasLoggedUpdatePipeline = false;
+    let hasLoggedUpdatePipeline = false;
+    let deathAnimationActive = false;
+    let deathUpdateLogCount = 0;
     const update = (delta) => {
       updateCallCount++;
       elapsed += delta;
@@ -413,6 +415,7 @@ export function createVRMFactory(
         if (_tvrm?.humanoid?.update) {
           _tvrm.humanoid.update(elapsed);
         } else if (!hasLoggedUpdatePipeline) {
+          hasLoggedUpdatePipeline = true;
           console.warn(
             `[VRM] ⚠️ humanoid.update NOT available - animations may not propagate to visible skeleton!`,
           );
@@ -440,18 +443,21 @@ export function createVRMFactory(
       // }
     };
     let currentEmote: EmoteData | null;
-    let setEmoteCallCount = 0;
     const setEmote = (url) => {
-      setEmoteCallCount++;
-
       if (currentEmote?.url === url) {
         return;
       }
       if (currentEmote) {
         currentEmote.action?.fadeOut(0.15);
+        // Reset death animation tracking when switching to a different emote
+        if (currentEmote.url?.includes("death") && !url?.includes("death")) {
+          deathAnimationActive = false;
+          deathUpdateLogCount = 0;
+        }
         currentEmote = null;
       }
       if (!url) {
+        deathAnimationActive = false; // Also reset if emote is cleared
         return;
       }
       const opts = getQueryParams(url);
@@ -461,12 +467,22 @@ export function createVRMFactory(
       if (emotes[url]) {
         currentEmote = emotes[url];
         if (currentEmote.action) {
-          currentEmote.action.clampWhenFinished = !loop;
-          currentEmote.action.setLoop(
-            loop ? THREE.LoopRepeat : THREE.LoopOnce,
-            Infinity,
-          );
-          currentEmote.action.reset().fadeIn(0.15).play();
+          const action = currentEmote.action;
+          // CRITICAL FIX: Fully reset action state before replaying
+          // After clampWhenFinished animations complete, they enter a "finished" state
+          // that requires explicit enabling and weight reset to play again
+          action.stop(); // Stop any current playback
+          action.enabled = true; // Ensure action is enabled (disabled after stop in some cases)
+          action.setEffectiveWeight(1); // Reset weight in case it was faded out
+          action.setEffectiveTimeScale(1); // Reset time scale
+          action.clampWhenFinished = !loop;
+          action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+          action.reset().fadeIn(0.15).play();
+          // Track death animation state for update timing
+          if (url?.includes("death")) {
+            deathAnimationActive = true;
+            deathUpdateLogCount = 0;
+          }
         }
       } else {
         const newEmote: EmoteData = {
@@ -501,7 +517,14 @@ export function createVRMFactory(
                 loop ? THREE.LoopRepeat : THREE.LoopOnce,
                 Infinity,
               );
-              action.play();
+              // CRITICAL: Use same reset().fadeIn().play() sequence as cached animations
+              // Without this, the animation won't blend properly with the previous one
+              action.reset().fadeIn(0.15).play();
+              // Track death animation state for update timing
+              if (url?.includes("death")) {
+                deathAnimationActive = true;
+                deathUpdateLogCount = 0;
+              }
             }
           })
           .catch((err) => {

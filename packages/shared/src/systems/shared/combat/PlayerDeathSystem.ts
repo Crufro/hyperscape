@@ -14,7 +14,11 @@ import {
   calculateDistance,
   groundToTerrain,
 } from "../../../utils/game/EntityUtils";
-import { EntityType, InteractionType } from "../../../types/entities";
+import {
+  EntityType,
+  InteractionType,
+  DeathState,
+} from "../../../types/entities";
 import type { HeadstoneEntityConfig } from "../../../types/entities";
 import type { EntityManager } from "..";
 import { ZoneDetectionSystem } from "../death/ZoneDetectionSystem";
@@ -62,6 +66,14 @@ interface NetworkLike {
   ) => void;
 }
 
+interface TickSystemLike {
+  getCurrentTick: () => number;
+  onTick: (
+    callback: (tickNumber: number, deltaMs: number) => void,
+    priority?: number,
+  ) => () => void;
+}
+
 interface PlayerEntityLike {
   emote?: string;
   data?: {
@@ -69,6 +81,10 @@ interface PlayerEntityLike {
     visible?: boolean;
     name?: string;
     position?: number[];
+    // Death state fields (single source of truth)
+    deathState?: DeathState;
+    deathPosition?: [number, number, number];
+    respawnTick?: number;
   };
   node?: {
     position: { set: (x: number, y: number, z: number) => void };
@@ -115,6 +131,10 @@ export class PlayerDeathSystem extends SystemBase {
     COMBAT_CONSTANTS.DEATH.COOLDOWN_TICKS,
   );
 
+  // Tick-based respawn system (AAA quality - deterministic timing)
+  private tickSystem: TickSystemLike | null = null;
+  private tickUnsubscribe: (() => void) | null = null;
+
   private zoneDetection!: ZoneDetectionSystem;
   private groundItemSystem!: GroundItemSystem;
   private deathStateManager!: DeathStateManager;
@@ -144,6 +164,24 @@ export class PlayerDeathSystem extends SystemBase {
 
     this.deathStateManager = new DeathStateManager(this.world);
     await this.deathStateManager.init();
+
+    // Register for tick-based respawn processing (AAA quality - deterministic timing)
+    // TickSystem is only available on server
+    if (this.world.isServer) {
+      const tickSystemRaw = this.world.getSystem("tick");
+      if (
+        tickSystemRaw &&
+        "getCurrentTick" in tickSystemRaw &&
+        "onTick" in tickSystemRaw
+      ) {
+        this.tickSystem = tickSystemRaw as unknown as TickSystemLike;
+        // Priority 3 = AI priority, runs after combat
+        this.tickUnsubscribe = this.tickSystem.onTick(
+          (tickNumber) => this.processPendingRespawns(tickNumber),
+          3,
+        );
+      }
+    }
 
     this.safeAreaHandler = new SafeAreaDeathHandler(
       this.world,
@@ -230,6 +268,12 @@ export class PlayerDeathSystem extends SystemBase {
   }
 
   destroy(): void {
+    // Unsubscribe from tick system
+    if (this.tickUnsubscribe) {
+      this.tickUnsubscribe();
+      this.tickUnsubscribe = null;
+    }
+
     // Clean up modular death system components
     if (this.safeAreaHandler) {
       this.safeAreaHandler.destroy();
@@ -495,6 +539,19 @@ export class PlayerDeathSystem extends SystemBase {
       }
       if (typedPlayerEntity.data) {
         typedPlayerEntity.data.e = "death";
+
+        // AAA QUALITY: Set entity death state (single source of truth)
+        typedPlayerEntity.data.deathState = DeathState.DYING;
+        typedPlayerEntity.data.deathPosition = [
+          deathPosition.x,
+          deathPosition.y,
+          deathPosition.z,
+        ];
+
+        // Calculate respawn tick using tick system
+        const currentTick = this.tickSystem?.getCurrentTick() ?? 0;
+        typedPlayerEntity.data.respawnTick =
+          currentTick + COMBAT_CONSTANTS.DEATH.ANIMATION_TICKS;
       }
 
       if ("markNetworkDirty" in playerEntity) {
@@ -502,25 +559,32 @@ export class PlayerDeathSystem extends SystemBase {
       }
     }
 
-    const DEATH_ANIMATION_DURATION = ticksToMs(
-      COMBAT_CONSTANTS.DEATH.ANIMATION_TICKS,
-    );
-    const respawnTimer = setTimeout(() => {
-      if (playerEntity && "data" in playerEntity) {
-        const entityData = playerEntity.data as {
-          e?: string;
-          visible?: boolean;
-        };
-        entityData.visible = false;
-        if ("markNetworkDirty" in playerEntity) {
-          (playerEntity as { markNetworkDirty: () => void }).markNetworkDirty();
+    // Fallback: Use setTimeout if tick system is not available (e.g., client-side)
+    // This maintains backward compatibility while preferring tick-based timing
+    if (!this.tickSystem) {
+      const DEATH_ANIMATION_DURATION = ticksToMs(
+        COMBAT_CONSTANTS.DEATH.ANIMATION_TICKS,
+      );
+      const respawnTimer = setTimeout(() => {
+        if (playerEntity && "data" in playerEntity) {
+          const entityData = playerEntity.data as {
+            e?: string;
+            visible?: boolean;
+          };
+          entityData.visible = false;
+          if ("markNetworkDirty" in playerEntity) {
+            (
+              playerEntity as { markNetworkDirty: () => void }
+            ).markNetworkDirty();
+          }
         }
-      }
 
-      this.initiateRespawn(playerId);
-    }, DEATH_ANIMATION_DURATION);
+        this.initiateRespawn(playerId);
+      }, DEATH_ANIMATION_DURATION);
 
-    this.respawnTimers.set(playerId, respawnTimer);
+      this.respawnTimers.set(playerId, respawnTimer);
+    }
+    // Note: If tickSystem is available, respawn is handled by processPendingRespawns()
   }
 
   private async createHeadstoneEntity(
@@ -647,13 +711,16 @@ export class PlayerDeathSystem extends SystemBase {
       }
 
       if ("data" in playerEntity) {
-        const entityData = playerEntity.data as {
-          e?: string;
-          visible?: boolean;
-        };
+        const typedPlayerEntity = playerEntity as PlayerEntityLike;
+        const entityData = typedPlayerEntity.data!;
 
         entityData.e = "idle";
         entityData.visible = true;
+
+        // AAA QUALITY: Clear death state (single source of truth)
+        entityData.deathState = DeathState.ALIVE;
+        entityData.deathPosition = undefined;
+        entityData.respawnTick = undefined;
 
         if ("markNetworkDirty" in playerEntity) {
           (playerEntity as { markNetworkDirty: () => void }).markNetworkDirty();
@@ -1042,6 +1109,24 @@ export class PlayerDeathSystem extends SystemBase {
   }
 
   getDeathLocation(playerId: string): DeathLocationData | undefined {
+    // AAA QUALITY: Check entity deathPosition first (single source of truth)
+    const playerEntity = this.world.entities?.get?.(playerId);
+    if (playerEntity && "data" in playerEntity) {
+      const typedEntity = playerEntity as PlayerEntityLike;
+      if (
+        typedEntity.data?.deathState === DeathState.DYING &&
+        typedEntity.data?.deathPosition
+      ) {
+        const [x, y, z] = typedEntity.data.deathPosition;
+        return {
+          playerId,
+          deathPosition: { x, y, z },
+          timestamp: Date.now(), // Not available from entity, use now
+          items: this.deathLocations.get(playerId)?.items || [],
+        };
+      }
+    }
+    // Fallback to deathLocations Map for backward compatibility
     return this.deathLocations.get(playerId);
   }
 
@@ -1050,6 +1135,18 @@ export class PlayerDeathSystem extends SystemBase {
   }
 
   isPlayerDead(playerId: string): boolean {
+    // AAA QUALITY: Check entity deathState first (single source of truth)
+    const playerEntity = this.world.entities?.get?.(playerId);
+    if (playerEntity && "data" in playerEntity) {
+      const typedEntity = playerEntity as PlayerEntityLike;
+      if (typedEntity.data?.deathState) {
+        return (
+          typedEntity.data.deathState === DeathState.DYING ||
+          typedEntity.data.deathState === DeathState.DEAD
+        );
+      }
+    }
+    // Fallback to deathLocations Map for backward compatibility
     return this.deathLocations.has(playerId);
   }
 
@@ -1104,6 +1201,39 @@ export class PlayerDeathSystem extends SystemBase {
   processTick(currentTick: number): void {
     if (this.safeAreaHandler) {
       this.safeAreaHandler.processTick(currentTick);
+    }
+  }
+
+  /**
+   * Tick-based respawn processing (AAA quality - deterministic timing)
+   * Called every tick by TickSystem when registered.
+   * Checks all players in DYING state and respawns them when respawnTick is reached.
+   */
+  private processPendingRespawns(currentTick: number): void {
+    // Iterate over all player entities and check for pending respawns
+    // Use world.entities.players to get the players Map
+    const players = this.world.entities?.players;
+    if (!players) return;
+
+    for (const [playerId, playerEntity] of players) {
+      const typedEntity = playerEntity as PlayerEntityLike;
+      if (!typedEntity.data) continue;
+
+      // Check if player is in DYING state and respawn tick has been reached
+      if (
+        typedEntity.data.deathState === DeathState.DYING &&
+        typedEntity.data.respawnTick !== undefined &&
+        currentTick >= typedEntity.data.respawnTick
+      ) {
+        // Hide player briefly before respawn
+        typedEntity.data.visible = false;
+        if ("markNetworkDirty" in playerEntity) {
+          (playerEntity as { markNetworkDirty: () => void }).markNetworkDirty();
+        }
+
+        // Initiate respawn for this player
+        this.initiateRespawn(playerId);
+      }
     }
   }
 }
