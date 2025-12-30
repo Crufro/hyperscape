@@ -15,7 +15,7 @@
  */
 
 import type { World } from "@hyperscape/shared";
-import { worldToTile, tilesEqual } from "@hyperscape/shared";
+import { worldToTile, tilesEqual, tileToWorld } from "@hyperscape/shared";
 import type { TileMovementManager } from "./tile-movement";
 
 interface FollowState {
@@ -37,6 +37,11 @@ export class FollowManager {
   /**
    * Start following another player
    * Called when player selects "Follow" from context menu
+   *
+   * OSRS-ACCURATE: Path to target's PREVIOUS tile, not current position.
+   * This creates the characteristic 1-tick trailing effect.
+   *
+   * @see https://rune-server.org/threads/help-with-player-dancing-spinning-when-following-each-other.706121/
    */
   startFollowing(followerId: string, targetId: string): void {
     // Can't follow yourself
@@ -58,18 +63,21 @@ export class FollowManager {
       return;
     }
 
-    const targetTile = worldToTile(targetPos.x, targetPos.z);
+    // OSRS-ACCURATE: Get target's PREVIOUS tile (where they were at tick start)
+    const previousTile = this.tileMovementManager.getPreviousTile(targetId);
+    const previousWorld = tileToWorld(previousTile);
 
     this.following.set(followerId, {
       followerId,
       targetId,
-      lastTargetTile: { x: targetTile.x, z: targetTile.z },
+      lastTargetTile: { x: previousTile.x, z: previousTile.z },
     });
 
-    // Immediately start moving toward target (non-combat, meleeRange=0)
+    // Path to PREVIOUS tile, not current position
+    // Use target's Y coordinate for terrain height
     this.tileMovementManager.movePlayerToward(
       followerId,
-      targetPos,
+      { x: previousWorld.x, y: targetPos.y, z: previousWorld.z },
       true, // running
       0, // meleeRange=0 for non-combat following
     );
@@ -100,10 +108,13 @@ export class FollowManager {
   /**
    * Process all following players - called every tick
    *
-   * OSRS behavior:
-   * - Follower walks behind the leader
+   * OSRS-ACCURATE behavior:
+   * - Follower walks to the leader's PREVIOUS tile (1-tick trailing effect)
    * - Re-paths when leader moves to a new tile
    * - Continues indefinitely until cancelled
+   * - Two players following each other creates "dancing" pattern (correct behavior)
+   *
+   * @see https://rune-server.org/threads/help-with-player-dancing-spinning-when-following-each-other.706121/
    */
   processTick(): void {
     for (const [followerId, state] of this.following) {
@@ -130,29 +141,32 @@ export class FollowManager {
 
       const followerPos = followerEntity.position;
       const followerTile = worldToTile(followerPos.x, followerPos.z);
-      const targetTile = worldToTile(targetPos.x, targetPos.z);
 
-      // Check if already adjacent to target (following complete for now)
-      if (tilesEqual(followerTile, targetTile)) {
-        // On same tile - will naturally separate as target moves
-        // Don't re-path, just wait
+      // OSRS-ACCURATE: Get target's PREVIOUS tile (where they were at tick start)
+      const previousTile = this.tileMovementManager.getPreviousTile(
+        state.targetId,
+      );
+
+      // If follower is already at target's previous tile, we're correctly trailing
+      if (tilesEqual(followerTile, previousTile)) {
         continue;
       }
 
-      // Check if target moved to a new tile
+      // Check if target moved to a new tile (previous tile changed)
       if (
         !state.lastTargetTile ||
-        state.lastTargetTile.x !== targetTile.x ||
-        state.lastTargetTile.z !== targetTile.z
+        state.lastTargetTile.x !== previousTile.x ||
+        state.lastTargetTile.z !== previousTile.z
       ) {
-        // Target moved - re-path to follow them
+        // Target moved - re-path to their PREVIOUS tile
+        const previousWorld = tileToWorld(previousTile);
         this.tileMovementManager.movePlayerToward(
           followerId,
-          targetPos,
+          { x: previousWorld.x, y: targetPos.y, z: previousWorld.z },
           true, // running
           0, // meleeRange=0 for non-combat
         );
-        state.lastTargetTile = { x: targetTile.x, z: targetTile.z };
+        state.lastTargetTile = { x: previousTile.x, z: previousTile.z };
       }
     }
   }
@@ -160,6 +174,8 @@ export class FollowManager {
   /**
    * Process following for a specific player
    * Called by GameTickProcessor during player phase
+   *
+   * OSRS-ACCURATE: Path to target's PREVIOUS tile (1-tick trailing effect)
    */
   processPlayerTick(playerId: string): void {
     const state = this.following.get(playerId);
@@ -187,22 +203,32 @@ export class FollowManager {
 
     const followerPos = followerEntity.position;
     const followerTile = worldToTile(followerPos.x, followerPos.z);
-    const targetTile = worldToTile(targetPos.x, targetPos.z);
 
-    // On same tile - wait for target to move
-    if (tilesEqual(followerTile, targetTile)) {
+    // OSRS-ACCURATE: Get target's PREVIOUS tile
+    const previousTile = this.tileMovementManager.getPreviousTile(
+      state.targetId,
+    );
+
+    // Already at target's previous tile - we're correctly trailing
+    if (tilesEqual(followerTile, previousTile)) {
       return;
     }
 
-    // Check if target moved
+    // Check if target moved (previous tile changed)
     if (
       !state.lastTargetTile ||
-      state.lastTargetTile.x !== targetTile.x ||
-      state.lastTargetTile.z !== targetTile.z
+      state.lastTargetTile.x !== previousTile.x ||
+      state.lastTargetTile.z !== previousTile.z
     ) {
-      // Re-path to follow
-      this.tileMovementManager.movePlayerToward(playerId, targetPos, true, 0);
-      state.lastTargetTile = { x: targetTile.x, z: targetTile.z };
+      // Re-path to target's PREVIOUS tile
+      const previousWorld = tileToWorld(previousTile);
+      this.tileMovementManager.movePlayerToward(
+        playerId,
+        { x: previousWorld.x, y: targetPos.y, z: previousWorld.z },
+        true,
+        0,
+      );
+      state.lastTargetTile = { x: previousTile.x, z: previousTile.z };
     }
   }
 

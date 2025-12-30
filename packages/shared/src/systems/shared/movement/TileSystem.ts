@@ -48,6 +48,16 @@ export interface TileMovementState {
   pathIndex: number; // Current position in path
   isRunning: boolean; // Walk (1 tile/tick) vs Run (2 tiles/tick)
   moveSeq: number; // Movement sequence number (incremented on each new path)
+  /**
+   * Tile player was on at START of current tick (captured before movement)
+   *
+   * OSRS-ACCURATE: Used by FollowManager for follow mechanic.
+   * Following a player means walking to their PREVIOUS tile,
+   * creating the characteristic 1-tick trailing effect.
+   *
+   * @see https://rune-server.org/threads/help-with-player-dancing-spinning-when-following-each-other.706121/
+   */
+  previousTile: TileCoord | null;
 }
 
 /**
@@ -656,6 +666,7 @@ export function createTileMovementState(
     pathIndex: 0,
     isRunning: false,
     moveSeq: 0,
+    previousTile: null, // Set on first tick
   };
 }
 
