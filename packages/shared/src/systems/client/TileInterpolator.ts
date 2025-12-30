@@ -1052,7 +1052,13 @@ export class TileInterpolator {
 
     // Only apply combat rotation when NOT moving
     // When moving, movement direction rotation takes priority (OSRS-accurate)
-    if (state.isMoving || state.fullPath.length > 0) {
+    // CRITICAL: Must match update()'s "finished moving" condition:
+    //   fullPath.length === 0 || targetTileIndex >= fullPath.length
+    // The old check `fullPath.length > 0` was wrong because path isn't cleared after completion
+    const isActivelyMoving =
+      state.fullPath.length > 0 &&
+      state.targetTileIndex < state.fullPath.length;
+    if (isActivelyMoving) {
       return false; // Moving - ignore combat rotation, movement direction wins
     }
 
