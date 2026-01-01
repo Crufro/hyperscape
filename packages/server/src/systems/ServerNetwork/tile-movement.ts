@@ -51,6 +51,16 @@ export class TileMovementManager {
   private _up = new THREE.Vector3(0, 1, 0);
   private _tempQuat = new THREE.Quaternion();
 
+  /**
+   * OSRS-ACCURATE: Tick-start positions for all players
+   * Captured at the VERY START of onTick(), BEFORE any movement processing.
+   * Used by FollowManager to create the 1-tick delay effect.
+   *
+   * Key insight from OSRS: "The important part is to set the previousTile
+   * at the start (or the end) of the tick not when they actually move"
+   */
+  private tickStartTiles: Map<string, TileCoord> = new Map();
+
   // Security: Input validation and anti-cheat monitoring
   private readonly inputValidator = new MovementInputValidator();
   private readonly antiCheat = new MovementAntiCheat();
@@ -303,6 +313,14 @@ export class TileMovementManager {
    * Called every server tick (600ms) - advance all players along their paths
    */
   onTick(tickNumber: number): void {
+    // OSRS-ACCURATE: Capture tick-start positions for ALL players FIRST
+    // This happens BEFORE any movement, so FollowManager can see where
+    // players were at the START of this tick (creating 1-tick delay effect)
+    this.tickStartTiles.clear();
+    for (const [playerId, state] of this.playerStates) {
+      this.tickStartTiles.set(playerId, { ...state.currentTile });
+    }
+
     // Initialize previousTile for newly spawned players only
     // Movement processing will update it to "last stepped off" tile
     for (const [_playerId, state] of this.playerStates) {
@@ -666,6 +684,24 @@ export class TileMovementManager {
 
     // Ultimate fallback (should never happen)
     return { x: 0, z: 0 };
+  }
+
+  /**
+   * Get the tick-start tile for a player
+   *
+   * OSRS-ACCURATE: Returns where the player was at the VERY START of the
+   * current tick, BEFORE any movement was processed. This is different from
+   * previousTile (which is the last tile stepped off during movement).
+   *
+   * Used by FollowManager to create the authentic 1-tick delay effect:
+   * - Tick N: Target is at tile A (tick-start), then moves to tile B
+   * - Tick N: Follower sees target's tick-start position (A)
+   * - Tick N+1: Follower moves toward A, while target is now at B
+   *
+   * This creates the characteristic "always one step behind" feel.
+   */
+  getTickStartTile(playerId: string): TileCoord | null {
+    return this.tickStartTiles.get(playerId) ?? null;
   }
 
   /**

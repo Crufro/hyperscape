@@ -350,8 +350,9 @@ export class ServerNetwork extends System implements NetworkWithSocket {
     );
 
     // Register follow processing (same priority as movement)
-    this.tickSystem.onTick(() => {
-      this.followManager.processTick();
+    // Pass tick number for OSRS-accurate 1-tick delay tracking
+    this.tickSystem.onTick((tickNumber) => {
+      this.followManager.processTick(tickNumber);
     }, TickPriority.MOVEMENT);
 
     // Register combat system to process on each tick (after movement, before AI)

@@ -108,7 +108,8 @@ export function handleFollowPlayer(
   }
 
   // Verify target player exists
-  const targetPlayer = world.entities?.players?.get(targetPlayerId);
+  // Use world.entities.get() for consistency with FollowManager and other systems
+  const targetPlayer = world.entities.get(targetPlayerId);
   if (!targetPlayer) {
     console.warn(
       `[Player] Follow request for non-existent player ${targetPlayerId} from ${followerId}`,
