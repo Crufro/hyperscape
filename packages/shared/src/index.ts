@@ -792,6 +792,9 @@ export type {
   SessionCloseReason,
 } from "./types/interaction";
 
+// Context menu styled label type (for combat level colors)
+export type { LabelSegment } from "./systems/client/interaction/types";
+
 // Bank equipment type guards, types, and constants
 export {
   isValidPlayerEquipmentData,

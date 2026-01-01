@@ -26,6 +26,7 @@ export type {
   RaycastTarget,
   QueuedAction,
   ContextMenuAction,
+  LabelSegment,
   ClickType,
   InteractionInputEvent,
   QueueActionParams,

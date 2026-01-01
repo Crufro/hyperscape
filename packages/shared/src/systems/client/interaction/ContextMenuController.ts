@@ -55,6 +55,7 @@ export class ContextMenuController {
           id: action.id,
           label: action.label,
           icon: action.icon,
+          styledLabel: action.styledLabel,
           enabled: action.enabled,
         })),
       },
