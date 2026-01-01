@@ -186,6 +186,16 @@ export class ClientNetwork extends SystemBase {
   > = {};
   // Cache latest equipment per player so UI can hydrate even if it mounted late
   lastEquipmentByPlayerId: Record<string, any> = {};
+  // Cache latest attack style per player so UI can hydrate even if it mounted late
+  // (mirrors skills caching pattern - prevents race condition on page refresh)
+  lastAttackStyleByPlayerId: Record<
+    string,
+    {
+      currentStyle: { id: string };
+      availableStyles: unknown;
+      canChange: boolean;
+    }
+  > = {};
 
   // Entity interpolation for smooth remote entity movement
   private interpolationStates: Map<string, InterpolationState> = new Map();
@@ -2112,12 +2122,19 @@ export class ClientNetwork extends SystemBase {
     canChange: boolean;
     cooldownRemaining?: number;
   }) => {
-    // Only handle for local player
-    const localPlayer = this.world.getPlayer();
-    if (localPlayer && localPlayer.id === data.playerId) {
-      // Forward to local event system so UI can update
-      this.world.emit(EventType.UI_ATTACK_STYLE_CHANGED, data);
-    }
+    // Cache for late-mounting UI (same pattern as skills)
+    // This ensures CombatPanel gets correct value even if it mounts after packet arrives
+    this.lastAttackStyleByPlayerId[data.playerId] = {
+      currentStyle: data.currentStyle as { id: string },
+      availableStyles: data.availableStyles,
+      canChange: data.canChange,
+    };
+
+    // Forward to local event system so UI can update
+    // CRITICAL: Emit unconditionally - the packet is already filtered server-side
+    // for this player, and waiting for localPlayer causes race conditions where
+    // the packet arrives before the player entity is created (style not synced)
+    this.world.emit(EventType.UI_ATTACK_STYLE_CHANGED, data);
   };
 
   onAttackStyleUpdate = (data: {
@@ -2126,12 +2143,16 @@ export class ClientNetwork extends SystemBase {
     availableStyles: unknown;
     canChange: boolean;
   }) => {
-    // Only handle for local player
-    const localPlayer = this.world.getPlayer();
-    if (localPlayer && localPlayer.id === data.playerId) {
-      // Forward to local event system so UI can update
-      this.world.emit(EventType.UI_ATTACK_STYLE_UPDATE, data);
-    }
+    // Cache for late-mounting UI (same pattern as skills)
+    this.lastAttackStyleByPlayerId[data.playerId] = {
+      currentStyle: data.currentStyle as { id: string },
+      availableStyles: data.availableStyles,
+      canChange: data.canChange,
+    };
+
+    // Forward to local event system so UI can update
+    // CRITICAL: Emit unconditionally - same reason as onAttackStyleChanged
+    this.world.emit(EventType.UI_ATTACK_STYLE_UPDATE, data);
   };
 
   onAutoRetaliateChanged = (data: { enabled: boolean }) => {

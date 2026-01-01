@@ -266,6 +266,16 @@ export class PlayerSystem extends SystemBase {
         },
       ),
     );
+    // CLIENT-SIDE: Sync internal state when receiving authoritative style from server
+    // This fixes the bug where client initializes with "accurate" but server has saved style
+    this.subscribe(EventType.UI_ATTACK_STYLE_CHANGED, (data) =>
+      this.handleStyleSyncFromServer(
+        data as {
+          playerId: string;
+          currentStyle: { id: string };
+        },
+      ),
+    );
 
     // Auto-retaliate events
     this.subscribe(EventType.UI_AUTO_RETALIATE_GET, (data) =>
@@ -1599,6 +1609,42 @@ export class PlayerSystem extends SystemBase {
       this.databaseSystem.savePlayer(databaseId, {
         attackStyle: newStyle,
       });
+    }
+  }
+
+  /**
+   * CLIENT-SIDE: Sync internal state when receiving authoritative style from server.
+   *
+   * This fixes a bug where the client initializes playerAttackStyles with "accurate"
+   * (because there's no database on client), but the server has the correct saved style.
+   * When the server sends the correct style via attackStyleChanged packet, we need to
+   * update the client's internal Map so that getAttackStyleInfo() returns the correct value.
+   */
+  private handleStyleSyncFromServer(data: {
+    playerId: string;
+    currentStyle: { id: string };
+  }): void {
+    // Only sync on client - server is authoritative and doesn't need this
+    if (this.world.isServer) return;
+
+    const { playerId, currentStyle } = data;
+    if (!currentStyle?.id) return;
+
+    const playerState = this.playerAttackStyles.get(playerId);
+    if (!playerState) {
+      // Player not yet initialized, create state with server's value
+      this.playerAttackStyles.set(playerId, {
+        playerId,
+        selectedStyle: currentStyle.id,
+        lastStyleChange: 0,
+        combatStyleHistory: [],
+      });
+      return;
+    }
+
+    // Update existing state with server's authoritative value
+    if (playerState.selectedStyle !== currentStyle.id) {
+      playerState.selectedStyle = currentStyle.id;
     }
   }
 
