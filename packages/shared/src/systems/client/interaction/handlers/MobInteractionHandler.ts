@@ -62,14 +62,14 @@ export class MobInteractionHandler extends BaseInteractionHandler {
     const playerLevel = this.getLocalPlayerCombatLevel();
     const levelColor = getCombatLevelColor(mobLevel, playerLevel);
 
-    // Attack action with colored level
+    // Attack action with colored level (format: "Level: X")
     actions.push({
       id: "attack",
-      label: `Attack ${target.name} (Lv${mobLevel})`,
+      label: `Attack ${target.name} (Level: ${mobLevel})`,
       styledLabel: [
         { text: "Attack " },
         { text: target.name, color: "#ffff00" }, // Yellow for mob names (OSRS style)
-        { text: " (Lv" },
+        { text: " (Level: " },
         { text: `${mobLevel}`, color: levelColor },
         { text: ")" },
       ],

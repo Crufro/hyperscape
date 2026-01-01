@@ -4,7 +4,7 @@
  * Handles interactions with other players (OSRS-accurate).
  *
  * Menu order (matches OSRS):
- * 1. Attack PlayerName (level-XX) - ONLY APPEARS in PvP zones (not shown elsewhere)
+ * 1. Attack PlayerName (Level: XX) - ONLY APPEARS in PvP zones (not shown elsewhere)
  * 2. Trade with PlayerName - disabled until trading implemented
  * 3. Follow PlayerName
  * 4. Report PlayerName
@@ -53,11 +53,11 @@ export class PlayerInteractionHandler extends BaseInteractionHandler {
     if (inPvPZone) {
       actions.push({
         id: "attack",
-        label: `Attack ${target.name} (level-${targetLevel})`,
+        label: `Attack ${target.name} (Level: ${targetLevel})`,
         styledLabel: [
           { text: "Attack " },
           { text: target.name, color: "#ffffff" },
-          { text: " (level-" },
+          { text: " (Level: " },
           { text: `${targetLevel}`, color: levelColor },
           { text: ")" },
         ],
@@ -70,11 +70,11 @@ export class PlayerInteractionHandler extends BaseInteractionHandler {
     // 2. Trade with - Priority 1 (includes level for consistency)
     actions.push({
       id: "trade",
-      label: `Trade with ${target.name} (level-${targetLevel})`,
+      label: `Trade with ${target.name} (Level: ${targetLevel})`,
       styledLabel: [
         { text: "Trade with " },
         { text: target.name, color: "#ffffff" },
-        { text: " (level-" },
+        { text: " (Level: " },
         { text: `${targetLevel}`, color: levelColor },
         { text: ")" },
       ],
@@ -86,11 +86,11 @@ export class PlayerInteractionHandler extends BaseInteractionHandler {
     // 3. Follow - Priority 2 (includes level for consistency)
     actions.push({
       id: "follow",
-      label: `Follow ${target.name} (level-${targetLevel})`,
+      label: `Follow ${target.name} (Level: ${targetLevel})`,
       styledLabel: [
         { text: "Follow " },
         { text: target.name, color: "#ffffff" },
-        { text: " (level-" },
+        { text: " (Level: " },
         { text: `${targetLevel}`, color: levelColor },
         { text: ")" },
       ],
