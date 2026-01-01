@@ -65,6 +65,9 @@ export class FollowManager {
   startFollowing(followerId: string, targetId: string): void {
     // Can't follow yourself
     if (followerId === targetId) {
+      console.debug(
+        `[FollowManager] Player ${followerId} attempted self-follow`,
+      );
       return;
     }
 
@@ -74,11 +77,17 @@ export class FollowManager {
     // Verify target exists
     const targetEntity = this.world.entities.get(targetId);
     if (!targetEntity) {
+      console.warn(
+        `[FollowManager] Target ${targetId} not found for follower ${followerId}`,
+      );
       return;
     }
 
     const targetPos = targetEntity.position;
     if (!targetPos) {
+      console.warn(
+        `[FollowManager] Target ${targetId} has no position for follower ${followerId}`,
+      );
       return;
     }
 
@@ -91,6 +100,10 @@ export class FollowManager {
       lastTargetTile: null, // null triggers path calculation in processTick
       startTick: this.currentTickNumber,
     });
+
+    console.debug(
+      `[FollowManager] ${followerId} now following ${targetId} (tick ${this.currentTickNumber})`,
+    );
 
     // NO immediate movePlayerToward() call here!
     // Movement starts on the next tick via processTick()
@@ -213,13 +226,23 @@ export class FollowManager {
    */
   onPlayerDisconnect(playerId: string): void {
     // Stop this player from following anyone
+    const wasFollowing = this.following.has(playerId);
     this.following.delete(playerId);
 
     // Stop anyone following this player
+    let followersCleared = 0;
     for (const [followerId, state] of this.following) {
       if (state.targetId === playerId) {
         this.following.delete(followerId);
+        followersCleared++;
       }
+    }
+
+    if (wasFollowing || followersCleared > 0) {
+      console.debug(
+        `[FollowManager] Player ${playerId} disconnected: ` +
+          `wasFollowing=${wasFollowing}, followersCleared=${followersCleared}`,
+      );
     }
   }
 
