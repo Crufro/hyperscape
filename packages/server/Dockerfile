@@ -4,7 +4,7 @@
 # ============================================================================
 # Stage 1: Builder - Install dependencies and build packages
 # ============================================================================
-FROM oven/bun:1.1.38-alpine AS builder
+FROM oven/bun:1.3.5-alpine AS builder
 
 WORKDIR /app
 
@@ -39,7 +39,7 @@ RUN bun run build
 # ============================================================================
 # Stage 2: Runtime - Minimal production image
 # ============================================================================
-FROM oven/bun:1.1.38-alpine AS runtime
+FROM oven/bun:1.3.5-alpine AS runtime
 
 WORKDIR /app
 
